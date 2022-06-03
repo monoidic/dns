@@ -335,6 +335,13 @@ func BenchmarkPrevLabelMixed(b *testing.B) {
 	}
 }
 
+func BenchmarkCompare(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		Compare("\\097.", "A.")
+	}
+}
+
 func TestCompare(t *testing.T) {
 	domains := []string{ // based on an exanple from RFC 4034
 		"example.",

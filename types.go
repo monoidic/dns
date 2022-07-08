@@ -1510,24 +1510,6 @@ func euiToString(eui uint64, bits int) (hex string) {
 	return
 }
 
-//// copyIP returns a copy of ip.
-//func copyIP(ip net.IP) net.IP {
-//	p := make(net.IP, len(ip))
-//	copy(p, ip)
-//	return p
-//}
-//
-//// copyNet returns a copy of a subnet.
-//func copyNet(n net.IPNet) net.IPNet {
-//	m := make(net.IPMask, len(n.Mask))
-//	copy(m, n.Mask)
-//
-//	return net.IPNet{
-//		IP:   copyIP(n.IP),
-//		Mask: m,
-//	}
-//}
-
 // SplitN splits a string into N sized string chunks.
 // This might become an exported function once.
 func splitN(s string, n int) []string {

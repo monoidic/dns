@@ -2024,16 +2024,15 @@ func TestParseZONEMD(t *testing.T) {
 	}
 }
 
-//func TestParseAAAA(t *testing.T) {
-//	inS := "mapped.example.com. 0 IN AAAA ::ffff:255.255.255.255"
-//	rr := testRR(inS)
-//
-//	rrS := rr.String()
-//	fmt.Println(rrS)
-//
-//	newRR := testRR(rrS)
-//
-//	if newRRS := newRR.String(); newRRS != rrS {
-//		t.Errorf("input: %s, intermediate: %s, out: %s\n", inS, rrS, newRRS)
-//	}
-//}
+func TestParseAAAA(t *testing.T) {
+	inS := "mapped.example.com. 0 IN AAAA ::ffff:255.255.255.255"
+	rr := testRR(inS)
+
+	rrS := rr.String()
+
+	newRR := testRR(rrS)
+
+	if newRRS := newRR.String(); newRRS != rrS {
+		t.Errorf("input: %s, intermediate: %s, out: %s\n", inS, rrS, newRRS)
+	}
+}

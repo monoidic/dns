@@ -289,10 +289,6 @@ func main() {
 				fields = append(fields, f)
 				continue
 			}
-			if st.Field(i).Type().String() == "net.IP" {
-				fields = append(fields, "copyIP(rr."+f+")")
-				continue
-			}
 			fields = append(fields, "rr."+f)
 		}
 	WriteCopy:

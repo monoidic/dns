@@ -20,12 +20,12 @@ func TestGenerateRangeGuard(t *testing.T) {
 		path := filepath.Join(tmpdir, fmt.Sprintf("%04d.conf", i))
 		data := []byte(fmt.Sprintf("dhcp-%04d A 10.0.0.%d", i, i))
 
-		if err := ioutil.WriteFile(path, data, 0644); err != nil {
+		if err := ioutil.WriteFile(path, data, 0o644); err != nil {
 			t.Fatalf("could not create tmpfile for test: %v", err)
 		}
 	}
 
-	var tests = [...]struct {
+	tests := [...]struct {
 		zone string
 		fail bool
 	}{

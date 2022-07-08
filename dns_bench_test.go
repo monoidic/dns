@@ -2,7 +2,7 @@ package dns
 
 import (
 	"fmt"
-	"net"
+	"net/netip"
 	"testing"
 )
 
@@ -185,7 +185,7 @@ func BenchmarkCopy(b *testing.B) {
 }
 
 func BenchmarkPackA(b *testing.B) {
-	a := &A{Hdr: RR_Header{Name: ".", Rrtype: TypeA, Class: ClassANY}, A: net.IPv4(127, 0, 0, 1)}
+	a := &A{Hdr: RR_Header{Name: ".", Rrtype: TypeA, Class: ClassANY}, A: netip.AddrFrom4([4]byte{127, 0, 0, 1})}
 
 	buf := make([]byte, Len(a))
 	b.ReportAllocs()
@@ -196,7 +196,7 @@ func BenchmarkPackA(b *testing.B) {
 }
 
 func BenchmarkUnpackA(b *testing.B) {
-	a := &A{Hdr: RR_Header{Name: ".", Rrtype: TypeA, Class: ClassANY}, A: net.IPv4(127, 0, 0, 1)}
+	a := &A{Hdr: RR_Header{Name: ".", Rrtype: TypeA, Class: ClassANY}, A: netip.AddrFrom4([4]byte{127, 0, 0, 1})}
 
 	buf := make([]byte, Len(a))
 	PackRR(a, buf, 0, nil, false)

@@ -201,12 +201,18 @@ func TestTsigGenerate(t *testing.T) {
 		otherData   string // other data specified in the TSIG (arbitrary choice)
 		expectedMAC string // pre-computed expected (correct) MAC in hex form
 	}{
-		{"with request MAC", "3684c225", "",
-			"c110e3f62694755c10761dc8717462431ee34340b7c9d1eee09449150757c5b1"},
-		{"no request MAC", "", "",
-			"385449a425c6d52b9bf2c65c0726eefa0ad8084cdaf488f24547e686605b9610"},
-		{"with other data", "3684c225", "666f6f",
-			"15b91571ca80b3b410a77e2b44f8cc4f35ace22b26020138439dd94803e23b5d"},
+		{
+			"with request MAC", "3684c225", "",
+			"c110e3f62694755c10761dc8717462431ee34340b7c9d1eee09449150757c5b1",
+		},
+		{
+			"no request MAC", "", "",
+			"385449a425c6d52b9bf2c65c0726eefa0ad8084cdaf488f24547e686605b9610",
+		},
+		{
+			"with other data", "3684c225", "666f6f",
+			"15b91571ca80b3b410a77e2b44f8cc4f35ace22b26020138439dd94803e23b5d",
+		},
 	}
 	for _, tc := range tests {
 		tc := tc
@@ -256,10 +262,12 @@ func TestTSIGHMAC224And384(t *testing.T) {
 		secret      string // (arbitrarily chosen) secret suitable for the algorithm in base64 format
 		expectedMAC string // pre-computed expected (correct) MAC in hex form
 	}{
-		{HmacSHA224, "hVEkQuAqnTmBuRrT9KF1Udr91gOMGWPw9LaTtw==",
+		{
+			HmacSHA224, "hVEkQuAqnTmBuRrT9KF1Udr91gOMGWPw9LaTtw==",
 			"d6daf9ea189e48bc38f9aed63d6cc4140cdfa38a7a333ee2eefdbd31",
 		},
-		{HmacSHA384, "Qjer2TL2lAdpq9w6Gjs98/ClCQx/L3vtgVHCmrZ8l/oKEPjqUUMFO18gMCRwd5H4",
+		{
+			HmacSHA384, "Qjer2TL2lAdpq9w6Gjs98/ClCQx/L3vtgVHCmrZ8l/oKEPjqUUMFO18gMCRwd5H4",
 			"89a48936d29187870c325cbdba5ad71609bd038d0459d6010c844d659c570e881d3650e4fe7310be53ebe5178d0d1001",
 		},
 	}

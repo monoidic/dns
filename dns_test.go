@@ -3,7 +3,7 @@ package dns
 import (
 	"bytes"
 	"encoding/hex"
-	"net"
+	"net/netip"
 	"testing"
 )
 
@@ -24,9 +24,11 @@ func TestPackUnpack(t *testing.T) {
 		t.Error("failed to unpack msg with DNSKEY")
 	}
 
-	sig := &RRSIG{TypeCovered: TypeDNSKEY, Algorithm: RSASHA1, Labels: 2,
+	sig := &RRSIG{
+		TypeCovered: TypeDNSKEY, Algorithm: RSASHA1, Labels: 2,
 		OrigTtl: 3600, Expiration: 4000, Inception: 4000, KeyTag: 34641, SignerName: "miek.nl.",
-		Signature: "AwEAAaHIwpx3w4VHKi6i1LHnTaWeHCL154Jug0Rtc9ji5qwPXpBo6A5sRv7cSsPQKPIwxLpyCrbJ4mr2L0EPOdvP6z6YfljK2ZmTbogU9aSU2fiq/4wjxbdkLyoDVgtO+JsxNN4bjr4WcWhsmk1Hg93FV9ZpkWb0Tbad8DFqNDzr//kZ"}
+		Signature: "AwEAAaHIwpx3w4VHKi6i1LHnTaWeHCL154Jug0Rtc9ji5qwPXpBo6A5sRv7cSsPQKPIwxLpyCrbJ4mr2L0EPOdvP6z6YfljK2ZmTbogU9aSU2fiq/4wjxbdkLyoDVgtO+JsxNN4bjr4WcWhsmk1Hg93FV9ZpkWb0Tbad8DFqNDzr//kZ",
+	}
 	sig.Hdr = RR_Header{Name: "miek.nl.", Rrtype: TypeRRSIG, Class: ClassINET, Ttl: 3600}
 
 	out.Answer[0] = sig
@@ -47,7 +49,7 @@ func TestPackUnpack2(t *testing.T) {
 	dom := "miek.nl."
 	rr := new(A)
 	rr.Hdr = RR_Header{Name: dom, Rrtype: TypeA, Class: ClassINET, Ttl: 0}
-	rr.A = net.IPv4(127, 0, 0, 1)
+	rr.A = netip.AddrFrom4([4]byte{127, 0, 0, 1})
 
 	x := new(TXT)
 	x.Hdr = RR_Header{Name: dom, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}
@@ -69,7 +71,7 @@ func TestPackUnpack3(t *testing.T) {
 	dom := "miek.nl."
 	rr := new(A)
 	rr.Hdr = RR_Header{Name: dom, Rrtype: TypeA, Class: ClassINET, Ttl: 0}
-	rr.A = net.IPv4(127, 0, 0, 1)
+	rr.A = netip.AddrFrom4([4]byte{127, 0, 0, 1})
 
 	x1 := new(TXT)
 	x1.Hdr = RR_Header{Name: dom, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}
@@ -239,7 +241,7 @@ func TestMsgCopy(t *testing.T) {
 }
 
 func TestMsgPackBuffer(t *testing.T) {
-	var testMessages = []string{
+	testMessages := []string{
 		// news.ycombinator.com.in.escapemg.com.	IN	A, response
 		"586285830001000000010000046e6577730b79636f6d62696e61746f7203636f6d02696e086573636170656d6703636f6d0000010001c0210006000100000e10002c036e7332c02103646e730b67726f6f7665736861726bc02d77ed50e600002a3000000e1000093a8000000e10",
 

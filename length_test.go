@@ -3,7 +3,7 @@ package dns
 import (
 	"encoding/hex"
 	"fmt"
-	"net"
+	"net/netip"
 	"strings"
 	"testing"
 )
@@ -35,7 +35,8 @@ func TestMsgCompressLength(t *testing.T) {
 	rrMx := testRR(name1 + " 3600 IN MX 10 " + name1)
 	tests := []*Msg{
 		makeMsg(name1, []RR{rrA}, nil, nil),
-		makeMsg(name1, []RR{rrMx, rrMx}, nil, nil)}
+		makeMsg(name1, []RR{rrMx, rrMx}, nil, nil),
+	}
 
 	for _, msg := range tests {
 		predicted := msg.Len()
@@ -66,7 +67,8 @@ func TestMsgLength(t *testing.T) {
 	rrMx := testRR(name1 + " 3600 IN MX 10 " + name1)
 	tests := []*Msg{
 		makeMsg(name1, []RR{rrA}, nil, nil),
-		makeMsg(name1, []RR{rrMx, rrMx}, nil, nil)}
+		makeMsg(name1, []RR{rrMx, rrMx}, nil, nil),
+	}
 
 	for _, msg := range tests {
 		predicted := msg.Len()
@@ -169,7 +171,7 @@ func TestCompressionLenSearch(t *testing.T) {
 
 func TestMsgLength2(t *testing.T) {
 	// Serialized replies
-	var testMessages = []string{
+	testMessages := []string{
 		// google.com. IN A?
 		"064e81800001000b0004000506676f6f676c6503636f6d0000010001c00c00010001000000050004adc22986c00c00010001000000050004adc22987c00c00010001000000050004adc22988c00c00010001000000050004adc22989c00c00010001000000050004adc2298ec00c00010001000000050004adc22980c00c00010001000000050004adc22981c00c00010001000000050004adc22982c00c00010001000000050004adc22983c00c00010001000000050004adc22984c00c00010001000000050004adc22985c00c00020001000000050006036e7331c00cc00c00020001000000050006036e7332c00cc00c00020001000000050006036e7333c00cc00c00020001000000050006036e7334c00cc0d800010001000000050004d8ef200ac0ea00010001000000050004d8ef220ac0fc00010001000000050004d8ef240ac10e00010001000000050004d8ef260a0000290500000000050000",
 		// amazon.com. IN A? (reply has no EDNS0 record)
@@ -209,14 +211,16 @@ func TestMsgLength2(t *testing.T) {
 
 func TestMsgLengthCompressionMalformed(t *testing.T) {
 	// SOA with empty hostmaster, which is illegal
-	soa := &SOA{Hdr: RR_Header{Name: ".", Rrtype: TypeSOA, Class: ClassINET, Ttl: 12345},
+	soa := &SOA{
+		Hdr:     RR_Header{Name: ".", Rrtype: TypeSOA, Class: ClassINET, Ttl: 12345},
 		Ns:      ".",
 		Mbox:    "",
 		Serial:  0,
 		Refresh: 28800,
 		Retry:   7200,
 		Expire:  604800,
-		Minttl:  60}
+		Minttl:  60,
+	}
 	m := new(Msg)
 	m.Compress = true
 	m.Ns = []RR{soa}
@@ -228,7 +232,7 @@ func TestMsgCompressLength2(t *testing.T) {
 	msg.Compress = true
 	msg.SetQuestion(Fqdn("bliep."), TypeANY)
 	msg.Answer = append(msg.Answer, &SRV{Hdr: RR_Header{Name: "blaat.", Rrtype: 0x21, Class: 0x1, Ttl: 0x3c}, Port: 0x4c57, Target: "foo.bar."})
-	msg.Extra = append(msg.Extra, &A{Hdr: RR_Header{Name: "foo.bar.", Rrtype: 0x1, Class: 0x1, Ttl: 0x3c}, A: net.IP{0xac, 0x11, 0x0, 0x3}})
+	msg.Extra = append(msg.Extra, &A{Hdr: RR_Header{Name: "foo.bar.", Rrtype: 0x1, Class: 0x1, Ttl: 0x3c}, A: netip.AddrFrom4([4]byte{0xac, 0x11, 0x0, 0x3})})
 	predicted := msg.Len()
 	buf, err := msg.Pack()
 	if err != nil {
@@ -313,8 +317,8 @@ func TestCompareCompressionMapsForANY(t *testing.T) {
 	// Be sure to have more than 14bits
 	for i := 0; i < 2000; i++ {
 		target := fmt.Sprintf("host.app-%d.x%d.test.acme.", i%250, i)
-		msg.Answer = append(msg.Answer, &AAAA{Hdr: RR_Header{Name: target, Rrtype: TypeAAAA, Class: ClassINET, Ttl: 0x3c}, AAAA: net.IP{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, byte(i / 255), byte(i % 255)}})
-		msg.Answer = append(msg.Answer, &A{Hdr: RR_Header{Name: target, Rrtype: TypeA, Class: ClassINET, Ttl: 0x3c}, A: net.IP{127, 0, byte(i / 255), byte(i % 255)}})
+		msg.Answer = append(msg.Answer, &AAAA{Hdr: RR_Header{Name: target, Rrtype: TypeAAAA, Class: ClassINET, Ttl: 0x3c}, AAAA: netip.AddrFrom16([16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, byte(i / 255), byte(i % 255)})})
+		msg.Answer = append(msg.Answer, &A{Hdr: RR_Header{Name: target, Rrtype: TypeA, Class: ClassINET, Ttl: 0x3c}, A: netip.AddrFrom4([4]byte{127, 0, byte(i / 255), byte(i % 255)})})
 		if msg.Len() > 16384 {
 			break
 		}
@@ -347,7 +351,7 @@ func TestCompareCompressionMapsForSRV(t *testing.T) {
 	for i := 0; i < 2000; i++ {
 		target := fmt.Sprintf("host.app-%d.x%d.test.acme.", i%250, i)
 		msg.Answer = append(msg.Answer, &SRV{Hdr: RR_Header{Name: "redis.service.consul.", Class: ClassINET, Rrtype: TypeSRV, Ttl: 0x3c}, Port: 0x4c57, Target: target})
-		msg.Extra = append(msg.Extra, &A{Hdr: RR_Header{Name: target, Rrtype: TypeA, Class: ClassINET, Ttl: 0x3c}, A: net.IP{127, 0, byte(i / 255), byte(i % 255)}})
+		msg.Extra = append(msg.Extra, &A{Hdr: RR_Header{Name: target, Rrtype: TypeA, Class: ClassINET, Ttl: 0x3c}, A: netip.AddrFrom4([4]byte{127, 0, byte(i / 255), byte(i % 255)})})
 		if msg.Len() > 16384 {
 			break
 		}

@@ -6,7 +6,7 @@ import (
 	"log"
 	"net"
 
-	"github.com/miekg/dns"
+	"github.com/monoidic/dns"
 )
 
 // Retrieve the MX records for miek.nl.
@@ -122,7 +122,7 @@ func (rd *APAIR) Len() int {
 func ExamplePrivateHandle() {
 	dns.PrivateHandle("APAIR", TypeAPAIR, NewAPAIR)
 	defer dns.PrivateHandleRemove(TypeAPAIR)
-	var oldId = dns.Id
+	oldId := dns.Id
 	dns.Id = func() uint16 { return 3 }
 	defer func() { dns.Id = oldId }()
 

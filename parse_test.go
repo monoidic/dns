@@ -60,7 +60,8 @@ func TestTooLongDomainName(t *testing.T) {
 }
 
 func TestDomainName(t *testing.T) {
-	tests := []string{"r\\.gieben.miek.nl.", "www\\.www.miek.nl.",
+	tests := []string{
+		"r\\.gieben.miek.nl.", "www\\.www.miek.nl.",
 		"www.*.miek.nl.", "www.*.miek.nl.",
 	}
 	dbuff := make([]byte, 40)
@@ -597,7 +598,8 @@ func TestBrace(t *testing.T) {
 }
 
 func TestParseFailure(t *testing.T) {
-	tests := []string{"miek.nl. IN A 327.0.0.1",
+	tests := []string{
+		"miek.nl. IN A 327.0.0.1",
 		"miek.nl. IN AAAA ::x",
 		"miek.nl. IN MX a0 miek.nl.",
 		"miek.nl aap IN MX mx.miek.nl.",
@@ -659,7 +661,7 @@ example.com.   DNAME 10 ; TTL=314 after second $TTL
 }
 
 func TestRelativeNameErrors(t *testing.T) {
-	var badZones = []struct {
+	badZones := []struct {
 		label        string
 		zoneContents string
 		expectedErr  string
@@ -747,7 +749,8 @@ func TestLineNumberError2(t *testing.T) {
 	bb..example.com. )`: "dns: bad TALINK NextName: \"bb..example.com.\" at line: 2:18",
 		// This is a bug, it should report an error on line 1, but the new is already processed.
 		`example.com 1000 IN TALINK ( a.example.com.  b...example.com.
-	)`: "dns: bad TALINK NextName: \"b...example.com.\" at line: 2:1"}
+	)`: "dns: bad TALINK NextName: \"b...example.com.\" at line: 2:1",
+	}
 
 	for in, errStr := range tests {
 		_, err := NewRR(in)
@@ -774,7 +777,8 @@ func TestRfc1982(t *testing.T) {
 		}
 	}
 
-	inttests := map[uint32]string{0: "19700101000000",
+	inttests := map[uint32]string{
+		0:         "19700101000000",
 		1 << 31:   "20380119031408",
 		1<<32 - 1: "21060207062815",
 	}
@@ -785,7 +789,8 @@ func TestRfc1982(t *testing.T) {
 	}
 
 	// Future tests, these dates get parsed to a date within the current 136 year span
-	future := map[string]string{"22680119031408": "20631123173144",
+	future := map[string]string{
+		"22680119031408": "20631123173144",
 		"19010101121212": "20370206184028",
 		"19210101121212": "20570206184028",
 		"19500101121212": "20860206184028",
@@ -813,7 +818,7 @@ func TestEmpty(t *testing.T) {
 }
 
 func TestLowercaseTokens(t *testing.T) {
-	var testrecords = []string{
+	testrecords := []string{
 		"example.org. 300 IN a 1.2.3.4",
 		"example.org. 300 in A 1.2.3.4",
 		"example.org. 300 in a 1.2.3.4",
@@ -841,7 +846,8 @@ func TestLowercaseTokens(t *testing.T) {
 func TestSRVPacking(t *testing.T) {
 	msg := Msg{}
 
-	things := []string{"1.2.3.4:8484",
+	things := []string{
+		"1.2.3.4:8484",
 		"45.45.45.45:8484",
 		"84.84.84.84:8484",
 	}
@@ -854,10 +860,12 @@ func TestSRVPacking(t *testing.T) {
 		port, _ := strconv.ParseUint(p, 10, 16)
 
 		rr := &SRV{
-			Hdr: RR_Header{Name: "somename.",
+			Hdr: RR_Header{
+				Name:   "somename.",
 				Rrtype: TypeSRV,
 				Class:  ClassINET,
-				Ttl:    5},
+				Ttl:    5,
+			},
 			Priority: uint16(i),
 			Weight:   5,
 			Port:     uint16(port),
@@ -1289,7 +1297,7 @@ func TestTxtLong(t *testing.T) {
 
 // Basically, don't crash.
 func TestMalformedPackets(t *testing.T) {
-	var packets = []string{
+	packets := []string{
 		"0021641c0000000100000000000078787878787878787878787303636f6d0000100001",
 	}
 
@@ -1423,8 +1431,8 @@ func TestPrintfVerbsRdata(t *testing.T) {
 	}
 
 	x, _ = NewRR("www.miek.nl. IN A 127.0.0.1")
-	if Field(x, 1) != "127.0.0.1" {
-		t.Errorf("should be 127.0.0.1")
+	if fieldData := Field(x, 1); fieldData != "127.0.0.1" {
+		t.Errorf("should be 127.0.0.1, is %s", fieldData)
 	}
 
 	x, _ = NewRR("www.miek.nl. IN AAAA ::1")
@@ -2015,3 +2023,17 @@ func TestParseZONEMD(t *testing.T) {
 		}
 	}
 }
+
+//func TestParseAAAA(t *testing.T) {
+//	inS := "mapped.example.com. 0 IN AAAA ::ffff:255.255.255.255"
+//	rr := testRR(inS)
+//
+//	rrS := rr.String()
+//	fmt.Println(rrS)
+//
+//	newRR := testRR(rrS)
+//
+//	if newRRS := newRR.String(); newRRS != rrS {
+//		t.Errorf("input: %s, intermediate: %s, out: %s\n", inS, rrS, newRRS)
+//	}
+//}

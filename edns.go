@@ -503,6 +503,7 @@ func (e *EDNS0_LLQ) String() string {
 		" " + strconv.FormatUint(uint64(e.LeaseLife), 10)
 	return s
 }
+
 func (e *EDNS0_LLQ) copy() EDNS0 {
 	return &EDNS0_LLQ{e.Code, e.Version, e.Opcode, e.Error, e.Id, e.LeaseLife}
 }
@@ -641,9 +642,11 @@ type EDNS0_LOCAL struct {
 
 // Option implements the EDNS0 interface.
 func (e *EDNS0_LOCAL) Option() uint16 { return e.Code }
+
 func (e *EDNS0_LOCAL) String() string {
 	return strconv.FormatInt(int64(e.Code), 10) + ":0x" + hex.EncodeToString(e.Data)
 }
+
 func (e *EDNS0_LOCAL) copy() EDNS0 {
 	b := make([]byte, len(e.Data))
 	copy(b, e.Data)

@@ -305,7 +305,7 @@ func IsRRset(rrset []RR) bool {
 		curRRHeader := rr.Header()
 		if curRRHeader.Rrtype != rrType || curRRHeader.Class != rrClass || curRRHeader.Name != rrName {
 			// Mismatch between the records, so this is not a valid rrset for
-			//signing/verifying
+			// signing/verifying
 			return false
 		}
 	}

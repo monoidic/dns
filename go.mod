@@ -1,10 +1,12 @@
-module github.com/miekg/dns
+module github.com/monoidic/dns
 
-go 1.14
+go 1.18
 
 require (
-	golang.org/x/net v0.0.0-20210726213435-c6fcb2dbf985
+	golang.org/x/net v0.0.0-20220706163947-c90051bbdb60
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c
-	golang.org/x/tools v0.1.6-0.20210726203631-07bc1bf47fb2
+	golang.org/x/sys v0.0.0-20220708085239-5a0f0661e09d
+	golang.org/x/tools v0.1.11
 )
+
+require golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
 	"runtime"
 	"strings"
 	"sync"
@@ -617,7 +618,7 @@ func HelloServerLargeResponse(resp ResponseWriter, req *Msg) {
 				Class:  ClassINET,
 				Ttl:    0,
 			},
-			A: net.ParseIP(fmt.Sprintf("127.0.0.%d", i+1)).To4(),
+			A: netip.AddrFrom4([4]byte{127, 0, 0, byte(i + 1)}),
 		}
 		m.Answer = append(m.Answer, aRec)
 	}
@@ -1158,7 +1159,6 @@ func TestResponseWriteSinglePacket(t *testing.T) {
 	m.SetQuestion("miek.nl.", TypeTXT)
 	m.Response = true
 	err := rw.WriteMsg(m)
-
 	if err != nil {
 		t.Fatalf("failed to write: %v", err)
 	}

@@ -1,9 +1,9 @@
 package dns
 
 import (
-	"bytes"
 	"fmt"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -713,11 +713,11 @@ func (rr *DNAME) String() string {
 // A RR. See RFC 1035.
 type A struct {
 	Hdr RR_Header
-	A   net.IP `dns:"a"`
+	A   netip.Addr `dns:"a"`
 }
 
 func (rr *A) String() string {
-	if rr.A == nil {
+	if !rr.A.IsValid() {
 		return rr.Hdr.String()
 	}
 	return rr.Hdr.String() + rr.A.String()
@@ -726,11 +726,11 @@ func (rr *A) String() string {
 // AAAA RR. See RFC 3596.
 type AAAA struct {
 	Hdr  RR_Header
-	AAAA net.IP `dns:"aaaa"`
+	AAAA netip.Addr `dns:"aaaa"`
 }
 
 func (rr *AAAA) String() string {
-	if rr.AAAA == nil {
+	if !rr.AAAA.IsValid() {
 		return rr.Hdr.String()
 	}
 	return rr.Hdr.String() + rr.AAAA.String()
@@ -822,7 +822,7 @@ func (rr *LOC) String() string {
 	lon = lon % LOC_HOURS
 	s += fmt.Sprintf("%02d %02d %0.3f %s ", h, m, float64(lon)/1000, ew)
 
-	var alt = float64(rr.Altitude) / 100
+	alt := float64(rr.Altitude) / 100
 	alt -= LOC_ALTITUDEBASE
 	if rr.Altitude%100 != 0 {
 		s += fmt.Sprintf("%.2fm ", alt)
@@ -1233,11 +1233,11 @@ func (rr *NID) String() string {
 type L32 struct {
 	Hdr        RR_Header
 	Preference uint16
-	Locator32  net.IP `dns:"a"`
+	Locator32  netip.Addr `dns:"a"`
 }
 
 func (rr *L32) String() string {
-	if rr.Locator32 == nil {
+	if !rr.Locator32.IsValid() {
 		return rr.Hdr.String() + strconv.Itoa(int(rr.Preference))
 	}
 	return rr.Hdr.String() + strconv.Itoa(int(rr.Preference)) +
@@ -1396,7 +1396,7 @@ type APL struct {
 // APLPrefix is an address prefix hold by an APL record.
 type APLPrefix struct {
 	Negation bool
-	Network  net.IPNet
+	Network  netip.Prefix
 }
 
 // String returns presentation form of the APL record.
@@ -1419,29 +1419,22 @@ func (a *APLPrefix) str() string {
 		sb.WriteByte('!')
 	}
 
-	switch len(a.Network.IP) {
-	case net.IPv4len:
+	addr := a.Network.Addr()
+
+	switch addr.BitLen() {
+	case net.IPv4len * 8:
 		sb.WriteByte('1')
-	case net.IPv6len:
+	case net.IPv6len * 8:
 		sb.WriteByte('2')
 	}
 
 	sb.WriteByte(':')
 
-	switch len(a.Network.IP) {
-	case net.IPv4len:
-		sb.WriteString(a.Network.IP.String())
-	case net.IPv6len:
-		// add prefix for IPv4-mapped IPv6
-		if v4 := a.Network.IP.To4(); v4 != nil {
-			sb.WriteString("::ffff:")
-		}
-		sb.WriteString(a.Network.IP.String())
-	}
+	sb.WriteString(addr.String())
 
 	sb.WriteByte('/')
 
-	prefix, _ := a.Network.Mask.Size()
+	prefix := a.Network.Bits()
 	sb.WriteString(strconv.Itoa(prefix))
 
 	return sb.String()
@@ -1450,22 +1443,21 @@ func (a *APLPrefix) str() string {
 // equals reports whether two APL prefixes are identical.
 func (a *APLPrefix) equals(b *APLPrefix) bool {
 	return a.Negation == b.Negation &&
-		bytes.Equal(a.Network.IP, b.Network.IP) &&
-		bytes.Equal(a.Network.Mask, b.Network.Mask)
+		a.Network == b.Network
 }
 
 // copy returns a copy of the APL prefix.
 func (a *APLPrefix) copy() APLPrefix {
 	return APLPrefix{
 		Negation: a.Negation,
-		Network:  copyNet(a.Network),
+		Network:  a.Network,
 	}
 }
 
 // len returns size of the prefix in wire format.
 func (a *APLPrefix) len() int {
 	// 4-byte header and the network address prefix (see Section 4 of RFC 3123)
-	prefix, _ := a.Network.Mask.Size()
+	prefix := a.Network.Bits()
 	return 4 + (prefix+7)/8
 }
 
@@ -1518,23 +1510,23 @@ func euiToString(eui uint64, bits int) (hex string) {
 	return
 }
 
-// copyIP returns a copy of ip.
-func copyIP(ip net.IP) net.IP {
-	p := make(net.IP, len(ip))
-	copy(p, ip)
-	return p
-}
-
-// copyNet returns a copy of a subnet.
-func copyNet(n net.IPNet) net.IPNet {
-	m := make(net.IPMask, len(n.Mask))
-	copy(m, n.Mask)
-
-	return net.IPNet{
-		IP:   copyIP(n.IP),
-		Mask: m,
-	}
-}
+//// copyIP returns a copy of ip.
+//func copyIP(ip net.IP) net.IP {
+//	p := make(net.IP, len(ip))
+//	copy(p, ip)
+//	return p
+//}
+//
+//// copyNet returns a copy of a subnet.
+//func copyNet(n net.IPNet) net.IPNet {
+//	m := make(net.IPMask, len(n.Mask))
+//	copy(m, n.Mask)
+//
+//	return net.IPNet{
+//		IP:   copyIP(n.IP),
+//		Mask: m,
+//	}
+//}
 
 // SplitN splits a string into N sized string chunks.
 // This might become an exported function once.

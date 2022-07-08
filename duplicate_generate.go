@@ -1,4 +1,5 @@
-//+build ignore
+//go:build ignore
+// +build ignore
 
 // types_generate.go is meant to run with go generate. It will use
 // go/{importer,types} to track down all the RR struct types. Then for each type
@@ -55,7 +56,7 @@ func loadModule(name string) (*types.Package, error) {
 
 func main() {
 	// Import and type-check the package
-	pkg, err := loadModule("github.com/miekg/dns")
+	pkg, err := loadModule("github.com/monoidic/dns")
 	fatalIfErr(err)
 	scope := pkg.Scope()
 
@@ -141,8 +142,6 @@ func main() {
 			switch st.Tag(i) {
 			case `dns:"-"`:
 				// ignored
-			case `dns:"a"`, `dns:"aaaa"`:
-				o2("if !r1.%s.Equal(r2.%s) {\nreturn false\n}")
 			case `dns:"cdomain-name"`, `dns:"domain-name"`:
 				o2("if !isDuplicateName(r1.%s, r2.%s) {\nreturn false\n}")
 			default:

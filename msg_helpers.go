@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"net"
+	"net/netip"
 	"sort"
 	"strings"
 )
@@ -16,26 +17,26 @@ import (
 // of the type they pack/unpack (string, int, etc). We prefix all with unpackData or packData, so packDataA or
 // packDataDomainName.
 
-func unpackDataA(msg []byte, off int) (net.IP, int, error) {
+func unpackDataA(msg []byte, off int) (netip.Addr, int, error) {
 	if off+net.IPv4len > len(msg) {
-		return nil, len(msg), &Error{err: "overflow unpacking a"}
+		return netip.Addr{}, len(msg), &Error{err: "overflow unpacking a"}
 	}
-	a := append(make(net.IP, 0, net.IPv4len), msg[off:off+net.IPv4len]...)
+	a, _ := netip.AddrFromSlice(msg[off : off+net.IPv4len])
 	off += net.IPv4len
 	return a, off, nil
 }
 
-func packDataA(a net.IP, msg []byte, off int) (int, error) {
-	switch len(a) {
-	case net.IPv4len, net.IPv6len:
+func packDataA(a netip.Addr, msg []byte, off int) (int, error) {
+	switch {
+	case a.Is4():
 		// It must be a slice of 4, even if it is 16, we encode only the first 4
 		if off+net.IPv4len > len(msg) {
 			return len(msg), &Error{err: "overflow packing a"}
 		}
 
-		copy(msg[off:], a.To4())
+		copy(msg[off:], a.AsSlice())
 		off += net.IPv4len
-	case 0:
+	case !a.IsValid():
 		// Allowed, for dynamic updates.
 	default:
 		return len(msg), &Error{err: "overflow packing a"}
@@ -43,25 +44,25 @@ func packDataA(a net.IP, msg []byte, off int) (int, error) {
 	return off, nil
 }
 
-func unpackDataAAAA(msg []byte, off int) (net.IP, int, error) {
+func unpackDataAAAA(msg []byte, off int) (netip.Addr, int, error) {
 	if off+net.IPv6len > len(msg) {
-		return nil, len(msg), &Error{err: "overflow unpacking aaaa"}
+		return netip.Addr{}, len(msg), &Error{err: "overflow unpacking aaaa"}
 	}
-	aaaa := append(make(net.IP, 0, net.IPv6len), msg[off:off+net.IPv6len]...)
+	aaaa, _ := netip.AddrFromSlice(msg[off : off+net.IPv6len])
 	off += net.IPv6len
 	return aaaa, off, nil
 }
 
-func packDataAAAA(aaaa net.IP, msg []byte, off int) (int, error) {
-	switch len(aaaa) {
-	case net.IPv6len:
+func packDataAAAA(aaaa netip.Addr, msg []byte, off int) (int, error) {
+	switch {
+	case aaaa.Is6():
 		if off+net.IPv6len > len(msg) {
 			return len(msg), &Error{err: "overflow packing aaaa"}
 		}
 
-		copy(msg[off:], aaaa)
+		copy(msg[off:], aaaa.AsSlice())
 		off += net.IPv6len
-	case 0:
+	case !aaaa.IsValid():
 		// Allowed, dynamic updates.
 	default:
 		return len(msg), &Error{err: "overflow packing aaaa"}
@@ -695,18 +696,14 @@ func packDataApl(data []APLPrefix, msg []byte, off int) (int, error) {
 }
 
 func packDataAplPrefix(p *APLPrefix, msg []byte, off int) (int, error) {
-	if len(p.Network.IP) != len(p.Network.Mask) {
-		return len(msg), &Error{err: "address and mask lengths don't match"}
-	}
-
 	var err error
-	prefix, _ := p.Network.Mask.Size()
-	addr := p.Network.IP.Mask(p.Network.Mask)[:(prefix+7)/8]
+	prefix := p.Network.Bits()
+	addr := p.Network.Masked().Addr().AsSlice()[:(prefix+7)/8]
 
-	switch len(p.Network.IP) {
-	case net.IPv4len:
+	switch p.Network.Addr().BitLen() {
+	case net.IPv4len * 8:
 		off, err = packUint16(1, msg, off)
-	case net.IPv6len:
+	case net.IPv6len * 8:
 		off, err = packUint16(2, msg, off)
 	default:
 		err = &Error{err: "unrecognized address family"}
@@ -800,10 +797,8 @@ func unpackDataAplPrefix(msg []byte, off int) (APLPrefix, int, error) {
 			return APLPrefix{}, len(msg), &Error{err: "extra APL address bits"}
 		}
 	}
-	ipnet := net.IPNet{
-		IP:   ip,
-		Mask: net.CIDRMask(int(prefix), 8*len(ip)),
-	}
+	addr, _ := netip.AddrFromSlice(ip)
+	ipnet := netip.PrefixFrom(addr, int(prefix))
 
 	return APLPrefix{
 		Negation: (nlen & 0x80) != 0,

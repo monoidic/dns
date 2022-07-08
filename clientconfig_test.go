@@ -98,7 +98,7 @@ func TestReadFromFile(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	path := filepath.Join(tempDir, "resolv.conf")
-	if err := ioutil.WriteFile(path, []byte(normal), 0644); err != nil {
+	if err := ioutil.WriteFile(path, []byte(normal), 0o644); err != nil {
 		t.Fatalf("writeFile: %v", err)
 	}
 	cc, err := ClientConfigFromFile(path)
@@ -142,6 +142,7 @@ func TestNameListNdots1(t *testing.T) {
 		t.Errorf("NameList didn't return search last: %v", names[1])
 	}
 }
+
 func TestNameListNdots2(t *testing.T) {
 	cfg := ClientConfig{
 		Ndots: 2,

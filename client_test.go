@@ -4,8 +4,8 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"fmt"
 	"net"
+	"net/netip"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -490,7 +490,6 @@ func TestClientConnWriteSinglePacket(t *testing.T) {
 	m := new(Msg)
 	m.SetQuestion("miek.nl.", TypeTXT)
 	err := conn.WriteMsg(m)
-
 	if err != nil {
 		t.Fatalf("failed to write: %v", err)
 	}
@@ -514,7 +513,7 @@ func TestTruncatedMsg(t *testing.T) {
 
 		re := &A{
 			Hdr: RR_Header{Name: m.Question[0].Name, Rrtype: TypeA, Class: ClassINET, Ttl: 0},
-			A:   net.ParseIP(fmt.Sprintf("127.0.0.%d", i)).To4(),
+			A:   netip.AddrFrom4([4]byte{127, 0, 0, byte(i)}),
 		}
 		m.Extra = append(m.Extra, re)
 	}

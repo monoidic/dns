@@ -882,7 +882,6 @@ func (dns *Msg) unpack(dh Header, msg []byte, off int) (err error) {
 		// println("dns: extra bytes in dns packet", off, "<", len(msg))
 	}
 	return err
-
 }
 
 // Unpack unpacks a binary message to a Msg structure.

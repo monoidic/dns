@@ -1,4 +1,5 @@
-//+build ignore
+//go:build ignore
+// +build ignore
 
 // types_generate.go is meant to run with go generate. It will use
 // go/{importer,types} to track down all the RR struct types. Then for each type
@@ -97,7 +98,7 @@ func loadModule(name string) (*types.Package, error) {
 
 func main() {
 	// Import and type-check the package
-	pkg, err := loadModule("github.com/miekg/dns")
+	pkg, err := loadModule("github.com/monoidic/dns")
 	fatalIfErr(err)
 	scope := pkg.Scope()
 
@@ -212,9 +213,9 @@ func main() {
 			case st.Tag(i) == `dns:"any"`:
 				o("l += len(rr.%s)\n")
 			case st.Tag(i) == `dns:"a"`:
-				o("if len(rr.%s) != 0 { l += net.IPv4len }\n")
+				o("if rr.%s.IsValid() { l += net.IPv4len }\n")
 			case st.Tag(i) == `dns:"aaaa"`:
-				o("if len(rr.%s) != 0 { l += net.IPv6len }\n")
+				o("if rr.%s.IsValid() { l += net.IPv6len }\n")
 			case st.Tag(i) == `dns:"txt"`:
 				o("for _, t := range rr.%s { l += len(t) + 1 }\n")
 			case st.Tag(i) == `dns:"uint48"`:
@@ -238,7 +239,7 @@ func main() {
 				log.Fatalln(name, st.Field(i).Name(), st.Tag(i))
 			}
 		}
-		fmt.Fprintf(b, "return l }\n")
+		fmt.Fprintf(b, "return l }\n\n")
 	}
 
 	// Generate copy()
@@ -296,7 +297,7 @@ func main() {
 		}
 	WriteCopy:
 		fmt.Fprintf(b, "return &%s{%s}\n", name, strings.Join(fields, ","))
-		fmt.Fprintf(b, "}\n")
+		fmt.Fprintf(b, "}\n\n")
 	}
 
 	// gofmt

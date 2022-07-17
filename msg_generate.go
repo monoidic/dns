@@ -121,7 +121,7 @@ return off, err
 				case `dns:"apl"`:
 					o("off, err = packDataApl(rr.%s, msg, off)\n")
 				default:
-					log.Fatalln(name, st.Field(i).Name(), st.Tag(i))
+					log.Fatalln("unknown tag", name, st.Field(i).Name(), st.Tag(i))
 				}
 				continue
 			}

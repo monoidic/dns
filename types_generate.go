@@ -188,7 +188,7 @@ func main() {
 				case `dns:"pairs"`:
 					o("for _, x := range rr.%s { l += 4 + int(x.len()) }\n")
 				default:
-					log.Fatalln(name, st.Field(i).Name(), st.Tag(i))
+					log.Fatalln("unknown tag", name, st.Field(i).Name(), st.Tag(i))
 				}
 				continue
 			}

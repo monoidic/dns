@@ -72,7 +72,7 @@ const (
 	TypeNSEC3      uint16 = 50
 	TypeNSEC3PARAM uint16 = 51
 	TypeTLSA       uint16 = 52
-	TypeSMIMEA     uint16 = 53
+	TypeSMIMEA     uint16 = 53 // 54 unassigned
 	TypeHIP        uint16 = 55
 	TypeNINFO      uint16 = 56
 	TypeRKEY       uint16 = 57
@@ -83,7 +83,7 @@ const (
 	TypeCSYNC      uint16 = 62
 	TypeZONEMD     uint16 = 63
 	TypeSVCB       uint16 = 64
-	TypeHTTPS      uint16 = 65
+	TypeHTTPS      uint16 = 65 // 66-98 unassigned
 	TypeSPF        uint16 = 99
 	TypeUINFO      uint16 = 100
 	TypeUID        uint16 = 101
@@ -94,10 +94,21 @@ const (
 	TypeL64        uint16 = 106
 	TypeLP         uint16 = 107
 	TypeEUI48      uint16 = 108
-	TypeEUI64      uint16 = 109
+	TypeEUI64      uint16 = 109 // 110-248 unassigned
 	TypeURI        uint16 = 256
 	TypeCAA        uint16 = 257
 	TypeAVC        uint16 = 258
+
+	// consider adding
+	// TypeIPSECKEY   uint16 = 45
+	// TypeAMTRELAY   uint16 = 260
+
+	// probably not, outdated/deprecated/never used
+	// TypeWKS        uint16 = 11
+	// TypeNSAP       uint16 = 22
+	// TypeA6         uint16 = 38
+	// TypeSINK       uint16 = 40
+	// TypeDOA        uint16 = 259
 
 	TypeTKEY uint16 = 249
 	TypeTSIG uint16 = 250

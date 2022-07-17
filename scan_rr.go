@@ -115,8 +115,7 @@ func (rr *AAAA) parse(c *zlexer, o string) *ParseError {
 	rr.AAAA, err = netip.ParseAddr(l.token)
 	// IPv6 addresses must include ":", and IPv4
 	// addresses cannot include ":".
-	isIPv6 := rr.AAAA.Is6()
-	if err != nil || !isIPv6 || l.err {
+	if err != nil || !rr.AAAA.Is6() || l.err {
 		return &ParseError{"", "bad AAAA AAAA", l}
 	}
 	return slurpRemainder(c)

@@ -89,10 +89,14 @@ func main() {
 		o := scope.Lookup(name)
 		st, _ := getTypeStruct(o.Type(), scope)
 		fmt.Fprintf(b, "func (r1 *%s) isDuplicate(_r2 RR) bool {\n", name)
-		fmt.Fprintf(b, "r2, ok := _r2.(*%s)\n", name)
+		numFields := st.NumFields()
+		methodRetVal1 := "r2"
+		if numFields == 1 { // only header
+			methodRetVal1 = "_"
+		}
+		fmt.Fprintf(b, "%s, ok := _r2.(*%s)\n", methodRetVal1, name)
 		fmt.Fprint(b, "if !ok { return false }\n")
-		fmt.Fprint(b, "_ = r2\n")
-		for i := 1; i < st.NumFields(); i++ {
+		for i := 1; i < numFields; i++ {
 			field := st.Field(i).Name()
 			o2 := func(s string) { fmt.Fprintf(b, s+"\n", field, field) }
 			o3 := func(s string) { fmt.Fprintf(b, s+"\n", field, field, field) }

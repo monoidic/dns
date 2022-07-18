@@ -1256,7 +1256,7 @@ func (rr *IPSECKEY) parse(c *zlexer, o string) *ParseError {
 		return err
 	}
 	rr.PublicKey = s
-	return nil
+	return slurpRemainder(c)
 }
 
 // same constants and parsing between IPSECKEY and AMTRELAY

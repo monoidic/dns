@@ -148,7 +148,7 @@ func main() {
 				// ignored
 			case `dns:"cdomain-name"`, `dns:"domain-name"`:
 				o2("if !isDuplicateName(r1.%s, r2.%s) {\nreturn false\n}")
-			case `dns:"ipsechost"`:
+			case `dns:"ipsechost"`, `dns:"amtrelayhost"`:
 				o2(`switch r1.GatewayType {
 				case IPSECGatewayIPv4, IPSECGatewayIPv6:
 					if r1.GatewayAddr != r2.GatewayAddr {

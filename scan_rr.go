@@ -1243,26 +1243,10 @@ func (rr *IPSECKEY) parse(c *zlexer, o string) *ParseError {
 		return &ParseError{"", "bad IPSECKEY gateway", l}
 	}
 
-	switch rr.GatewayType {
-	case IPSECGatewayNone:
-		if l.token != "." {
-			return &ParseError{"", "IPSECKEY gateway type none with gateway set", l}
-		}
-	case IPSECGatewayIPv4, IPSECGatewayIPv6:
-		addr, err := netip.ParseAddr(l.token)
-		if err != nil {
-			return &ParseError{"", "IPSECKEY gateway IP invalid", l}
-		}
-		if !((rr.GatewayType == IPSECGatewayIPv4 && addr.Is4()) || (rr.GatewayType == IPSECGatewayIPv6 && addr.Is6())) {
-			return &ParseError{"", "IPSECKEY gateway IP family mismatch", l}
-		}
-		rr.GatewayAddr = addr
-	case IPSECGatewayHost:
-		host, ok := toAbsoluteName(l.token, o)
-		if !ok {
-			return &ParseError{"", "IPSECKEY invalid gateway host", l}
-		}
-		rr.GatewayHost = host
+	var err *ParseError
+	rr.GatewayAddr, rr.GatewayHost, err = parseAddrHostUnion(l, o, rr.GatewayType, "IPSECKEY")
+	if err != nil {
+		return err
 	}
 
 	c.Next() // zBlank
@@ -1273,6 +1257,70 @@ func (rr *IPSECKEY) parse(c *zlexer, o string) *ParseError {
 	}
 	rr.PublicKey = s
 	return nil
+}
+
+// same constants and parsing between IPSECKEY and AMTRELAY
+func parseAddrHostUnion(l lex, o string, gatewayType uint8, errType string) (netip.Addr, string, *ParseError) {
+	var err error
+	var addr netip.Addr
+	var host string
+
+	switch gatewayType {
+	case IPSECGatewayNone:
+		if l.token != "." {
+			return addr, host, &ParseError{"", errType + " gateway type none with gateway set", l}
+		}
+	case IPSECGatewayIPv4, IPSECGatewayIPv6:
+		addr, err = netip.ParseAddr(l.token)
+		if err != nil {
+			return addr, host, &ParseError{"", errType + " gateway IP invalid", l}
+		}
+		if !((gatewayType == IPSECGatewayIPv4 && addr.Is4()) || (gatewayType == IPSECGatewayIPv6 && addr.Is6())) {
+			return addr, host, &ParseError{"", errType + " gateway IP family mismatch", l}
+		}
+	case IPSECGatewayHost:
+		var ok bool
+		host, ok = toAbsoluteName(l.token, o)
+		if !ok {
+			return addr, host, &ParseError{"", errType + " invalid gateway host", l}
+		}
+	}
+
+	return addr, host, nil
+}
+
+func (rr *AMTRELAY) parse(c *zlexer, o string) *ParseError {
+	for i := 0; i < 2; i++ {
+		l, _ := c.Next()
+		num, err := strconv.ParseUint(l.token, 10, 8)
+		if err != nil || l.err {
+			return &ParseError{"", "bad AMTRELAY value", l}
+		}
+
+		num8 := uint8(num)
+		switch i {
+		case 0:
+			rr.Precedence = num8
+		case 1:
+			rr.DiscoveryOptional = (num8 & 0x80) != 0
+			rr.GatewayType = num8 & 0x7f
+		}
+
+		c.Next() // zBlank
+	}
+
+	l, _ := c.Next()
+	if l.err {
+		return &ParseError{"", "bad AMTRELAY gateway", l}
+	}
+
+	var err *ParseError
+	rr.GatewayAddr, rr.GatewayHost, err = parseAddrHostUnion(l, o, rr.GatewayType, "AMTRELAY")
+	if err != nil {
+		return err
+	}
+
+	return slurpRemainder(c)
 }
 
 func (rr *RKEY) parse(c *zlexer, o string) *ParseError {

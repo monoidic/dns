@@ -12,6 +12,7 @@ var TypeToRR = map[uint16]func() RR{
 	TypeA:          func() RR { return new(A) },
 	TypeAAAA:       func() RR { return new(AAAA) },
 	TypeAFSDB:      func() RR { return new(AFSDB) },
+	TypeAMTRELAY:   func() RR { return new(AMTRELAY) },
 	TypeANY:        func() RR { return new(ANY) },
 	TypeAPL:        func() RR { return new(APL) },
 	TypeAVC:        func() RR { return new(AVC) },
@@ -91,6 +92,7 @@ var TypeToString = map[uint16]string{
 	TypeA:          "A",
 	TypeAAAA:       "AAAA",
 	TypeAFSDB:      "AFSDB",
+	TypeAMTRELAY:   "AMTRELAY",
 	TypeANY:        "ANY",
 	TypeAPL:        "APL",
 	TypeATMA:       "ATMA",
@@ -178,6 +180,7 @@ var TypeToString = map[uint16]string{
 func (rr *A) Header() *RR_Header          { return &rr.Hdr }
 func (rr *AAAA) Header() *RR_Header       { return &rr.Hdr }
 func (rr *AFSDB) Header() *RR_Header      { return &rr.Hdr }
+func (rr *AMTRELAY) Header() *RR_Header   { return &rr.Hdr }
 func (rr *ANY) Header() *RR_Header        { return &rr.Hdr }
 func (rr *APL) Header() *RR_Header        { return &rr.Hdr }
 func (rr *AVC) Header() *RR_Header        { return &rr.Hdr }
@@ -273,6 +276,21 @@ func (rr *AFSDB) len(off int, compression map[string]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // Subtype
 	l += domainNameLen(rr.Hostname, off+l, compression, false)
+	return l
+}
+
+func (rr *AMTRELAY) len(off int, compression map[string]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l++ // Precedence
+	l++ // GatewayType
+	switch rr.GatewayType {
+	case AMTRELAYIPv4:
+		l += net.IPv4len
+	case AMTRELAYIPv6:
+		l += net.IPv6len
+	case AMTRELAYHost:
+		l += len(rr.GatewayHost) + 1
+	}
 	return l
 }
 
@@ -791,6 +809,10 @@ func (rr *AAAA) copy() RR {
 
 func (rr *AFSDB) copy() RR {
 	return &AFSDB{rr.Hdr, rr.Subtype, rr.Hostname}
+}
+
+func (rr *AMTRELAY) copy() RR {
+	return &AMTRELAY{rr.Hdr, rr.Precedence, rr.DiscoveryOptional, rr.GatewayType, rr.GatewayAddr, rr.GatewayHost}
 }
 
 func (rr *ANY) copy() RR {

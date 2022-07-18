@@ -40,6 +40,31 @@ func (r1 *AFSDB) isDuplicate(_r2 RR) bool {
 	return true
 }
 
+func (r1 *AMTRELAY) isDuplicate(_r2 RR) bool {
+	r2, ok := _r2.(*AMTRELAY)
+	if !ok {
+		return false
+	}
+	if r1.Precedence != r2.Precedence {
+		return false
+	}
+	if r1.GatewayType != r2.GatewayType {
+		return false
+	}
+	switch r1.GatewayType {
+	case IPSECGatewayIPv4, IPSECGatewayIPv6:
+		if r1.GatewayAddr != r2.GatewayAddr {
+			return false
+		}
+	case IPSECGatewayHost:
+		if !isDuplicateName(r1.GatewayHost, r2.GatewayHost) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (r1 *ANY) isDuplicate(_r2 RR) bool {
 	_, ok := _r2.(*ANY)
 	if !ok {

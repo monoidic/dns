@@ -230,6 +230,18 @@ func main() {
 					l += len(rr.%s) + 1
 				}
 				`)
+			case st.Tag(i) == `dns:"amtrelayhost"`:
+				o(`switch rr.GatewayType {
+				case AMTRELAYIPv4:
+					l += net.IPv4len
+				case AMTRELAYIPv6:
+					l += net.IPv6len
+				case AMTRELAYHost:
+					l += len(rr.%s) + 1
+				}
+				`)
+			case st.Tag(i) == `dns:"amtrelaytype"`:
+				o("l++ // %s\n")
 			case st.Tag(i) == "":
 				switch st.Field(i).Type().(*types.Basic).Kind() {
 				case types.Uint8:

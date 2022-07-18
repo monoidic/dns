@@ -99,9 +99,7 @@ const (
 	TypeURI        uint16 = 256
 	TypeCAA        uint16 = 257
 	TypeAVC        uint16 = 258
-
-	// consider adding
-	// TypeAMTRELAY   uint16 = 260
+	TypeAMTRELAY   uint16 = 260
 
 	// probably not, outdated/deprecated/never used
 	// TypeWKS        uint16 = 11
@@ -176,6 +174,14 @@ const (
 	IPSECGatewayIPv4 uint8 = 1
 	IPSECGatewayIPv6 uint8 = 2
 	IPSECGatewayHost uint8 = 3
+)
+
+// Used in AMTRELAY https://datatracker.ietf.org/doc/html/rfc8777#section-4.2.3
+const (
+	AMTRELAYNone uint8 = IPSECGatewayNone
+	AMTRELAYIPv4 uint8 = IPSECGatewayIPv4
+	AMTRELAYIPv6 uint8 = IPSECGatewayIPv6
+	AMTRELAYHost uint8 = IPSECGatewayHost
 )
 
 // Header is the wire format for the DNS packet header.
@@ -1042,6 +1048,41 @@ func (rr *IPSECKEY) String() string {
 		" " + strconv.Itoa(int(rr.Algorithm)) +
 		" " + gateway +
 		" " + rr.PublicKey
+}
+
+// AMTRELAY RR. See RFC 8777.
+type AMTRELAY struct {
+	Hdr               RR_Header
+	Precedence        uint8
+	DiscoveryOptional bool       `dns:"-"` // in the GatewayType byte
+	GatewayType       uint8      `dns:"amtrelaytype"`
+	GatewayAddr       netip.Addr `dns:"-"`
+	GatewayHost       string     `dns:"amtrelayhost"`
+}
+
+func (rr *AMTRELAY) String() string {
+	var gateway string
+	switch rr.GatewayType {
+	case AMTRELAYIPv4, AMTRELAYIPv6:
+		gateway = rr.GatewayAddr.String()
+	case AMTRELAYHost:
+		gateway = rr.GatewayHost
+	case AMTRELAYNone:
+		fallthrough
+	default:
+		gateway = "."
+	}
+	var boolS string
+	if rr.DiscoveryOptional {
+		boolS = "1"
+	} else {
+		boolS = "0"
+	}
+
+	return rr.Hdr.String() + strconv.Itoa(int(rr.Precedence)) +
+		" " + boolS +
+		" " + strconv.Itoa(int(rr.GatewayType)) +
+		" " + gateway
 }
 
 // RKEY RR. See https://www.iana.org/assignments/dns-parameters/RKEY/rkey-completed-template.

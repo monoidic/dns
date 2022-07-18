@@ -32,6 +32,28 @@ func (rr *AFSDB) pack(msg []byte, off int, compression compressionMap, compress 
 	return off, nil
 }
 
+func (rr *AMTRELAY) pack(msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
+	off, err = packUint8(rr.Precedence, msg, off)
+	if err != nil {
+		return off, err
+	}
+	{
+		gatewayType := rr.GatewayType
+		if rr.DiscoveryOptional {
+			gatewayType |= 0x80
+		}
+		off, err = packUint8(gatewayType, msg, off)
+	}
+	if err != nil {
+		return off, err
+	}
+	off, err = packIPSECGateway(rr.GatewayAddr, rr.GatewayHost, msg, off, rr.GatewayType, compression, false)
+	if err != nil {
+		return off, err
+	}
+	return off, nil
+}
+
 func (rr *ANY) pack(msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
 	return off, nil
 }
@@ -1198,6 +1220,42 @@ func (rr *AFSDB) unpack(msg []byte, off int) (off1 int, err error) {
 		return off, nil
 	}
 	rr.Hostname, off, err = UnpackDomainName(msg, off)
+	if err != nil {
+		return off, err
+	}
+	return off, nil
+}
+
+func (rr *AMTRELAY) unpack(msg []byte, off int) (off1 int, err error) {
+	rdStart := off
+	_ = rdStart
+
+	rr.Precedence, off, err = unpackUint8(msg, off)
+	if err != nil {
+		return off, err
+	}
+	if off == len(msg) {
+		return off, nil
+	}
+	if off == len(msg) {
+		return off, nil
+	}
+	{
+		var gatewayType uint8
+		gatewayType, off, err = unpackUint8(msg, off)
+		rr.DiscoveryOptional = (gatewayType & 0x80) != 0
+		rr.GatewayType = gatewayType & 0x7f
+	}
+	if err != nil {
+		return off, err
+	}
+	if off == len(msg) {
+		return off, nil
+	}
+	if off == len(msg) {
+		return off, nil
+	}
+	rr.GatewayAddr, rr.GatewayHost, off, err = unpackIPSECGateway(msg, off, rr.GatewayType)
 	if err != nil {
 		return off, err
 	}

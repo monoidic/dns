@@ -65,6 +65,7 @@ const (
 	TypeAPL        uint16 = 42
 	TypeDS         uint16 = 43
 	TypeSSHFP      uint16 = 44
+	TypeIPSECKEY   uint16 = 45
 	TypeRRSIG      uint16 = 46
 	TypeNSEC       uint16 = 47
 	TypeDNSKEY     uint16 = 48
@@ -100,7 +101,6 @@ const (
 	TypeAVC        uint16 = 258
 
 	// consider adding
-	// TypeIPSECKEY   uint16 = 45
 	// TypeAMTRELAY   uint16 = 260
 
 	// probably not, outdated/deprecated/never used
@@ -168,6 +168,14 @@ const (
 
 	ZoneMDHashAlgSHA384 = 1
 	ZoneMDHashAlgSHA512 = 2
+)
+
+// Used in IPSEC https://datatracker.ietf.org/doc/html/rfc4025#section-2.3
+const (
+	IPSECGatewayNone uint8 = 0
+	IPSECGatewayIPv4 uint8 = 1
+	IPSECGatewayIPv6 uint8 = 2
+	IPSECGatewayHost uint8 = 3
 )
 
 // Header is the wire format for the DNS packet header.
@@ -1002,6 +1010,37 @@ func (rr *DNSKEY) String() string {
 	return rr.Hdr.String() + strconv.Itoa(int(rr.Flags)) +
 		" " + strconv.Itoa(int(rr.Protocol)) +
 		" " + strconv.Itoa(int(rr.Algorithm)) +
+		" " + rr.PublicKey
+}
+
+// IPSECKEY RR. See RFC 4025.
+type IPSECKEY struct {
+	Hdr         RR_Header
+	Precedence  uint8
+	GatewayType uint8
+	Algorithm   uint8
+	GatewayAddr netip.Addr `dns:"-"` // packing/unpacking/parsing/etc handled together with GatewayHost
+	GatewayHost string     `dns:"ipsechost"`
+	PublicKey   string     `dns:"base64"`
+}
+
+func (rr *IPSECKEY) String() string {
+	var gateway string
+	switch rr.GatewayType {
+	case IPSECGatewayIPv4, IPSECGatewayIPv6:
+		gateway = rr.GatewayAddr.String()
+	case IPSECGatewayHost:
+		gateway = rr.GatewayHost
+	case IPSECGatewayNone:
+		fallthrough
+	default:
+		gateway = "."
+	}
+
+	return rr.Hdr.String() + strconv.Itoa(int(rr.Precedence)) +
+		" " + strconv.Itoa(int(rr.GatewayType)) +
+		" " + strconv.Itoa(int(rr.Algorithm)) +
+		" " + gateway +
 		" " + rr.PublicKey
 }
 

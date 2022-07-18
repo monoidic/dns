@@ -3,7 +3,7 @@ package dnsutil
 import "testing"
 
 func TestAddOrigin(t *testing.T) {
-	var tests = []struct{ e1, e2, expected string }{
+	tests := []struct{ e1, e2, expected string }{
 		{"@", "example.com", "example.com"},
 		{"foo", "example.com", "foo.example.com"},
 		{"foo.", "example.com", "foo."},
@@ -115,7 +115,7 @@ func TestTrimDomainName(t *testing.T) {
 	// These test cases provide both origin, s, and the expected result.
 	// If you find a bug in the while, this is probably the easiest place
 	// to add it as a test case.
-	var testsWild = []struct{ e1, e2, expected string }{
+	testsWild := []struct{ e1, e2, expected string }{
 		{"mathoverflow.net.", ".", "mathoverflow.net"},
 		{"mathoverflow.net", ".", "mathoverflow.net"},
 		{"", ".", "@"},

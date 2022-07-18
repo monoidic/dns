@@ -121,7 +121,7 @@ return off, err
 				case `dns:"apl"`:
 					o("off, err = packDataApl(rr.%s, msg, off)\n")
 				default:
-					log.Fatalln("unknown tag", name, st.Field(i).Name(), st.Tag(i))
+					log.Fatalln("pack slice: unknown tag", name, st.Field(i).Name(), st.Tag(i))
 				}
 				continue
 			}
@@ -171,6 +171,8 @@ if rr.%s != "-" {
 				o("off, err = packStringAny(rr.%s, msg, off)\n")
 			case st.Tag(i) == `dns:"octet"`:
 				o("off, err = packStringOctet(rr.%s, msg, off)\n")
+			case st.Tag(i) == `dns:"ipsechost"`:
+				o("off, err = packIPSECGateway(rr.GatewayAddr, rr.%s, msg, off, rr.GatewayType, compression, false)\n")
 			case st.Tag(i) == "":
 				switch st.Field(i).Type().(*types.Basic).Kind() {
 				case types.Uint8:
@@ -187,7 +189,7 @@ if rr.%s != "-" {
 					log.Fatalln(name, st.Field(i).Name())
 				}
 			default:
-				log.Fatalln(name, st.Field(i).Name(), st.Tag(i))
+				log.Fatalln("pack: unknown tag", name, st.Field(i).Name(), st.Tag(i))
 			}
 		}
 		fmt.Fprintln(b, "return off, nil }\n")
@@ -278,6 +280,8 @@ return off, err
 				o("rr.%s, off, err = unpackStringAny(msg, off, rdStart + int(rr.Hdr.Rdlength))\n")
 			case `dns:"octet"`:
 				o("rr.%s, off, err = unpackStringOctet(msg, off)\n")
+			case `dns:"ipsechost"`:
+				o("rr.GatewayAddr, rr.%s, off, err = unpackIPSECGateway(msg, off, rr.GatewayType)\n")
 			case "":
 				switch st.Field(i).Type().(*types.Basic).Kind() {
 				case types.Uint8:
@@ -294,7 +298,7 @@ return off, err
 					log.Fatalln(name, st.Field(i).Name())
 				}
 			default:
-				log.Fatalln(name, st.Field(i).Name(), st.Tag(i))
+				log.Fatalln("unpack: unknown tag", name, st.Field(i).Name(), st.Tag(i))
 			}
 			// If we've hit len(msg) we return without error.
 			if i < st.NumFields()-1 {

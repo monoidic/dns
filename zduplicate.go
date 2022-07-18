@@ -398,6 +398,37 @@ func (r1 *HTTPS) isDuplicate(_r2 RR) bool {
 	return true
 }
 
+func (r1 *IPSECKEY) isDuplicate(_r2 RR) bool {
+	r2, ok := _r2.(*IPSECKEY)
+	if !ok {
+		return false
+	}
+	if r1.Precedence != r2.Precedence {
+		return false
+	}
+	if r1.GatewayType != r2.GatewayType {
+		return false
+	}
+	if r1.Algorithm != r2.Algorithm {
+		return false
+	}
+	switch r1.GatewayType {
+	case IPSECGatewayIPv4, IPSECGatewayIPv6:
+		if r1.GatewayAddr != r2.GatewayAddr {
+			return false
+		}
+	case IPSECGatewayHost:
+		if !isDuplicateName(r1.GatewayHost, r2.GatewayHost) {
+			return false
+		}
+	}
+
+	if r1.PublicKey != r2.PublicKey {
+		return false
+	}
+	return true
+}
+
 func (r1 *KEY) isDuplicate(_r2 RR) bool {
 	r2, ok := _r2.(*KEY)
 	if !ok {

@@ -220,6 +220,16 @@ func main() {
 				o("for _, t := range rr.%s { l += len(t) + 1 }\n")
 			case st.Tag(i) == `dns:"uint48"`:
 				o("l += 6 // %s\n")
+			case st.Tag(i) == `dns:"ipsechost"`:
+				o(`switch rr.GatewayType {
+				case IPSECGatewayIPv4:
+					l += net.IPv4len
+				case IPSECGatewayIPv6:
+					l += net.IPv6len
+				case IPSECGatewayHost:
+					l += len(rr.%s) + 1
+				}
+				`)
 			case st.Tag(i) == "":
 				switch st.Field(i).Type().(*types.Basic).Kind() {
 				case types.Uint8:
@@ -236,7 +246,7 @@ func main() {
 					log.Fatalln(name, st.Field(i).Name())
 				}
 			default:
-				log.Fatalln(name, st.Field(i).Name(), st.Tag(i))
+				log.Fatalln("len: unknown tag", name, st.Field(i).Name(), st.Tag(i))
 			}
 		}
 		fmt.Fprintf(b, "return l }\n\n")

@@ -421,18 +421,18 @@ func (rr *SOA) parse(c *zlexer, o string) *ParseError {
 		switch i {
 		case 0:
 			rr.Serial = v
-			c.Next() // zBlank
 		case 1:
 			rr.Refresh = v
-			c.Next() // zBlank
 		case 2:
 			rr.Retry = v
-			c.Next() // zBlank
 		case 3:
 			rr.Expire = v
-			c.Next() // zBlank
 		case 4:
 			rr.Minttl = v
+		}
+
+		if i != 4 {
+			c.Next() // zBlank
 		}
 	}
 	return slurpRemainder(c)
@@ -1216,6 +1216,64 @@ func (rr *CDNSKEY) parse(c *zlexer, o string) *ParseError { return rr.parseDNSKE
 func (rr *DS) parse(c *zlexer, o string) *ParseError      { return rr.parseDS(c, o, "DS") }
 func (rr *DLV) parse(c *zlexer, o string) *ParseError     { return rr.parseDS(c, o, "DLV") }
 func (rr *CDS) parse(c *zlexer, o string) *ParseError     { return rr.parseDS(c, o, "CDS") }
+
+func (rr *IPSECKEY) parse(c *zlexer, o string) *ParseError {
+	for i := 0; i < 3; i++ {
+		l, _ := c.Next()
+		num, err := strconv.ParseUint(l.token, 10, 8)
+		if err != nil || l.err {
+			return &ParseError{"", "bad IPSECKEY value", l}
+		}
+
+		num8 := uint8(num)
+		switch i {
+		case 0:
+			rr.Precedence = num8
+		case 1:
+			rr.GatewayType = num8
+		case 2:
+			rr.Algorithm = num8
+		}
+
+		c.Next() // zBlank
+	}
+
+	l, _ := c.Next()
+	if l.err {
+		return &ParseError{"", "bad IPSECKEY gateway", l}
+	}
+
+	switch rr.GatewayType {
+	case IPSECGatewayNone:
+		if l.token != "." {
+			return &ParseError{"", "IPSECKEY gateway type none with gateway set", l}
+		}
+	case IPSECGatewayIPv4, IPSECGatewayIPv6:
+		addr, err := netip.ParseAddr(l.token)
+		if err != nil {
+			return &ParseError{"", "IPSECKEY gateway IP invalid", l}
+		}
+		if !((rr.GatewayType == IPSECGatewayIPv4 && addr.Is4()) || (rr.GatewayType == IPSECGatewayIPv6 && addr.Is6())) {
+			return &ParseError{"", "IPSECKEY gateway IP family mismatch", l}
+		}
+		rr.GatewayAddr = addr
+	case IPSECGatewayHost:
+		host, ok := toAbsoluteName(l.token, o)
+		if !ok {
+			return &ParseError{"", "IPSECKEY invalid gateway host", l}
+		}
+		rr.GatewayHost = host
+	}
+
+	c.Next() // zBlank
+
+	s, err := endingToString(c, "bad IPSECKEY PublicKey")
+	if err != nil {
+		return err
+	}
+	rr.PublicKey = s
+	return nil
+}
 
 func (rr *RKEY) parse(c *zlexer, o string) *ParseError {
 	l, _ := c.Next()

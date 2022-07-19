@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"strconv"
 )
 
@@ -274,7 +275,7 @@ type EDNS0_SUBNET struct {
 	Family        uint16 // 1 for IP, 2 for IP6
 	SourceNetmask uint8
 	SourceScope   uint8
-	Address       net.IP
+	Address       netip.Addr
 }
 
 // Option implements the EDNS0 interface.
@@ -296,25 +297,24 @@ func (e *EDNS0_SUBNET) pack() ([]byte, error) {
 		if e.SourceNetmask > net.IPv4len*8 {
 			return nil, errors.New("dns: bad netmask")
 		}
-		if len(e.Address.To4()) != net.IPv4len {
+		if !e.Address.Is4() {
 			return nil, errors.New("dns: bad address")
 		}
-		ip := e.Address.To4().Mask(net.CIDRMask(int(e.SourceNetmask), net.IPv4len*8))
-		needLength := (e.SourceNetmask + 8 - 1) / 8 // division rounding up
-		b = append(b, ip[:needLength]...)
 	case 2:
 		if e.SourceNetmask > net.IPv6len*8 {
 			return nil, errors.New("dns: bad netmask")
 		}
-		if len(e.Address) != net.IPv6len {
+		if !e.Address.Is6() {
 			return nil, errors.New("dns: bad address")
 		}
-		ip := e.Address.Mask(net.CIDRMask(int(e.SourceNetmask), net.IPv6len*8))
-		needLength := (e.SourceNetmask + 8 - 1) / 8 // division rounding up
-		b = append(b, ip[:needLength]...)
 	default:
 		return nil, errors.New("dns: bad address family")
 	}
+
+	ip := netip.PrefixFrom(e.Address, int(e.SourceNetmask)).Masked().Addr().AsSlice()
+	needLength := (e.SourceNetmask + 8 - 1) / 8 // division rounding up
+	b = append(b, ip[:needLength]...)
+
 	return b, nil
 }
 
@@ -332,31 +332,30 @@ func (e *EDNS0_SUBNET) unpack(b []byte) error {
 		if e.SourceNetmask != 0 {
 			return errors.New("dns: bad address family")
 		}
-		e.Address = net.IPv4(0, 0, 0, 0)
+		e.Address = netip.AddrFrom4([4]byte{0, 0, 0, 0})
 	case 1:
 		if e.SourceNetmask > net.IPv4len*8 || e.SourceScope > net.IPv4len*8 {
 			return errors.New("dns: bad netmask")
 		}
-		addr := make(net.IP, net.IPv4len)
-		copy(addr, b[4:])
-		e.Address = addr.To16()
 	case 2:
 		if e.SourceNetmask > net.IPv6len*8 || e.SourceScope > net.IPv6len*8 {
 			return errors.New("dns: bad netmask")
 		}
-		addr := make(net.IP, net.IPv6len)
-		copy(addr, b[4:])
-		e.Address = addr
 	default:
 		return errors.New("dns: bad address family")
 	}
+	addr, ok := netip.AddrFromSlice(b[4:])
+	if !ok {
+		return errors.New("dns: bad address")
+	}
+	e.Address = addr
 	return nil
 }
 
 func (e *EDNS0_SUBNET) String() (s string) {
-	if e.Address == nil {
+	if !e.Address.IsValid() {
 		s = "<nil>"
-	} else if e.Address.To4() != nil {
+	} else if e.Address.Is4() {
 		s = e.Address.String()
 	} else {
 		s = "[" + e.Address.String() + "]"

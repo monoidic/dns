@@ -14,7 +14,7 @@ import (
 
 const supportsReusePort = true
 
-func reuseportControl(network, address string, c syscall.RawConn) error {
+func reuseportControl(_, _ string, c syscall.RawConn) error {
 	var opErr error
 	err := c.Control(func(fd uintptr) {
 		opErr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_REUSEPORT, 1)

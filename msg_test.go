@@ -16,7 +16,7 @@ var (
 
 	reChar              = regexp.MustCompile(`.`)
 	i                   = -1
-	maxUnprintableLabel = reChar.ReplaceAllStringFunc(maxPrintableLabel, func(ch string) string {
+	maxUnprintableLabel = reChar.ReplaceAllStringFunc(maxPrintableLabel, func(_ string) string {
 		if i++; i >= 32 {
 			i = 0
 		}

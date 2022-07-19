@@ -670,7 +670,7 @@ func TestTimeout(t *testing.T) {
 		c := &Client{Timeout: timeout}
 		return c.Exchange(m, addr)
 	})
-	runTest("ExchangeContext", func(m *Msg, addr string, timeout time.Duration) (*Msg, time.Duration, error) {
+	runTest("ExchangeContext", func(m *Msg, _ string, timeout time.Duration) (*Msg, time.Duration, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 

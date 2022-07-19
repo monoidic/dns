@@ -887,7 +887,7 @@ func TestHandlerCloseTCP(t *testing.T) {
 
 	hname := "testhandlerclosetcp."
 	triggered := make(chan struct{})
-	HandleFunc(hname, func(w ResponseWriter, r *Msg) {
+	HandleFunc(hname, func(w ResponseWriter, _ *Msg) {
 		close(triggered)
 		w.Close()
 	})

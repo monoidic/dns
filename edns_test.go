@@ -3,6 +3,7 @@ package dns
 import (
 	"bytes"
 	"net"
+	"net/netip"
 	"testing"
 )
 
@@ -79,15 +80,15 @@ func TestOPTTtl(t *testing.T) {
 }
 
 func TestEDNS0_SUBNETUnpack(t *testing.T) {
-	for _, ip := range []net.IP{
-		net.IPv4(0xde, 0xad, 0xbe, 0xef),
-		net.ParseIP("192.0.2.1"),
-		net.ParseIP("2001:db8::68"),
+	for _, ip := range []netip.Addr{
+		netip.AddrFrom4([4]byte{0xde, 0xad, 0xbe, 0xef}),
+		netip.MustParseAddr("192.0.2.1"),
+		netip.MustParseAddr("2001:db8::68"),
 	} {
 		var s1 EDNS0_SUBNET
 		s1.Address = ip
 
-		if ip.To4() == nil {
+		if ip.Is6() {
 			s1.Family = 2
 			s1.SourceNetmask = net.IPv6len * 8
 		} else {
@@ -105,7 +106,7 @@ func TestEDNS0_SUBNETUnpack(t *testing.T) {
 			t.Fatalf("failed to unpack: %v", err)
 		}
 
-		if !ip.Equal(s2.Address) {
+		if ip != s2.Address {
 			t.Errorf("address different after unpacking; expected %s, got %s", ip, s2.Address)
 		}
 	}

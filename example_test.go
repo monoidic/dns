@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/netip"
 
 	"github.com/monoidic/dns"
 )
@@ -58,7 +59,7 @@ func ExampleDS() {
 const TypeAPAIR = 0x0F99
 
 type APAIR struct {
-	addr [2]net.IP
+	addr [2]netip.Addr
 }
 
 func NewAPAIR() dns.PrivateRdata { return new(APAIR) }
@@ -70,8 +71,8 @@ func (rd *APAIR) Parse(txt []string) error {
 		return errors.New("two addresses required for APAIR")
 	}
 	for i, s := range txt {
-		ip := net.ParseIP(s)
-		if ip == nil {
+		ip, err := netip.ParseAddr(s)
+		if err != nil {
 			return errors.New("invalid IP in APAIR text representation")
 		}
 		rd.addr[i] = ip
@@ -80,7 +81,7 @@ func (rd *APAIR) Parse(txt []string) error {
 }
 
 func (rd *APAIR) Pack(buf []byte) (int, error) {
-	b := append([]byte(rd.addr[0]), []byte(rd.addr[1])...)
+	b := append(rd.addr[0].AsSlice(), rd.addr[1].AsSlice()...)
 	n := copy(buf, b)
 	if n != len(b) {
 		return n, dns.ErrBuf
@@ -96,8 +97,8 @@ func (rd *APAIR) Unpack(buf []byte) (int, error) {
 	cp := make([]byte, ln)
 	copy(cp, buf) // clone bytes to use them in IPs
 
-	rd.addr[0] = net.IP(cp[:3])
-	rd.addr[1] = net.IP(cp[4:])
+	rd.addr[0], _ = netip.AddrFromSlice(cp[:3])
+	rd.addr[1], _ = netip.AddrFromSlice(cp[4:])
 
 	return len(buf), nil
 }
@@ -110,8 +111,8 @@ func (rd *APAIR) Copy(dest dns.PrivateRdata) error {
 	}
 
 	d := dest.(*APAIR)
-	d.addr[0] = net.IP(cp[:3])
-	d.addr[1] = net.IP(cp[4:])
+	d.addr[0], _ = netip.AddrFromSlice(cp[:3])
+	d.addr[1], _ = netip.AddrFromSlice(cp[4:])
 	return nil
 }
 

@@ -128,10 +128,6 @@ type dnskeyWireFmt struct {
 	/* Nothing is left out */
 }
 
-func divRoundUp(a, b int) int {
-	return (a + b - 1) / b
-}
-
 // KeyTag calculates the keytag (or key-id) of the DNSKEY.
 func (k *DNSKEY) KeyTag() uint16 {
 	if k == nil {

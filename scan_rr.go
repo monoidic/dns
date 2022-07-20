@@ -1290,7 +1290,7 @@ func parseAddrHostUnion(l lex, o string, gatewayType uint8, errType string) (net
 }
 
 func (rr *AMTRELAY) parse(c *zlexer, o string) *ParseError {
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 3; i++ {
 		l, _ := c.Next()
 		num, err := strconv.ParseUint(l.token, 10, 8)
 		if err != nil || l.err {
@@ -1302,8 +1302,15 @@ func (rr *AMTRELAY) parse(c *zlexer, o string) *ParseError {
 		case 0:
 			rr.Precedence = num8
 		case 1:
-			rr.DiscoveryOptional = (num8 & 0x80) != 0
-			rr.GatewayType = num8 & 0x7f
+			if num8 > 1 {
+				return &ParseError{"", "bad discovery value", l}
+			}
+			rr.DiscoveryOptional = num8 == 1
+		case 2:
+			if num > 0x7f {
+				return &ParseError{"", "bad gateway type value", l}
+			}
+			rr.GatewayType = num8
 		}
 
 		c.Next() // zBlank

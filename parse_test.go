@@ -2043,7 +2043,6 @@ func TestParseIPSECKEY(t *testing.T) {
 	}
 
 	for i, o := range dt {
-		fmt.Println(i, o)
 		rr := testRR(i).(*IPSECKEY)
 		if s := rr.String(); s != o {
 			t.Errorf("input %#v does not match expected output %#v", s, o)
@@ -2057,7 +2056,6 @@ func TestParseAMTRELAY(t *testing.T) {
 	}
 
 	for i, o := range dt {
-		fmt.Println(i, o)
 		rr := testRR(i).(*AMTRELAY)
 		if s := rr.String(); s != o {
 			t.Errorf("input %#v does not match expected output %#v", s, o)

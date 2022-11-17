@@ -799,7 +799,7 @@ var ExtendedErrorCodeToString = map[uint16]string{
 
 // StringToExtendedErrorCode is a map from human readable descriptions to
 // extended error info codes.
-var StringToExtendedErrorCode = reverseInt16(ExtendedErrorCodeToString)
+var StringToExtendedErrorCode = reverseMap(ExtendedErrorCodeToString)
 
 // EDNS0_EDE option is used to return additional information about the cause of
 // DNS errors.

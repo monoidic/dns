@@ -79,7 +79,10 @@ func (rr *OPT) String() string {
 	if rr.Do() {
 		s += "flags: do; "
 	} else {
-		s += "flags: ; "
+		s += "flags:; "
+	}
+	if rr.Hdr.Ttl&0x7FFF != 0 {
+		s += fmt.Sprintf("MBZ: 0x%04x, ", rr.Hdr.Ttl&0x7FFF)
 	}
 	s += "udp: " + strconv.Itoa(int(rr.UDPSize()))
 
@@ -99,6 +102,8 @@ func (rr *OPT) String() string {
 			s += "\n; SUBNET: " + o.String()
 		case *EDNS0_COOKIE:
 			s += "\n; COOKIE: " + o.String()
+		case *EDNS0_EXPIRE:
+			s += "\n; EXPIRE: " + o.String()
 		case *EDNS0_TCP_KEEPALIVE:
 			s += "\n; KEEPALIVE: " + o.String()
 		case *EDNS0_UL:

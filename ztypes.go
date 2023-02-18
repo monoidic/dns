@@ -812,7 +812,7 @@ func (rr *AFSDB) copy() RR {
 }
 
 func (rr *AMTRELAY) copy() RR {
-	return &AMTRELAY{rr.Hdr, rr.Precedence, rr.DiscoveryOptional, rr.GatewayType, rr.GatewayAddr, rr.GatewayHost}
+	return &AMTRELAY{rr.Hdr, rr.Precedence, rr.GatewayType, rr.GatewayAddr, rr.GatewayHost}
 }
 
 func (rr *ANY) copy() RR {

@@ -192,7 +192,7 @@ if rr.%s != "-" {
 				log.Fatalln("pack: unknown tag", name, st.Field(i).Name(), st.Tag(i))
 			}
 		}
-		fmt.Fprintln(b, "return off, nil }\n")
+		fmt.Fprint(b, "return off, nil }\n\n")
 	}
 
 	fmt.Fprint(b, "// unpack*() functions\n\n")

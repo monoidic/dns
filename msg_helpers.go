@@ -447,6 +447,9 @@ func packDataOpt(options []EDNS0, msg []byte, off int) (int, error) {
 }
 
 func unpackStringOctet(msg []byte, off int) (string, int, error) {
+	if len(msg)-off > 256*4+1 {
+		return "", 0, ErrLen
+	}
 	s := string(msg[off:])
 	return s, len(msg), nil
 }
@@ -522,6 +525,9 @@ func unpackDataNsec(msg []byte, off int) ([]uint16, int, error) {
 // typeBitMapLen is a helper function which computes the "maximum" length of
 // a the NSEC Type BitMap field.
 func typeBitMapLen(bitmap []uint16) int {
+	if len(bitmap) == 0 {
+		return 0
+	}
 	var l int
 	var lastwindow, lastlength uint16
 	for _, t := range bitmap {

@@ -299,7 +299,10 @@ func (rr *AMTRELAY) len(off int, compression map[string]struct{}) int {
 	case AMTRELAYIPv6:
 		l += net.IPv6len
 	case AMTRELAYHost:
-		l += len(rr.GatewayHost) + 1
+		l++
+		if gwLen := len(rr.GatewayHost); gwLen > 1 {
+			l += gwLen
+		}
 	}
 	return l
 }
@@ -441,7 +444,10 @@ func (rr *IPSECKEY) len(off int, compression map[string]struct{}) int {
 	case IPSECGatewayIPv6:
 		l += net.IPv6len
 	case IPSECGatewayHost:
-		l += len(rr.GatewayHost) + 1
+		l++
+		if gwLen := len(rr.GatewayHost); gwLen > 1 {
+			l += gwLen
+		}
 	}
 	l += base64.StdEncoding.DecodedLen(len(rr.PublicKey))
 	return l

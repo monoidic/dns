@@ -227,7 +227,10 @@ func main() {
 				case IPSECGatewayIPv6:
 					l += net.IPv6len
 				case IPSECGatewayHost:
-					l += len(rr.%s) + 1
+					l++
+					if gwLen := len(rr.%s); gwLen > 1 {
+						l += gwLen
+					}
 				}
 				`)
 			case st.Tag(i) == `dns:"amtrelayhost"`:
@@ -237,7 +240,10 @@ func main() {
 				case AMTRELAYIPv6:
 					l += net.IPv6len
 				case AMTRELAYHost:
-					l += len(rr.%s) + 1
+					l++
+					if gwLen := len(rr.%s); gwLen > 1 {
+						l += gwLen
+					}
 				}
 				`)
 			case st.Tag(i) == `dns:"amtrelaytype"`:

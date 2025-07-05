@@ -411,6 +411,9 @@ func (s *SVCBAlpn) unpack(b []byte) error {
 	alpn := make([]string, 0, len(b)/4)
 	for i := 0; i < len(b); {
 		length := int(b[i])
+		if length == 0 {
+			return errors.New("dns: svcbalpn: empty alpn-id")
+		}
 		i++
 		if i+length > len(b) {
 			return errors.New("dns: svcbalpn: alpn array overflowing")

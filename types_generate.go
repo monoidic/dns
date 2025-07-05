@@ -34,7 +34,6 @@ var packageHdr = `
 package dns
 
 import (
-	"encoding/base64"
 	"net"
 )
 
@@ -182,7 +181,7 @@ func main() {
 				case `dns:"domain-name"`:
 					o("for _, x := range rr.%s { l += domainNameLen(x, off+l, compression, false) }\n")
 				case `dns:"txt"`:
-					o("for _, x := range rr.%s { l += len(x) + 1 }\n")
+					o("for _, x := range rr.%s { l += escapedNameLen(x) + 1 }\n")
 				case `dns:"apl"`:
 					o("for _, x := range rr.%s { l += x.len() }\n")
 				case `dns:"pairs"`:
@@ -201,11 +200,11 @@ func main() {
 			case st.Tag(i) == `dns:"domain-name"`:
 				o("l += domainNameLen(rr.%s, off+l, compression, false)\n")
 			case st.Tag(i) == `dns:"octet"`:
-				o("l += len(rr.%s)\n")
+				o("l += escapedNameLen(rr.%s)\n")
 			case strings.HasPrefix(st.Tag(i), `dns:"size-base64`):
 				fallthrough
 			case st.Tag(i) == `dns:"base64"`:
-				o("l += base64.StdEncoding.DecodedLen(len(rr.%s))\n")
+				o("l += base64StringDecodedLen(rr.%s)\n")
 			case strings.HasPrefix(st.Tag(i), `dns:"size-hex:`): // this has an extra field where the length is stored
 				o("l += len(rr.%s)/2\n")
 			case st.Tag(i) == `dns:"hex"`:
@@ -227,10 +226,7 @@ func main() {
 				case IPSECGatewayIPv6:
 					l += net.IPv6len
 				case IPSECGatewayHost:
-					l++
-					if gwLen := len(rr.%s); gwLen > 1 {
-						l += gwLen
-					}
+					l += domainNameLen(rr.%s, off+l, compression, false)
 				}
 				`)
 			case st.Tag(i) == `dns:"amtrelayhost"`:
@@ -240,10 +236,7 @@ func main() {
 				case AMTRELAYIPv6:
 					l += net.IPv6len
 				case AMTRELAYHost:
-					l++
-					if gwLen := len(rr.%s); gwLen > 1 {
-						l += gwLen
-					}
+					l += domainNameLen(rr.%s, off+l, compression, false)
 				}
 				`)
 			case st.Tag(i) == `dns:"amtrelaytype"`:
@@ -259,7 +252,7 @@ func main() {
 				case types.Uint64:
 					o("l += 8 // %s\n")
 				case types.String:
-					o("l += len(rr.%s) + 1\n")
+					o("l += escapedNameLen(rr.%s) + 1\n")
 				default:
 					log.Fatalln(name, st.Field(i).Name())
 				}

@@ -450,10 +450,18 @@ func packDataOpt(options []EDNS0, msg []byte, off int) (int, error) {
 }
 
 func unpackStringOctet(msg []byte, off int) (string, int, error) {
-	if len(msg)-off > 256*4+1 {
+	var buf []byte
+	for _, b := range msg[off:] {
+		if b == '\\' {
+			buf = append(buf, '\\')
+		}
+		buf = append(buf, b)
+	}
+
+	if len(buf) > 256*4+1 {
 		return "", 0, ErrLen
 	}
-	s := string(msg[off:])
+	s := string(buf)
 	return s, len(msg), nil
 }
 

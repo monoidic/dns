@@ -1192,7 +1192,7 @@ func (rr *NSEC3) String() string {
 
 func (rr *NSEC3) len(off int, compression map[string]struct{}) int {
 	l := rr.Hdr.len(off, compression)
-	l += 6 + len(rr.Salt)/2 + 1 + len(rr.NextDomain) + 1
+	l += 6 + len(rr.Salt)/2 + base32HexNoPadEncoding.DecodedLen(len(rr.NextDomain))
 	l += typeBitMapLen(rr.TypeBitMap)
 	return l
 }

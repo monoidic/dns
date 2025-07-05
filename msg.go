@@ -69,6 +69,7 @@ var (
 	ErrSig           error = &Error{err: "bad signature"} // ErrSig indicates that a signature can not be cryptographically validated.
 	ErrSoa           error = &Error{err: "no SOA"}        // ErrSOA indicates that no SOA RR was seen when doing zone transfers.
 	ErrTime          error = &Error{err: "bad time"}      // ErrTime indicates a timing error in TSIG authentication.
+	ErrLen           error = &Error{err: "message too long"}
 )
 
 // Id by default returns a 16-bit random number to be used as a message id. The
@@ -503,6 +504,9 @@ func packTxtString(s string, msg []byte, offset int) (int, error) {
 }
 
 func packOctetString(s string, msg []byte, offset int) (int, error) {
+	if len(s) == 0 {
+		return offset, nil
+	}
 	if offset >= len(msg) || len(s) > 256*4+1 {
 		return offset, ErrBuf
 	}

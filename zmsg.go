@@ -77,7 +77,7 @@ func (rr *CAA) pack(msg []byte, off int, compression compressionMap, compress bo
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringOctet(rr.Value, msg, off)
+	off, err = packOctetString(rr.Value, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -1179,7 +1179,7 @@ func (rr *URI) pack(msg []byte, off int, compression compressionMap, compress bo
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringOctet(rr.Target, msg, off)
+	off, err = packOctetString(rr.Target, msg, off)
 	if err != nil {
 		return off, err
 	}

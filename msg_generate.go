@@ -170,7 +170,7 @@ if rr.%s != "-" {
 			case st.Tag(i) == `dns:"any"`:
 				o("off, err = packStringAny(rr.%s, msg, off)\n")
 			case st.Tag(i) == `dns:"octet"`:
-				o("off, err = packStringOctet(rr.%s, msg, off)\n")
+				o("off, err = packOctetString(rr.%s, msg, off)\n")
 			case st.Tag(i) == `dns:"ipsechost"` || st.Tag(i) == `dns:"amtrelayhost"`:
 				o("off, err = packIPSECGateway(rr.GatewayAddr, rr.%s, msg, off, rr.GatewayType, compression, false)\n")
 			case st.Tag(i) == "":
@@ -192,7 +192,7 @@ if rr.%s != "-" {
 				log.Fatalln(name, st.Field(i).Name(), st.Tag(i))
 			}
 		}
-		fmt.Fprintln(b, "return off, nil }\n")
+		fmt.Fprint(b, "return off, nil }\n\n")
 	}
 
 	fmt.Fprint(b, "// unpack*() functions\n\n")

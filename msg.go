@@ -467,33 +467,11 @@ func packTxt(txt []string, msg []byte, offset int) (int, error) {
 	}
 	return offset, nil
 }
-
 func packTxtString(s string, msg []byte, offset int) (int, error) {
 	lenByteOffset := offset
-	if offset >= len(msg) || len(s) > 256*4+1 /* If all \DDD */ {
-		return offset, ErrBuf
-	}
-	offset++
-	for i := 0; i < len(s); i++ {
-		if len(msg) <= offset {
-			return offset, ErrBuf
-		}
-		if s[i] == '\\' {
-			i++
-			if i == len(s) {
-				break
-			}
-			// check for \DDD
-			if isDDD(s[i:]) {
-				msg[offset] = dddToByte(s[i:])
-				i += 2
-			} else {
-				msg[offset] = s[i]
-			}
-		} else {
-			msg[offset] = s[i]
-		}
-		offset++
+	offset, err := packOctetString(s, msg, offset+1)
+	if err != nil {
+		return offset, err
 	}
 	l := offset - lenByteOffset - 1
 	if l > 255 {
@@ -507,7 +485,7 @@ func packOctetString(s string, msg []byte, offset int) (int, error) {
 	if len(s) == 0 {
 		return offset, nil
 	}
-	if offset >= len(msg) || len(s) > 256*4+1 {
+	if offset >= len(msg) || len(s) > 256*4+1 /* If all \DDD */ {
 		return offset, ErrBuf
 	}
 	for i := 0; i < len(s); i++ {

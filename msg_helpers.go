@@ -450,27 +450,19 @@ func packDataOpt(options []EDNS0, msg []byte, off int) (int, error) {
 }
 
 func unpackStringOctet(msg []byte, off int) (string, int, error) {
-	var buf []byte
-	for _, b := range msg[off:] {
-		if b == '\\' {
-			buf = append(buf, '\\')
+	var b strings.Builder
+	for _, c := range msg[off:] {
+		if c == '\\' {
+			b.WriteByte('\\')
 		}
-		buf = append(buf, b)
+		b.WriteByte(c)
 	}
 
-	if len(buf) > 256*4+1 {
+	if b.Len() > 256*4+1 {
 		return "", 0, ErrLen
 	}
-	s := string(buf)
+	s := b.String()
 	return s, len(msg), nil
-}
-
-func packStringOctet(s string, msg []byte, off int) (int, error) {
-	off, err := packOctetString(s, msg, off)
-	if err != nil {
-		return len(msg), err
-	}
-	return off, nil
 }
 
 func unpackDataNsec(msg []byte, off int) ([]uint16, int, error) {
@@ -805,9 +797,12 @@ func unpackDataAplPrefix(msg []byte, off int) (APLPrefix, int, error) {
 			return APLPrefix{}, len(msg), &Error{err: "extra APL address bits"}
 		}
 	}
+
+	mask := net.CIDRMask(int(prefix), 8*len(ip))
+	masked := net.IP(ip).Mask(mask)
 	ipnet := net.IPNet{
-		IP:   ip,
-		Mask: net.CIDRMask(int(prefix), 8*len(ip)),
+		IP:   masked,
+		Mask: mask,
 	}
 
 	return APLPrefix{

@@ -1248,9 +1248,6 @@ func (rr *AFSDB) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("AFSDB.Subtype: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Hostname, off, err = UnpackDomainName(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("AFSDB.Hostname: %w", err)
@@ -1266,18 +1263,9 @@ func (rr *AMTRELAY) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("AMTRELAY.Precedence: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.GatewayType, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("AMTRELAY.GatewayType: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.GatewayAddr, rr.GatewayHost, off, err = unpackIPSECGateway(msg, off, rr.GatewayType)
 	if err != nil {
@@ -1323,15 +1311,9 @@ func (rr *CAA) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("CAA.Flag: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Tag, off, err = unpackString(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("CAA.Tag: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Value, off, err = unpackStringOctet(msg, off)
 	if err != nil {
@@ -1348,22 +1330,13 @@ func (rr *CDNSKEY) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("CDNSKEY.Flags: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Protocol, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("CDNSKEY.Protocol: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Algorithm, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("CDNSKEY.Algorithm: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.PublicKey, off, err = unpackStringBase64(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
@@ -1380,22 +1353,13 @@ func (rr *CDS) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("CDS.KeyTag: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Algorithm, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("CDS.Algorithm: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.DigestType, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("CDS.DigestType: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Digest, off, err = unpackStringHex(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
@@ -1412,22 +1376,13 @@ func (rr *CERT) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("CERT.Type: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.KeyTag, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("CERT.KeyTag: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Algorithm, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("CERT.Algorithm: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Certificate, off, err = unpackStringBase64(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
@@ -1455,15 +1410,9 @@ func (rr *CSYNC) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("CSYNC.Serial: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Flags, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("CSYNC.Flags: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.TypeBitMap, off, err = unpackDataNsec(msg, off)
 	if err != nil {
@@ -1491,22 +1440,13 @@ func (rr *DLV) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("DLV.KeyTag: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Algorithm, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("DLV.Algorithm: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.DigestType, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("DLV.DigestType: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Digest, off, err = unpackStringHex(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
@@ -1534,22 +1474,13 @@ func (rr *DNSKEY) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("DNSKEY.Flags: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Protocol, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("DNSKEY.Protocol: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Algorithm, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("DNSKEY.Algorithm: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.PublicKey, off, err = unpackStringBase64(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
@@ -1566,22 +1497,13 @@ func (rr *DS) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("DS.KeyTag: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Algorithm, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("DS.Algorithm: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.DigestType, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("DS.DigestType: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Digest, off, err = unpackStringHex(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
@@ -1642,15 +1564,9 @@ func (rr *GPOS) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("GPOS.Longitude: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Latitude, off, err = unpackString(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("GPOS.Latitude: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Altitude, off, err = unpackString(msg, off)
 	if err != nil {
@@ -1667,9 +1583,6 @@ func (rr *HINFO) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("HINFO.Cpu: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Os, off, err = unpackString(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("HINFO.Os: %w", err)
@@ -1685,22 +1598,13 @@ func (rr *HIP) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("HIP.HitLength: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.PublicKeyAlgorithm, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("HIP.PublicKeyAlgorithm: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.PublicKeyLength, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("HIP.PublicKeyLength: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Hit, off, err = unpackStringHex(msg, off, off+int(rr.HitLength))
 	if err != nil {
@@ -1725,15 +1629,9 @@ func (rr *HTTPS) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("HTTPS.Priority: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Target, off, err = UnpackDomainName(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("HTTPS.Target: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Value, off, err = unpackDataSVCB(msg, off)
 	if err != nil {
@@ -1750,32 +1648,17 @@ func (rr *IPSECKEY) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("IPSECKEY.Precedence: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.GatewayType, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("IPSECKEY.GatewayType: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Algorithm, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("IPSECKEY.Algorithm: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.GatewayAddr, rr.GatewayHost, off, err = unpackIPSECGateway(msg, off, rr.GatewayType)
 	if err != nil {
 		return off, fmt.Errorf("IPSECKEY.GatewayHost: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.PublicKey, off, err = unpackStringBase64(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
@@ -1792,9 +1675,6 @@ func (rr *ISDN) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("ISDN.Address: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.SubAddress, off, err = unpackString(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("ISDN.SubAddress: %w", err)
@@ -1810,22 +1690,13 @@ func (rr *KEY) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("KEY.Flags: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Protocol, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("KEY.Protocol: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Algorithm, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("KEY.Algorithm: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.PublicKey, off, err = unpackStringBase64(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
@@ -1842,9 +1713,6 @@ func (rr *KX) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("KX.Preference: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Exchanger, off, err = UnpackDomainName(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("KX.Exchanger: %w", err)
@@ -1859,9 +1727,6 @@ func (rr *L32) unpack(msg []byte, off int) (off1 int, err error) {
 	rr.Preference, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("L32.Preference: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Locator32, off, err = unpackDataA(msg, off)
 	if err != nil {
@@ -1878,9 +1743,6 @@ func (rr *L64) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("L64.Preference: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Locator64, off, err = unpackUint64(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("L64.Locator64: %w", err)
@@ -1896,43 +1758,25 @@ func (rr *LOC) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("LOC.Version: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Size, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("LOC.Size: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.HorizPre, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("LOC.HorizPre: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.VertPre, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("LOC.VertPre: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Latitude, off, err = unpackUint32(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("LOC.Latitude: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Longitude, off, err = unpackUint32(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("LOC.Longitude: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Altitude, off, err = unpackUint32(msg, off)
 	if err != nil {
@@ -1948,9 +1792,6 @@ func (rr *LP) unpack(msg []byte, off int) (off1 int, err error) {
 	rr.Preference, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("LP.Preference: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Fqdn, off, err = UnpackDomainName(msg, off)
 	if err != nil {
@@ -2011,9 +1852,6 @@ func (rr *MINFO) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("MINFO.Rmail: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Email, off, err = UnpackDomainName(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("MINFO.Email: %w", err)
@@ -2040,9 +1878,6 @@ func (rr *MX) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("MX.Preference: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Mx, off, err = UnpackDomainName(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("MX.Mx: %w", err)
@@ -2058,36 +1893,21 @@ func (rr *NAPTR) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("NAPTR.Order: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Preference, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("NAPTR.Preference: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Flags, off, err = unpackString(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("NAPTR.Flags: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Service, off, err = unpackString(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("NAPTR.Service: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Regexp, off, err = unpackString(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("NAPTR.Regexp: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Replacement, off, err = UnpackDomainName(msg, off)
 	if err != nil {
@@ -2103,9 +1923,6 @@ func (rr *NID) unpack(msg []byte, off int) (off1 int, err error) {
 	rr.Preference, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("NID.Preference: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.NodeID, off, err = unpackUint64(msg, off)
 	if err != nil {
@@ -2166,9 +1983,6 @@ func (rr *NSEC) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("NSEC.NextDomain: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.TypeBitMap, off, err = unpackDataNsec(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("NSEC.TypeBitMap: %w", err)
@@ -2184,29 +1998,17 @@ func (rr *NSEC3) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("NSEC3.Hash: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Flags, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("NSEC3.Flags: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Iterations, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("NSEC3.Iterations: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.SaltLength, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("NSEC3.SaltLength: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Salt, off, err = unpackStringHex(msg, off, off+int(rr.SaltLength))
 	if err != nil {
@@ -2215,9 +2017,6 @@ func (rr *NSEC3) unpack(msg []byte, off int) (off1 int, err error) {
 	rr.HashLength, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("NSEC3.HashLength: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.NextDomain, off, err = unpackStringBase32(msg, off, off+int(rr.HashLength))
 	if err != nil {
@@ -2238,29 +2037,17 @@ func (rr *NSEC3PARAM) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("NSEC3PARAM.Hash: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Flags, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("NSEC3PARAM.Flags: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Iterations, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("NSEC3PARAM.Iterations: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.SaltLength, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("NSEC3PARAM.SaltLength: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Salt, off, err = unpackStringHex(msg, off, off+int(rr.SaltLength))
 	if err != nil {
@@ -2294,9 +2081,6 @@ func (rr *NXT) unpack(msg []byte, off int) (off1 int, err error) {
 	rr.NextDomain, off, err = UnpackDomainName(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("NXT.NextDomain: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.TypeBitMap, off, err = unpackDataNsec(msg, off)
 	if err != nil {
@@ -2346,15 +2130,9 @@ func (rr *PX) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("PX.Preference: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Map822, off, err = UnpackDomainName(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("PX.Map822: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Mapx400, off, err = UnpackDomainName(msg, off)
 	if err != nil {
@@ -2369,7 +2147,7 @@ func (rr *RESINFO) unpack(msg []byte, off int) (off1 int, err error) {
 
 	rr.Txt, off, err = unpackStringTxt(msg, off)
 	if err != nil {
-		return off, err
+		return off, fmt.Errorf("RESINFO.Txt: %w", err)
 	}
 	return off, nil
 }
@@ -2393,22 +2171,13 @@ func (rr *RKEY) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("RKEY.Flags: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Protocol, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("RKEY.Protocol: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Algorithm, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("RKEY.Algorithm: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.PublicKey, off, err = unpackStringBase64(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
@@ -2425,9 +2194,6 @@ func (rr *RP) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("RP.Mbox: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Txt, off, err = UnpackDomainName(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("RP.Txt: %w", err)
@@ -2443,57 +2209,33 @@ func (rr *RRSIG) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("RRSIG.TypeCovered: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Algorithm, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("RRSIG.Algorithm: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Labels, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("RRSIG.Labels: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.OrigTtl, off, err = unpackUint32(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("RRSIG.OrigTtl: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Expiration, off, err = unpackUint32(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("RRSIG.Expiration: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Inception, off, err = unpackUint32(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("RRSIG.Inception: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.KeyTag, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("RRSIG.KeyTag: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.SignerName, off, err = UnpackDomainName(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("RRSIG.SignerName: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Signature, off, err = unpackStringBase64(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
@@ -2510,9 +2252,6 @@ func (rr *RT) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("RT.Preference: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Host, off, err = UnpackDomainName(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("RT.Host: %w", err)
@@ -2528,57 +2267,33 @@ func (rr *SIG) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("SIG.TypeCovered: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Algorithm, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SIG.Algorithm: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Labels, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SIG.Labels: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.OrigTtl, off, err = unpackUint32(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SIG.OrigTtl: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Expiration, off, err = unpackUint32(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SIG.Expiration: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Inception, off, err = unpackUint32(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SIG.Inception: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.KeyTag, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SIG.KeyTag: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.SignerName, off, err = UnpackDomainName(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SIG.SignerName: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Signature, off, err = unpackStringBase64(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
@@ -2595,22 +2310,13 @@ func (rr *SMIMEA) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("SMIMEA.Usage: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Selector, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SMIMEA.Selector: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.MatchingType, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SMIMEA.MatchingType: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Certificate, off, err = unpackStringHex(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
@@ -2627,43 +2333,25 @@ func (rr *SOA) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("SOA.Ns: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Mbox, off, err = UnpackDomainName(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SOA.Mbox: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Serial, off, err = unpackUint32(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SOA.Serial: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Refresh, off, err = unpackUint32(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SOA.Refresh: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Retry, off, err = unpackUint32(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SOA.Retry: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Expire, off, err = unpackUint32(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SOA.Expire: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Minttl, off, err = unpackUint32(msg, off)
 	if err != nil {
@@ -2691,22 +2379,13 @@ func (rr *SRV) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("SRV.Priority: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Weight, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SRV.Weight: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Port, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SRV.Port: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Target, off, err = UnpackDomainName(msg, off)
 	if err != nil {
@@ -2723,15 +2402,9 @@ func (rr *SSHFP) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("SSHFP.Algorithm: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Type, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SSHFP.Type: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.FingerPrint, off, err = unpackStringHex(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
@@ -2748,15 +2421,9 @@ func (rr *SVCB) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("SVCB.Priority: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Target, off, err = UnpackDomainName(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SVCB.Target: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Value, off, err = unpackDataSVCB(msg, off)
 	if err != nil {
@@ -2773,22 +2440,13 @@ func (rr *TA) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("TA.KeyTag: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Algorithm, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("TA.Algorithm: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.DigestType, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("TA.DigestType: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Digest, off, err = unpackStringHex(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
@@ -2805,9 +2463,6 @@ func (rr *TALINK) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("TALINK.PreviousName: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.NextName, off, err = UnpackDomainName(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("TALINK.NextName: %w", err)
@@ -2823,43 +2478,25 @@ func (rr *TKEY) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("TKEY.Algorithm: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Inception, off, err = unpackUint32(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("TKEY.Inception: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Expiration, off, err = unpackUint32(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("TKEY.Expiration: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Mode, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("TKEY.Mode: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Error, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("TKEY.Error: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.KeySize, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("TKEY.KeySize: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Key, off, err = unpackStringHex(msg, off, off+int(rr.KeySize))
 	if err != nil {
@@ -2868,9 +2505,6 @@ func (rr *TKEY) unpack(msg []byte, off int) (off1 int, err error) {
 	rr.OtherLen, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("TKEY.OtherLen: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.OtherData, off, err = unpackStringHex(msg, off, off+int(rr.OtherLen))
 	if err != nil {
@@ -2887,22 +2521,13 @@ func (rr *TLSA) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("TLSA.Usage: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Selector, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("TLSA.Selector: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.MatchingType, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("TLSA.MatchingType: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Certificate, off, err = unpackStringHex(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
@@ -2919,29 +2544,17 @@ func (rr *TSIG) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("TSIG.Algorithm: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.TimeSigned, off, err = unpackUint48(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("TSIG.TimeSigned: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Fudge, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("TSIG.Fudge: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.MACSize, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("TSIG.MACSize: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.MAC, off, err = unpackStringHex(msg, off, off+int(rr.MACSize))
 	if err != nil {
@@ -2951,22 +2564,13 @@ func (rr *TSIG) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("TSIG.OrigId: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Error, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("TSIG.Error: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.OtherLen, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("TSIG.OtherLen: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.OtherData, off, err = unpackStringHex(msg, off, off+int(rr.OtherLen))
 	if err != nil {
@@ -3016,15 +2620,9 @@ func (rr *URI) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("URI.Priority: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Weight, off, err = unpackUint16(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("URI.Weight: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Target, off, err = unpackStringOctet(msg, off)
 	if err != nil {
@@ -3052,22 +2650,13 @@ func (rr *ZONEMD) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("ZONEMD.Serial: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Scheme, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("ZONEMD.Scheme: %w", err)
 	}
-	if off == len(msg) {
-		return off, nil
-	}
 	rr.Hash, off, err = unpackUint8(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("ZONEMD.Hash: %w", err)
-	}
-	if off == len(msg) {
-		return off, nil
 	}
 	rr.Digest, off, err = unpackStringHex(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {

@@ -132,15 +132,24 @@ func TestCrashNSEC3(t *testing.T) {
 		SaltLength: 0x0,
 		Salt:       "",
 		HashLength: 0x0,
-		NextDomain: ".",
+		NextDomain: "",
 		TypeBitMap: []uint16{
 			0x2302, 0x2303, 0x230a, 0x230b,
 		},
 	}
-	expectedLength := 24
+	expectedLength := 21
 	l := nsec3.len(0, compression)
 	if l != expectedLength {
 		t.Fatalf("expected length of %d, got %d", expectedLength, l)
+	}
+
+	buf := make([]byte, l)
+	off1, err := PackRR(nsec3, buf, 0, nil, false)
+	if err != nil {
+		t.Fatalf("err packing: %s", err)
+	}
+	if off1 != expectedLength {
+		t.Fatalf("expected packed length %d, got %d", expectedLength, off1)
 	}
 }
 

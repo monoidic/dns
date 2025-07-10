@@ -161,6 +161,16 @@ func fromBase64(s []byte) (buf []byte, err error) {
 
 func toBase64(b []byte) string { return base64.StdEncoding.EncodeToString(b) }
 
+// base64StringDecodedLen returns the exact length in bytes of the decoded data
+// represented by the base64 string s.
+func base64StringDecodedLen(s string) int {
+	n := len(s)
+	for n > 0 && s[n-1] == '=' {
+		n--
+	}
+	return base64.RawStdEncoding.DecodedLen(n)
+}
+
 // dynamicUpdate returns true if the Rdlength is zero.
 func noRdata(h RR_Header) bool { return h.Rdlength == 0 }
 
@@ -440,7 +450,19 @@ func packDataOpt(options []EDNS0, msg []byte, off int) (int, error) {
 }
 
 func unpackStringOctet(msg []byte, off int) (string, int, error) {
-	s := string(msg[off:])
+	var b strings.Builder
+	for _, c := range msg[off:] {
+		if c == '\\' {
+			b.WriteByte('\\')
+		}
+		b.WriteByte(c)
+	}
+
+	if b.Len() > 256 {
+		return "", 0, ErrLen
+	}
+
+	s := b.String()
 	return s, len(msg), nil
 }
 
@@ -515,6 +537,9 @@ func unpackDataNsec(msg []byte, off int) ([]uint16, int, error) {
 // typeBitMapLen is a helper function which computes the "maximum" length of
 // a the NSEC Type BitMap field.
 func typeBitMapLen(bitmap []uint16) int {
+	if len(bitmap) == 0 {
+		return 0
+	}
 	var l int
 	var lastwindow, lastlength uint16
 	for _, t := range bitmap {
@@ -781,11 +806,12 @@ func unpackDataAplPrefix(msg []byte, off int) (APLPrefix, int, error) {
 			return APLPrefix{}, len(msg), &Error{err: "extra APL address bits"}
 		}
 	}
+	mask := net.CIDRMask(int(prefix), 8*len(ip))
+	masked := net.IP(ip).Mask(mask)
 	ipnet := net.IPNet{
-		IP:   ip,
-		Mask: net.CIDRMask(int(prefix), 8*len(ip)),
+		IP:   masked,
+		Mask: mask,
 	}
-
 	return APLPrefix{
 		Negation: (nlen & 0x80) != 0,
 		Network:  ipnet,

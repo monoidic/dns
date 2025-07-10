@@ -8,6 +8,68 @@ import (
 	"testing"
 )
 
+func FuzzPackUnpack(f *testing.F) {
+	f.Fuzz(func(t *testing.T, msg []byte) {
+		if l := len(msg) - 2; !(0 < l && l < 65535) {
+			return
+		}
+
+		msgx := make([]byte, len(msg)+9)
+		// keep name as "."
+		copy(msgx[1:3], msg[:2]) // rrtype
+		// keep class (2 bytes) and ttl (4 bytes) as 0
+		binary.BigEndian.PutUint16(msgx[9:11], uint16(len(msg)-2)) //rdlength
+
+		copy(msgx[11:], msg[2:]) // data
+		msg = msgx
+
+		rr, msgOff, err := UnpackRR(msg, 0)
+		if err != nil {
+			// oh well
+			return
+		}
+
+		if rr.Header().Rdlength == 0 {
+			// urgh
+			return
+		}
+
+		expectedLen := Len(rr)
+		buf := make([]byte, expectedLen)
+		bufOff, err := PackRR(rr, buf, 0, nil, false)
+
+		if expectedLen != bufOff {
+			t.Fatalf("len mismatch, expected %d, got %d\n%s\n%s\n%s", expectedLen, bufOff, rr, hex.EncodeToString(msg[:msgOff]), hex.EncodeToString(buf[:bufOff]))
+		}
+
+		if err != nil {
+			t.Fatalf("error repacking: %s\n%s\n%s\nmsgOff %d expectedLen %d", err, rr, hex.EncodeToString(msg[:msgOff]), msgOff, expectedLen)
+		}
+
+		rr2, rr2Off, err := UnpackRR(buf, 0)
+		if err != nil {
+			t.Fatalf("error on second unpack: %s", err)
+		}
+
+		if rr2Off > expectedLen {
+			t.Fatalf("lenx mismatch; expected %d, got %d\n%s\n%s\n%s\n%s", expectedLen, rr2Off, rr, rr2, hex.EncodeToString(msg[:msgOff]), hex.EncodeToString(buf[:bufOff]))
+		}
+
+		if !IsDuplicate(rr, rr2) {
+			var secondaryPass bool
+			switch rr.(type) {
+			case *OPT:
+				// just ignore, always returns false
+				secondaryPass = true
+			}
+
+			if !secondaryPass {
+				t.Fatalf("rr mismatch\n%s\n%s\n%s\n%s\n%d %d\n", rr, rr2, hex.EncodeToString(msg[:msgOff]), hex.EncodeToString(buf[:bufOff]), msgOff, bufOff)
+			}
+		}
+	})
+}
+
 func TestPackUnpack(t *testing.T) {
 	out := new(Msg)
 	out.Answer = make([]RR, 1)

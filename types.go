@@ -1192,7 +1192,7 @@ func (rr *NSEC3) String() string {
 
 func (rr *NSEC3) len(off int, compression map[string]struct{}) int {
 	l := rr.Hdr.len(off, compression)
-	l += 6 + len(rr.Salt)/2 + 1 + len(rr.NextDomain) + 1
+	l += 6 + len(rr.Salt)/2 + base32HexNoPadEncoding.DecodedLen(len(rr.NextDomain))
 	l += typeBitMapLen(rr.TypeBitMap)
 	return l
 }
@@ -1620,8 +1620,15 @@ func (a *APLPrefix) copy() APLPrefix {
 // len returns size of the prefix in wire format.
 func (a *APLPrefix) len() int {
 	// 4-byte header and the network address prefix (see Section 4 of RFC 3123)
-	prefix, _ := a.Network.Mask.Size()
-	return 4 + (prefix+7)/8
+	masked := a.Network.IP.Mask(a.Network.Mask)
+	ret := 4 + len(masked)
+	for i := len(masked) - 1; i >= 0; i-- {
+		if masked[i] != 0 {
+			break
+		}
+		ret--
+	}
+	return ret
 }
 
 // TimeToString translates the RRSIG's incep. and expir. times to the

@@ -93,3 +93,30 @@ func (rr *NSEC3) Match(name string) bool {
 	}
 	return false
 }
+
+// Match returns true if the given name is covered by the NSEC record
+func (rr *NSEC) Cover(name, zone string) bool {
+	switch Compare(rr.Hdr.Name, name) {
+	//case 0:
+	default:
+		// equals to start => covers
+		return true
+	case 1:
+		// start after name => no possible way for it to cover
+		return false
+	case -1:
+		// have to check end
+		switch Compare(name, rr.NextDomain) {
+		//case 0:
+		default:
+			// name equals end, does not cover due to half open range [start, end)
+			return false
+		case -1:
+			// name is before end, covers
+			return true
+		case 1:
+			// after end? only covers for the case of [zone-last-record.zone.tld., zone.tld.]
+			return equal(rr.NextDomain, zone)
+		}
+	}
+}

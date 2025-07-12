@@ -8,7 +8,10 @@
 
 package dns
 
-import "net"
+import (
+	"net"
+	"net/netip"
+)
 
 // SessionUDP holds the remote address
 type SessionUDP struct {
@@ -34,4 +37,4 @@ func WriteToSessionUDP(conn *net.UDPConn, b []byte, session *SessionUDP) (int, e
 }
 
 func setUDPSocketOptions(*net.UDPConn) error { return nil }
-func parseDstFromOOB([]byte, net.IP) net.IP  { return nil }
+func parseDstFromOOB([]byte) netip.Addr      { return netip.Addr{} }

@@ -35,6 +35,7 @@ package dns
 
 import (
 	"net"
+	"slices"
 )
 
 `
@@ -97,7 +98,7 @@ func loadModule(name string) (*types.Package, error) {
 
 func main() {
 	// Import and type-check the package
-	pkg, err := loadModule("github.com/miekg/dns")
+	pkg, err := loadModule("github.com/monoidic/dns")
 	fatalIfErr(err)
 	scope := pkg.Scope()
 
@@ -212,9 +213,9 @@ func main() {
 			case st.Tag(i) == `dns:"any"`:
 				o("l += len(rr.%s)\n")
 			case st.Tag(i) == `dns:"a"`:
-				o("if len(rr.%s) != 0 { l += net.IPv4len }\n")
+				o("if rr.%s.IsValid() { l += net.IPv4len }\n")
 			case st.Tag(i) == `dns:"aaaa"`:
-				o("if len(rr.%s) != 0 { l += net.IPv6len }\n")
+				o("if rr.%s.IsValid() { l += net.IPv6len }\n")
 			case st.Tag(i) == `dns:"txt"`:
 				o("for _, t := range rr.%s { l += len(t) + 1 }\n")
 			case st.Tag(i) == `dns:"uint48"`:
@@ -292,11 +293,7 @@ func main() {
 					fields = append(fields, f)
 					continue
 				}
-				fields = append(fields, "cloneSlice(rr."+f+")")
-				continue
-			}
-			if st.Field(i).Type().String() == "net.IP" {
-				fields = append(fields, "cloneSlice(rr."+f+")")
+				fields = append(fields, "slices.Clone(rr."+f+")")
 				continue
 			}
 			fields = append(fields, "rr."+f)

@@ -56,7 +56,7 @@ func loadModule(name string) (*types.Package, error) {
 
 func main() {
 	// Import and type-check the package
-	pkg, err := loadModule("github.com/miekg/dns")
+	pkg, err := loadModule("github.com/monoidic/dns")
 	fatalIfErr(err)
 	scope := pkg.Scope()
 
@@ -143,13 +143,13 @@ func main() {
 			case `dns:"-"`:
 				// ignored
 			case `dns:"a"`, `dns:"aaaa"`:
-				o2("if !r1.%s.Equal(r2.%s) {\nreturn false\n}")
+				o2("if r1.%s != r2.%s {\nreturn false\n}")
 			case `dns:"cdomain-name"`, `dns:"domain-name"`:
 				o2("if !isDuplicateName(r1.%s, r2.%s) {\nreturn false\n}")
 			case `dns:"ipsechost"`, `dns:"amtrelayhost"`:
 				o2(`switch r1.GatewayType {
 				case IPSECGatewayIPv4, IPSECGatewayIPv6:
-					if !r1.GatewayAddr.Equal(r2.GatewayAddr) {
+					if r1.GatewayAddr != r2.GatewayAddr {
 						return false
 					}
 				case IPSECGatewayHost:

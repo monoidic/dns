@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
 	"runtime"
 	"strings"
 	"sync"
@@ -618,7 +619,7 @@ func HelloServerLargeResponse(resp ResponseWriter, req *Msg) {
 				Class:  ClassINET,
 				Ttl:    0,
 			},
-			A: net.ParseIP(fmt.Sprintf("127.0.0.%d", i+1)).To4(),
+			A: netip.MustParseAddr(fmt.Sprintf("127.0.0.%d", i+1)),
 		}
 		m.Answer = append(m.Answer, aRec)
 	}

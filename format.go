@@ -1,7 +1,6 @@
 package dns
 
 import (
-	"net"
 	"reflect"
 	"strconv"
 )
@@ -27,45 +26,19 @@ func Field(r RR, i int) string {
 		return strconv.FormatInt(d.Int(), 10)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return strconv.FormatUint(d.Uint(), 10)
+	case reflect.Struct:
+		switch rrT := r.(type) {
+		case *A:
+			if rrT.A.IsValid() {
+				return rrT.A.String()
+			}
+		case *AAAA:
+			if rrT.AAAA.IsValid() {
+				return rrT.AAAA.String()
+			}
+		}
 	case reflect.Slice:
 		switch reflect.ValueOf(r).Elem().Type().Field(i).Tag {
-		case `dns:"a"`:
-			// TODO(miek): Hmm store this as 16 bytes
-			if d.Len() < net.IPv4len {
-				return ""
-			}
-			if d.Len() < net.IPv6len {
-				return net.IPv4(byte(d.Index(0).Uint()),
-					byte(d.Index(1).Uint()),
-					byte(d.Index(2).Uint()),
-					byte(d.Index(3).Uint())).String()
-			}
-			return net.IPv4(byte(d.Index(12).Uint()),
-				byte(d.Index(13).Uint()),
-				byte(d.Index(14).Uint()),
-				byte(d.Index(15).Uint())).String()
-		case `dns:"aaaa"`:
-			if d.Len() < net.IPv6len {
-				return ""
-			}
-			return net.IP{
-				byte(d.Index(0).Uint()),
-				byte(d.Index(1).Uint()),
-				byte(d.Index(2).Uint()),
-				byte(d.Index(3).Uint()),
-				byte(d.Index(4).Uint()),
-				byte(d.Index(5).Uint()),
-				byte(d.Index(6).Uint()),
-				byte(d.Index(7).Uint()),
-				byte(d.Index(8).Uint()),
-				byte(d.Index(9).Uint()),
-				byte(d.Index(10).Uint()),
-				byte(d.Index(11).Uint()),
-				byte(d.Index(12).Uint()),
-				byte(d.Index(13).Uint()),
-				byte(d.Index(14).Uint()),
-				byte(d.Index(15).Uint()),
-			}.String()
 		case `dns:"nsec"`:
 			if d.Len() == 0 {
 				return ""

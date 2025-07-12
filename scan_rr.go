@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 )
@@ -95,13 +95,9 @@ func endingToTxtSlice(c *zlexer, errstr string) ([]string, *ParseError) {
 
 func (rr *A) parse(c *zlexer, o string) *ParseError {
 	l, _ := c.Next()
-	rr.A = net.ParseIP(l.token)
-	// IPv4 addresses cannot include ":".
-	// We do this rather than use net.IP's To4() because
-	// To4() treats IPv4-mapped IPv6 addresses as being
-	// IPv4.
-	isIPv4 := !strings.Contains(l.token, ":")
-	if rr.A == nil || !isIPv4 || l.err {
+	var err error
+	rr.A, err = netip.ParseAddr(l.token)
+	if err != nil || !rr.A.Is4() || l.err {
 		return &ParseError{err: "bad A A", lex: l}
 	}
 	return slurpRemainder(c)
@@ -109,11 +105,9 @@ func (rr *A) parse(c *zlexer, o string) *ParseError {
 
 func (rr *AAAA) parse(c *zlexer, o string) *ParseError {
 	l, _ := c.Next()
-	rr.AAAA = net.ParseIP(l.token)
-	// IPv6 addresses must include ":", and IPv4
-	// addresses cannot include ":".
-	isIPv6 := strings.Contains(l.token, ":")
-	if rr.AAAA == nil || !isIPv6 || l.err {
+	var err error
+	rr.AAAA, err = netip.ParseAddr(l.token)
+	if err != nil || !rr.AAAA.Is6() || l.err {
 		return &ParseError{err: "bad AAAA AAAA", lex: l}
 	}
 	return slurpRemainder(c)
@@ -435,7 +429,6 @@ func (rr *SOA) parse(c *zlexer, o string) *ParseError {
 			// We allow other fields to be unitful duration strings
 			if v, ok = stringToTTL(l.token); !ok {
 				return &ParseError{err: "bad SOA zone parameter", lex: l}
-
 			}
 		} else {
 			v = uint32(j)
@@ -519,15 +512,16 @@ func (rr *NAPTR) parse(c *zlexer, o string) *ParseError {
 		return &ParseError{err: "bad NAPTR Flags", lex: l}
 	}
 	l, _ = c.Next() // Either String or Quote
-	if l.value == zString {
+	switch l.value {
+	case zString:
 		rr.Flags = l.token
 		l, _ = c.Next() // _QUOTE
 		if l.value != zQuote {
 			return &ParseError{err: "bad NAPTR Flags", lex: l}
 		}
-	} else if l.value == zQuote {
+	case zQuote:
 		rr.Flags = ""
-	} else {
+	default:
 		return &ParseError{err: "bad NAPTR Flags", lex: l}
 	}
 
@@ -538,15 +532,16 @@ func (rr *NAPTR) parse(c *zlexer, o string) *ParseError {
 		return &ParseError{err: "bad NAPTR Service", lex: l}
 	}
 	l, _ = c.Next() // Either String or Quote
-	if l.value == zString {
+	switch l.value {
+	case zString:
 		rr.Service = l.token
 		l, _ = c.Next() // _QUOTE
 		if l.value != zQuote {
 			return &ParseError{err: "bad NAPTR Service", lex: l}
 		}
-	} else if l.value == zQuote {
+	case zQuote:
 		rr.Service = ""
-	} else {
+	default:
 		return &ParseError{err: "bad NAPTR Service", lex: l}
 	}
 
@@ -557,15 +552,16 @@ func (rr *NAPTR) parse(c *zlexer, o string) *ParseError {
 		return &ParseError{err: "bad NAPTR Regexp", lex: l}
 	}
 	l, _ = c.Next() // Either String or Quote
-	if l.value == zString {
+	switch l.value {
+	case zString:
 		rr.Regexp = l.token
 		l, _ = c.Next() // _QUOTE
 		if l.value != zQuote {
 			return &ParseError{err: "bad NAPTR Regexp", lex: l}
 		}
-	} else if l.value == zQuote {
+	case zQuote:
 		rr.Regexp = ""
-	} else {
+	default:
 		return &ParseError{err: "bad NAPTR Regexp", lex: l}
 	}
 
@@ -1334,18 +1330,18 @@ func (rr *AMTRELAY) parse(c *zlexer, o string) *ParseError {
 }
 
 // same constants and parsing between IPSECKEY and AMTRELAY
-func parseAddrHostUnion(token, o string, gatewayType uint8) (addr net.IP, host string, err error) {
+func parseAddrHostUnion(token, o string, gatewayType uint8) (addr netip.Addr, host string, err error) {
 	switch gatewayType {
 	case IPSECGatewayNone:
 		if token != "." {
 			return addr, host, errors.New("gateway type none with gateway set")
 		}
 	case IPSECGatewayIPv4, IPSECGatewayIPv6:
-		addr = net.ParseIP(token)
-		if addr == nil {
+		addr, err = netip.ParseAddr(token)
+		if err != nil {
 			return addr, host, errors.New("gateway IP invalid")
 		}
-		if (addr.To4() == nil) == (gatewayType == IPSECGatewayIPv4) {
+		if addr.Is4() != (gatewayType == IPSECGatewayIPv4) {
 			return addr, host, errors.New("gateway IP family mismatch")
 		}
 	case IPSECGatewayHost:
@@ -1693,8 +1689,9 @@ func (rr *L32) parse(c *zlexer, o string) *ParseError {
 	rr.Preference = uint16(i)
 	c.Next()        // zBlank
 	l, _ = c.Next() // zString
-	rr.Locator32 = net.ParseIP(l.token)
-	if rr.Locator32 == nil || l.err {
+	var err error
+	rr.Locator32, err = netip.ParseAddr(l.token)
+	if err != nil || l.err {
 		return &ParseError{err: "bad L32 Locator", lex: l}
 	}
 	return slurpRemainder(c)
@@ -1898,31 +1895,27 @@ func (rr *APL) parse(c *zlexer, o string) *ParseError {
 		if e != nil {
 			return &ParseError{wrappedErr: fmt.Errorf("failed to parse APL family: %w", e), lex: l}
 		}
-		var addrLen int
 		switch afi {
-		case 1:
-			addrLen = net.IPv4len
-		case 2:
-			addrLen = net.IPv6len
+		case 1, 2:
 		default:
 			return &ParseError{err: "unrecognized APL family", lex: l}
 		}
 
-		ip, subnet, e1 := net.ParseCIDR(cidr)
+		subnet, e1 := netip.ParsePrefix(cidr)
 		if e1 != nil {
 			return &ParseError{wrappedErr: fmt.Errorf("failed to parse APL address: %w", e1), lex: l}
 		}
-		if !ip.Equal(subnet.IP) {
+		if subnet.Masked() != subnet {
 			return &ParseError{err: "extra bits in APL address", lex: l}
 		}
 
-		if len(subnet.IP) != addrLen {
+		if !((afi == 1 && subnet.Addr().Is4()) || (afi == 2 && subnet.Addr().Is6())) {
 			return &ParseError{err: "address mismatch with the APL family", lex: l}
 		}
 
 		prefixes = append(prefixes, APLPrefix{
 			Negation: negation,
-			Network:  *subnet,
+			Network:  subnet,
 		})
 	}
 

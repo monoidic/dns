@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
+	"slices"
 	"strconv"
 )
 
@@ -301,7 +303,7 @@ type EDNS0_SUBNET struct {
 	Family        uint16 // 1 for IP, 2 for IP6
 	SourceNetmask uint8
 	SourceScope   uint8
-	Address       net.IP
+	Address       netip.Addr
 }
 
 // Option implements the EDNS0 interface.
@@ -323,25 +325,23 @@ func (e *EDNS0_SUBNET) pack() ([]byte, error) {
 		if e.SourceNetmask > net.IPv4len*8 {
 			return nil, errors.New("bad netmask")
 		}
-		if len(e.Address.To4()) != net.IPv4len {
+		if !e.Address.Is4() {
 			return nil, errors.New("bad address")
 		}
-		ip := e.Address.To4().Mask(net.CIDRMask(int(e.SourceNetmask), net.IPv4len*8))
-		needLength := (e.SourceNetmask + 8 - 1) / 8 // division rounding up
-		b = append(b, ip[:needLength]...)
 	case 2:
 		if e.SourceNetmask > net.IPv6len*8 {
 			return nil, errors.New("bad netmask")
 		}
-		if len(e.Address) != net.IPv6len {
+		if !e.Address.Is6() {
 			return nil, errors.New("bad address")
 		}
-		ip := e.Address.Mask(net.CIDRMask(int(e.SourceNetmask), net.IPv6len*8))
-		needLength := (e.SourceNetmask + 8 - 1) / 8 // division rounding up
-		b = append(b, ip[:needLength]...)
 	default:
 		return nil, errors.New("bad address family")
 	}
+
+	ip := netip.PrefixFrom(e.Address, int(e.SourceNetmask)).Masked().Addr()
+	needLength := (e.SourceNetmask + 8 - 1) / 8 // division rounding up
+	b = append(b, ip.AsSlice()[:needLength]...)
 	return b, nil
 }
 
@@ -352,6 +352,8 @@ func (e *EDNS0_SUBNET) unpack(b []byte) error {
 	e.Family = binary.BigEndian.Uint16(b)
 	e.SourceNetmask = b[2]
 	e.SourceScope = b[3]
+
+	var ipLen uint8
 	switch e.Family {
 	case 0:
 		// "dig" sets AddressFamily to 0 if SourceNetmask is also 0
@@ -359,31 +361,29 @@ func (e *EDNS0_SUBNET) unpack(b []byte) error {
 		if e.SourceNetmask != 0 {
 			return errors.New("bad address family")
 		}
-		e.Address = net.IPv4(0, 0, 0, 0)
+		e.Address = netip.AddrFrom4([4]byte{0, 0, 0, 0})
+		return nil
 	case 1:
-		if e.SourceNetmask > net.IPv4len*8 || e.SourceScope > net.IPv4len*8 {
-			return errors.New("bad netmask")
-		}
-		addr := make(net.IP, net.IPv4len)
-		copy(addr, b[4:])
-		e.Address = addr.To16()
+		ipLen = net.IPv4len
 	case 2:
-		if e.SourceNetmask > net.IPv6len*8 || e.SourceScope > net.IPv6len*8 {
-			return errors.New("bad netmask")
-		}
-		addr := make(net.IP, net.IPv6len)
-		copy(addr, b[4:])
-		e.Address = addr
+		ipLen = net.IPv6len
 	default:
 		return errors.New("bad address family")
 	}
+
+	if e.SourceNetmask > ipLen*8 || e.SourceScope > ipLen*8 {
+		return errors.New("bad netmask")
+	}
+	ip := make([]byte, ipLen)
+	copy(ip, b[4:])
+	e.Address, _ = netip.AddrFromSlice(ip)
 	return nil
 }
 
 func (e *EDNS0_SUBNET) String() (s string) {
-	if e.Address == nil {
+	if !e.Address.IsValid() {
 		s = "<nil>"
-	} else if e.Address.To4() != nil {
+	} else if e.Address.Is4() {
 		s = e.Address.String()
 	} else {
 		s = "[" + e.Address.String() + "]"
@@ -543,8 +543,8 @@ type EDNS0_DAU struct {
 
 // Option implements the EDNS0 interface.
 func (e *EDNS0_DAU) Option() uint16        { return EDNS0DAU }
-func (e *EDNS0_DAU) pack() ([]byte, error) { return cloneSlice(e.AlgCode), nil }
-func (e *EDNS0_DAU) unpack(b []byte) error { e.AlgCode = cloneSlice(b); return nil }
+func (e *EDNS0_DAU) pack() ([]byte, error) { return slices.Clone(e.AlgCode), nil }
+func (e *EDNS0_DAU) unpack(b []byte) error { e.AlgCode = slices.Clone(b); return nil }
 
 func (e *EDNS0_DAU) String() string {
 	s := ""
@@ -567,8 +567,8 @@ type EDNS0_DHU struct {
 
 // Option implements the EDNS0 interface.
 func (e *EDNS0_DHU) Option() uint16        { return EDNS0DHU }
-func (e *EDNS0_DHU) pack() ([]byte, error) { return cloneSlice(e.AlgCode), nil }
-func (e *EDNS0_DHU) unpack(b []byte) error { e.AlgCode = cloneSlice(b); return nil }
+func (e *EDNS0_DHU) pack() ([]byte, error) { return slices.Clone(e.AlgCode), nil }
+func (e *EDNS0_DHU) unpack(b []byte) error { e.AlgCode = slices.Clone(b); return nil }
 
 func (e *EDNS0_DHU) String() string {
 	s := ""
@@ -591,8 +591,8 @@ type EDNS0_N3U struct {
 
 // Option implements the EDNS0 interface.
 func (e *EDNS0_N3U) Option() uint16        { return EDNS0N3U }
-func (e *EDNS0_N3U) pack() ([]byte, error) { return cloneSlice(e.AlgCode), nil }
-func (e *EDNS0_N3U) unpack(b []byte) error { e.AlgCode = cloneSlice(b); return nil }
+func (e *EDNS0_N3U) pack() ([]byte, error) { return slices.Clone(e.AlgCode), nil }
+func (e *EDNS0_N3U) unpack(b []byte) error { e.AlgCode = slices.Clone(b); return nil }
 
 func (e *EDNS0_N3U) String() string {
 	// Re-use the hash map
@@ -675,15 +675,15 @@ func (e *EDNS0_LOCAL) String() string {
 }
 
 func (e *EDNS0_LOCAL) copy() EDNS0 {
-	return &EDNS0_LOCAL{e.Code, cloneSlice(e.Data)}
+	return &EDNS0_LOCAL{e.Code, slices.Clone(e.Data)}
 }
 
 func (e *EDNS0_LOCAL) pack() ([]byte, error) {
-	return cloneSlice(e.Data), nil
+	return slices.Clone(e.Data), nil
 }
 
 func (e *EDNS0_LOCAL) unpack(b []byte) error {
-	e.Data = cloneSlice(b)
+	e.Data = slices.Clone(b)
 	return nil
 }
 
@@ -746,10 +746,10 @@ type EDNS0_PADDING struct {
 
 // Option implements the EDNS0 interface.
 func (e *EDNS0_PADDING) Option() uint16        { return EDNS0PADDING }
-func (e *EDNS0_PADDING) pack() ([]byte, error) { return cloneSlice(e.Padding), nil }
-func (e *EDNS0_PADDING) unpack(b []byte) error { e.Padding = cloneSlice(b); return nil }
+func (e *EDNS0_PADDING) pack() ([]byte, error) { return slices.Clone(e.Padding), nil }
+func (e *EDNS0_PADDING) unpack(b []byte) error { e.Padding = slices.Clone(b); return nil }
 func (e *EDNS0_PADDING) String() string        { return fmt.Sprintf("%0X", e.Padding) }
-func (e *EDNS0_PADDING) copy() EDNS0           { return &EDNS0_PADDING{cloneSlice(e.Padding)} }
+func (e *EDNS0_PADDING) copy() EDNS0           { return &EDNS0_PADDING{slices.Clone(e.Padding)} }
 
 // Extended DNS Error Codes (RFC 8914).
 const (
@@ -824,7 +824,7 @@ var ExtendedErrorCodeToString = map[uint16]string{
 
 // StringToExtendedErrorCode is a map from human readable descriptions to
 // extended error info codes.
-var StringToExtendedErrorCode = reverseInt16(ExtendedErrorCodeToString)
+var StringToExtendedErrorCode = reverseMap(ExtendedErrorCodeToString)
 
 // EDNS0_EDE option is used to return additional information about the cause of
 // DNS errors.

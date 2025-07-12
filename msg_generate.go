@@ -62,7 +62,7 @@ func loadModule(name string) (*types.Package, error) {
 
 func main() {
 	// Import and type-check the package
-	pkg, err := loadModule("github.com/miekg/dns")
+	pkg, err := loadModule("github.com/monoidic/dns")
 	fatalIfErr(err)
 	scope := pkg.Scope()
 
@@ -171,7 +171,7 @@ if rr.%s != "-" {
 			case st.Tag(i) == `dns:"any"`:
 				o("off, err = packStringAny(rr.%s, msg, off)\n")
 			case st.Tag(i) == `dns:"octet"`:
-				o("off, err = packStringOctet(rr.%s, msg, off)\n")
+				o("off, err = packOctetString(rr.%s, msg, off)\n")
 			case st.Tag(i) == `dns:"ipsechost"` || st.Tag(i) == `dns:"amtrelayhost"`:
 				o("off, err = packIPSECGateway(rr.GatewayAddr, rr.%s, msg, off, rr.GatewayType, compression, false)\n")
 			case st.Tag(i) == "":

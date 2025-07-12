@@ -6,6 +6,8 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"net"
+	"net/netip"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -16,52 +18,47 @@ import (
 // of the type they pack/unpack (string, int, etc). We prefix all with unpackData or packData, so packDataA or
 // packDataDomainName.
 
-func unpackDataA(msg []byte, off int) (net.IP, int, error) {
+func unpackDataA(msg []byte, off int) (netip.Addr, int, error) {
 	if off+net.IPv4len > len(msg) {
-		return nil, len(msg), &Error{err: "overflow unpacking a"}
+		return netip.Addr{}, len(msg), &Error{err: "overflow unpacking a"}
 	}
-	return cloneSlice(msg[off : off+net.IPv4len]), off + net.IPv4len, nil
+	addr, _ := netip.AddrFromSlice(msg[off : off+net.IPv4len])
+	return addr, off + net.IPv4len, nil
 }
 
-func packDataA(a net.IP, msg []byte, off int) (int, error) {
-	switch len(a) {
-	case net.IPv4len, net.IPv6len:
-		// It must be a slice of 4, even if it is 16, we encode only the first 4
-		if off+net.IPv4len > len(msg) {
-			return len(msg), &Error{err: "overflow packing a"}
-		}
-
-		copy(msg[off:], a.To4())
-		off += net.IPv4len
-	case 0:
-		// Allowed, for dynamic updates.
-	default:
-		return len(msg), &Error{err: "overflow packing a"}
+func packDataA(a netip.Addr, msg []byte, off int) (int, error) {
+	if !a.IsValid() {
+		// Allowed, dynamic updates.
+		return off, nil
 	}
+	if !a.Is4() {
+		return len(msg), &Error{err: "invalid address"}
+	}
+	off += copy(msg[off:], a.AsSlice())
 	return off, nil
 }
 
-func unpackDataAAAA(msg []byte, off int) (net.IP, int, error) {
+func unpackDataAAAA(msg []byte, off int) (netip.Addr, int, error) {
 	if off+net.IPv6len > len(msg) {
-		return nil, len(msg), &Error{err: "overflow unpacking aaaa"}
+		return netip.Addr{}, len(msg), &Error{err: "overflow unpacking aaaa"}
 	}
-	return cloneSlice(msg[off : off+net.IPv6len]), off + net.IPv6len, nil
+	addr, _ := netip.AddrFromSlice(msg[off : off+net.IPv6len])
+	return addr, off + net.IPv6len, nil
 }
 
-func packDataAAAA(aaaa net.IP, msg []byte, off int) (int, error) {
-	switch len(aaaa) {
-	case net.IPv6len:
-		if off+net.IPv6len > len(msg) {
-			return len(msg), &Error{err: "overflow packing aaaa"}
-		}
-
-		copy(msg[off:], aaaa)
-		off += net.IPv6len
-	case 0:
+func packDataAAAA(aaaa netip.Addr, msg []byte, off int) (int, error) {
+	if !aaaa.IsValid() {
 		// Allowed, dynamic updates.
-	default:
+		return off, nil
+	}
+	if !aaaa.Is6() {
+		return len(msg), &Error{err: "invalid address"}
+	}
+	if off+net.IPv6len > len(msg) {
 		return len(msg), &Error{err: "overflow packing aaaa"}
 	}
+
+	off += copy(msg[off:], aaaa.AsSlice())
 	return off, nil
 }
 
@@ -466,14 +463,6 @@ func unpackStringOctet(msg []byte, off int) (string, int, error) {
 	return s, len(msg), nil
 }
 
-func packStringOctet(s string, msg []byte, off int) (int, error) {
-	off, err := packOctetString(s, msg, off)
-	if err != nil {
-		return len(msg), err
-	}
-	return off, nil
-}
-
 func unpackDataNsec(msg []byte, off int) ([]uint16, int, error) {
 	var nsec []uint16
 	length, window, lastwindow := 0, 0, -1
@@ -631,7 +620,7 @@ func unpackDataSVCB(msg []byte, off int) ([]SVCBKeyValue, int, error) {
 }
 
 func packDataSVCB(pairs []SVCBKeyValue, msg []byte, off int) (int, error) {
-	pairs = cloneSlice(pairs)
+	pairs = slices.Clone(pairs)
 	sort.Slice(pairs, func(i, j int) bool {
 		return pairs[i].Key() < pairs[j].Key()
 	})
@@ -701,22 +690,26 @@ func packDataApl(data []APLPrefix, msg []byte, off int) (int, error) {
 }
 
 func packDataAplPrefix(p *APLPrefix, msg []byte, off int) (int, error) {
-	if len(p.Network.IP) != len(p.Network.Mask) {
-		return len(msg), &Error{err: "address and mask lengths don't match"}
+	if !p.Network.IsValid() {
+		return len(msg), &Error{err: "unrecognized address family"}
 	}
+
+	prefix := p.Network.Bits()
+	addr := p.Network.Masked().Addr()
 
 	var err error
-	prefix, _ := p.Network.Mask.Size()
-	addr := p.Network.IP.Mask(p.Network.Mask)[:(prefix+7)/8]
+	var family uint16
 
-	switch len(p.Network.IP) {
-	case net.IPv4len:
-		off, err = packUint16(1, msg, off)
-	case net.IPv6len:
-		off, err = packUint16(2, msg, off)
+	switch {
+	case p.Network.Addr().Is4():
+		family = 1
+	case p.Network.Addr().Is6():
+		family = 2
 	default:
-		err = &Error{err: "unrecognized address family"}
+		return len(msg), &Error{err: "unrecognized address family"}
 	}
+
+	off, err = packUint16(family, msg, off)
 	if err != nil {
 		return len(msg), err
 	}
@@ -732,21 +725,22 @@ func packDataAplPrefix(p *APLPrefix, msg []byte, off int) (int, error) {
 	}
 
 	// trim trailing zero bytes as specified in RFC3123 Sections 4.1 and 4.2.
-	i := len(addr) - 1
-	for ; i >= 0 && addr[i] == 0; i-- {
+	trimmedAddr := addr.AsSlice()
+	i := len(trimmedAddr) - 1
+	for ; i >= 0 && trimmedAddr[i] == 0; i-- {
 	}
-	addr = addr[:i+1]
+	trimmedAddr = trimmedAddr[:i+1]
 
-	adflen := uint8(len(addr)) & 0x7f
+	adflen := uint8(len(trimmedAddr))
 	off, err = packUint8(n|adflen, msg, off)
 	if err != nil {
 		return len(msg), err
 	}
 
-	if off+len(addr) > len(msg) {
+	if off+len(trimmedAddr) > len(msg) {
 		return len(msg), &Error{err: "overflow packing APL prefix"}
 	}
-	off += copy(msg[off:], addr)
+	off += copy(msg[off:], trimmedAddr)
 
 	return off, nil
 }
@@ -806,20 +800,16 @@ func unpackDataAplPrefix(msg []byte, off int) (APLPrefix, int, error) {
 			return APLPrefix{}, len(msg), &Error{err: "extra APL address bits"}
 		}
 	}
-	mask := net.CIDRMask(int(prefix), 8*len(ip))
-	masked := net.IP(ip).Mask(mask)
-	ipnet := net.IPNet{
-		IP:   masked,
-		Mask: mask,
-	}
+	ipAddr, _ := netip.AddrFromSlice(ip)
+	masked := netip.PrefixFrom(ipAddr, int(prefix)).Masked()
 	return APLPrefix{
 		Negation: (nlen & 0x80) != 0,
-		Network:  ipnet,
+		Network:  masked,
 	}, off, nil
 }
 
-func unpackIPSECGateway(msg []byte, off int, gatewayType uint8) (net.IP, string, int, error) {
-	var retAddr net.IP
+func unpackIPSECGateway(msg []byte, off int, gatewayType uint8) (netip.Addr, string, int, error) {
+	var retAddr netip.Addr
 	var retString string
 	var err error
 
@@ -836,7 +826,7 @@ func unpackIPSECGateway(msg []byte, off int, gatewayType uint8) (net.IP, string,
 	return retAddr, retString, off, err
 }
 
-func packIPSECGateway(gatewayAddr net.IP, gatewayString string, msg []byte, off int, gatewayType uint8, compression compressionMap, compress bool) (int, error) {
+func packIPSECGateway(gatewayAddr netip.Addr, gatewayString string, msg []byte, off int, gatewayType uint8, compression compressionMap, compress bool) (int, error) {
 	var err error
 
 	switch gatewayType {

@@ -1,16 +1,16 @@
 package dns
 
 // StringToType is the reverse of TypeToString, needed for string parsing.
-var StringToType = reverseInt16(TypeToString)
+var StringToType = reverseMap(TypeToString)
 
 // StringToClass is the reverse of ClassToString, needed for string parsing.
-var StringToClass = reverseInt16(ClassToString)
+var StringToClass = reverseMap(ClassToString)
 
 // StringToOpcode is a map of opcodes to strings.
-var StringToOpcode = reverseInt(OpcodeToString)
+var StringToOpcode = reverseMap(OpcodeToString)
 
 // StringToRcode is a map of rcodes to strings.
-var StringToRcode = reverseInt(RcodeToString)
+var StringToRcode = reverseMap(RcodeToString)
 
 func init() {
 	// Preserve previous NOTIMP typo, see github.com/miekg/dns/issues/733.
@@ -18,38 +18,22 @@ func init() {
 }
 
 // StringToAlgorithm is the reverse of AlgorithmToString.
-var StringToAlgorithm = reverseInt8(AlgorithmToString)
+var StringToAlgorithm = reverseMap(AlgorithmToString)
 
 // StringToHash is a map of names to hash IDs.
-var StringToHash = reverseInt8(HashToString)
+var StringToHash = reverseMap(HashToString)
 
 // StringToCertType is the reverse of CertTypeToString.
-var StringToCertType = reverseInt16(CertTypeToString)
+var StringToCertType = reverseMap(CertTypeToString)
 
 // StringToStatefulType is the reverse of StatefulTypeToString.
-var StringToStatefulType = reverseInt16(StatefulTypeToString)
+var StringToStatefulType = reverseMap(StatefulTypeToString)
 
 // Reverse a map
-func reverseInt8(m map[uint8]string) map[string]uint8 {
-	n := make(map[string]uint8, len(m))
-	for u, s := range m {
-		n[s] = u
-	}
-	return n
-}
-
-func reverseInt16(m map[uint16]string) map[string]uint16 {
-	n := make(map[string]uint16, len(m))
-	for u, s := range m {
-		n[s] = u
-	}
-	return n
-}
-
-func reverseInt(m map[int]string) map[string]int {
-	n := make(map[string]int, len(m))
-	for u, s := range m {
-		n[s] = u
+func reverseMap[K, V comparable](m map[K]V) map[V]K {
+	n := make(map[V]K, len(m))
+	for k, v := range m {
+		n[v] = k
 	}
 	return n
 }

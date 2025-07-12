@@ -4,6 +4,7 @@ package dns
 
 import (
 	"net"
+	"slices"
 )
 
 // TypeToRR is a map of constructors for each RR type.
@@ -267,7 +268,7 @@ func (rr *ZONEMD) Header() *RR_Header     { return &rr.Hdr }
 // len() functions
 func (rr *A) len(off int, compression map[string]struct{}) int {
 	l := rr.Hdr.len(off, compression)
-	if len(rr.A) != 0 {
+	if rr.A.IsValid() {
 		l += net.IPv4len
 	}
 	return l
@@ -275,7 +276,7 @@ func (rr *A) len(off int, compression map[string]struct{}) int {
 
 func (rr *AAAA) len(off int, compression map[string]struct{}) int {
 	l := rr.Hdr.len(off, compression)
-	if len(rr.AAAA) != 0 {
+	if rr.AAAA.IsValid() {
 		l += net.IPv6len
 	}
 	return l
@@ -463,7 +464,7 @@ func (rr *KX) len(off int, compression map[string]struct{}) int {
 func (rr *L32) len(off int, compression map[string]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // Preference
-	if len(rr.Locator32) != 0 {
+	if rr.Locator32.IsValid() {
 		l += net.IPv4len
 	}
 	return l
@@ -829,11 +830,11 @@ func (rr *ZONEMD) len(off int, compression map[string]struct{}) int {
 
 // copy() functions
 func (rr *A) copy() RR {
-	return &A{rr.Hdr, cloneSlice(rr.A)}
+	return &A{rr.Hdr, rr.A}
 }
 
 func (rr *AAAA) copy() RR {
-	return &AAAA{rr.Hdr, cloneSlice(rr.AAAA)}
+	return &AAAA{rr.Hdr, rr.AAAA}
 }
 
 func (rr *AFSDB) copy() RR {
@@ -845,7 +846,7 @@ func (rr *AMTRELAY) copy() RR {
 		rr.Hdr,
 		rr.Precedence,
 		rr.GatewayType,
-		cloneSlice(rr.GatewayAddr),
+		rr.GatewayAddr,
 		rr.GatewayHost,
 	}
 }
@@ -863,7 +864,7 @@ func (rr *APL) copy() RR {
 }
 
 func (rr *AVC) copy() RR {
-	return &AVC{rr.Hdr, cloneSlice(rr.Txt)}
+	return &AVC{rr.Hdr, slices.Clone(rr.Txt)}
 }
 
 func (rr *CAA) copy() RR {
@@ -902,7 +903,7 @@ func (rr *CSYNC) copy() RR {
 		rr.Hdr,
 		rr.Serial,
 		rr.Flags,
-		cloneSlice(rr.TypeBitMap),
+		slices.Clone(rr.TypeBitMap),
 	}
 }
 
@@ -975,7 +976,7 @@ func (rr *HIP) copy() RR {
 		rr.PublicKeyLength,
 		rr.Hit,
 		rr.PublicKey,
-		cloneSlice(rr.RendezvousServers),
+		slices.Clone(rr.RendezvousServers),
 	}
 }
 
@@ -989,7 +990,7 @@ func (rr *IPSECKEY) copy() RR {
 		rr.Precedence,
 		rr.GatewayType,
 		rr.Algorithm,
-		cloneSlice(rr.GatewayAddr),
+		rr.GatewayAddr,
 		rr.GatewayHost,
 		rr.PublicKey,
 	}
@@ -1008,7 +1009,7 @@ func (rr *KX) copy() RR {
 }
 
 func (rr *L32) copy() RR {
-	return &L32{rr.Hdr, rr.Preference, cloneSlice(rr.Locator32)}
+	return &L32{rr.Hdr, rr.Preference, rr.Locator32}
 }
 
 func (rr *L64) copy() RR {
@@ -1081,7 +1082,7 @@ func (rr *NIMLOC) copy() RR {
 }
 
 func (rr *NINFO) copy() RR {
-	return &NINFO{rr.Hdr, cloneSlice(rr.ZSData)}
+	return &NINFO{rr.Hdr, slices.Clone(rr.ZSData)}
 }
 
 func (rr *NS) copy() RR {
@@ -1093,7 +1094,7 @@ func (rr *NSAPPTR) copy() RR {
 }
 
 func (rr *NSEC) copy() RR {
-	return &NSEC{rr.Hdr, rr.NextDomain, cloneSlice(rr.TypeBitMap)}
+	return &NSEC{rr.Hdr, rr.NextDomain, slices.Clone(rr.TypeBitMap)}
 }
 
 func (rr *NSEC3) copy() RR {
@@ -1106,7 +1107,7 @@ func (rr *NSEC3) copy() RR {
 		rr.Salt,
 		rr.HashLength,
 		rr.NextDomain,
-		cloneSlice(rr.TypeBitMap),
+		slices.Clone(rr.TypeBitMap),
 	}
 }
 
@@ -1159,7 +1160,7 @@ func (rr *PX) copy() RR {
 }
 
 func (rr *RESINFO) copy() RR {
-	return &RESINFO{rr.Hdr, cloneSlice(rr.Txt)}
+	return &RESINFO{rr.Hdr, slices.Clone(rr.Txt)}
 }
 
 func (rr *RFC3597) copy() RR {
@@ -1227,7 +1228,7 @@ func (rr *SOA) copy() RR {
 }
 
 func (rr *SPF) copy() RR {
-	return &SPF{rr.Hdr, cloneSlice(rr.Txt)}
+	return &SPF{rr.Hdr, slices.Clone(rr.Txt)}
 }
 
 func (rr *SRV) copy() RR {
@@ -1317,7 +1318,7 @@ func (rr *TSIG) copy() RR {
 }
 
 func (rr *TXT) copy() RR {
-	return &TXT{rr.Hdr, cloneSlice(rr.Txt)}
+	return &TXT{rr.Hdr, slices.Clone(rr.Txt)}
 }
 
 func (rr *UID) copy() RR {

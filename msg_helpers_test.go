@@ -2,7 +2,7 @@ package dns
 
 import (
 	"bytes"
-	"net"
+	"net/netip"
 	"testing"
 )
 
@@ -168,6 +168,7 @@ func BenchmarkPackDataNsec(b *testing.B) {
 		})
 	}
 }
+
 func TestUnpackString(t *testing.T) {
 	msg := []byte("\x00abcdef\x0f\\\"ghi\x04mmm\x7f")
 	msg[0] = byte(len(msg) - 1)
@@ -219,50 +220,43 @@ func TestPackDataAplPrefix(t *testing.T) {
 	tests := []struct {
 		name     string
 		negation bool
-		ip       net.IP
-		mask     net.IPMask
+		prefix   netip.Prefix
 		expect   []byte
 	}{
 		{
 			"1:192.0.2.0/24",
 			false,
-			net.ParseIP("192.0.2.0").To4(),
-			net.CIDRMask(24, 32),
+			netip.MustParsePrefix("192.0.2.0/24"),
 			[]byte{0x00, 0x01, 0x18, 0x03, 192, 0, 2},
 		},
 		{
 			"2:2001:db8:cafe::0/48",
 			false,
-			net.ParseIP("2001:db8:cafe::"),
-			net.CIDRMask(48, 128),
+			netip.MustParsePrefix("2001:db8:cafe::/48"),
 			[]byte{0x00, 0x02, 0x30, 0x06, 0x20, 0x01, 0x0d, 0xb8, 0xca, 0xfe},
 		},
 		{
 			"with trailing zero bytes 2:2001:db8:cafe::0/64",
 			false,
-			net.ParseIP("2001:db8:cafe::"),
-			net.CIDRMask(64, 128),
+			netip.MustParsePrefix("2001:db8:cafe::/64"),
 			[]byte{0x00, 0x02, 0x40, 0x06, 0x20, 0x01, 0x0d, 0xb8, 0xca, 0xfe},
 		},
 		{
 			"no non-zero bytes 2::/16",
 			false,
-			net.ParseIP("::"),
-			net.CIDRMask(16, 128),
+			netip.MustParsePrefix("::/16"),
 			[]byte{0x00, 0x02, 0x10, 0x00},
 		},
 		{
 			"!2:2001:db8::/32",
 			true,
-			net.ParseIP("2001:db8::"),
-			net.CIDRMask(32, 128),
+			netip.MustParsePrefix("2001:db8::/32"),
 			[]byte{0x00, 0x02, 0x20, 0x84, 0x20, 0x01, 0x0d, 0xb8},
 		},
 		{
 			"normalize 1:198.51.103.255/22",
 			false,
-			net.ParseIP("198.51.103.255").To4(),
-			net.CIDRMask(22, 32),
+			netip.MustParsePrefix("198.51.103.255/22"),
 			[]byte{0x00, 0x01, 0x16, 0x03, 198, 51, 100}, // 1:198.51.100.0/22
 		},
 	}
@@ -270,7 +264,7 @@ func TestPackDataAplPrefix(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ap := &APLPrefix{
 				Negation: tt.negation,
-				Network:  net.IPNet{IP: tt.ip, Mask: tt.mask},
+				Network:  tt.prefix,
 			}
 			out := make([]byte, 16)
 			off, err := packDataAplPrefix(ap, out, 0)
@@ -292,23 +286,18 @@ func TestPackDataAplPrefix(t *testing.T) {
 func TestPackDataAplPrefix_Failures(t *testing.T) {
 	tests := []struct {
 		name string
-		ip   net.IP
-		mask net.IPMask
+		ip   netip.Addr
+		mask int
 	}{
 		{
-			"family mismatch",
-			net.ParseIP("2001:db8::"),
-			net.CIDRMask(24, 32),
-		},
-		{
 			"unrecognized family",
-			[]byte{0x42},
-			[]byte{0xff},
+			netip.Addr{},
+			8,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ap := &APLPrefix{Network: net.IPNet{IP: tt.ip, Mask: tt.mask}}
+			ap := &APLPrefix{Network: netip.PrefixFrom(tt.ip, tt.mask)}
 			msg := make([]byte, 16)
 			off, err := packDataAplPrefix(ap, msg, 0)
 			if err == nil {
@@ -324,10 +313,7 @@ func TestPackDataAplPrefix_Failures(t *testing.T) {
 func TestPackDataAplPrefix_BufferBounds(t *testing.T) {
 	ap := &APLPrefix{
 		Negation: false,
-		Network: net.IPNet{
-			IP:   net.ParseIP("2001:db8::"),
-			Mask: net.CIDRMask(32, 128),
-		},
+		Network:  netip.MustParsePrefix("2001:db8::/32"),
 	}
 	wire := []byte{0x00, 0x02, 0x20, 0x04, 0x20, 0x01, 0x0d, 0xb8}
 
@@ -355,17 +341,11 @@ func TestPackDataApl(t *testing.T) {
 	in := []APLPrefix{
 		{
 			Negation: true,
-			Network: net.IPNet{
-				IP:   net.ParseIP("198.51.0.0").To4(),
-				Mask: net.CIDRMask(16, 32),
-			},
+			Network:  netip.MustParsePrefix("198.51.0.0/16"),
 		},
 		{
 			Negation: false,
-			Network: net.IPNet{
-				IP:   net.ParseIP("2001:db8:beef::"),
-				Mask: net.CIDRMask(48, 128),
-			},
+			Network:  netip.MustParsePrefix("2001:db8:beef::/48"),
 		},
 	}
 	expect := []byte{
@@ -390,36 +370,31 @@ func TestUnpackDataAplPrefix(t *testing.T) {
 		name     string
 		wire     []byte
 		negation bool
-		ip       net.IP
-		mask     net.IPMask
+		prefix   netip.Prefix
 	}{
 		{
 			"1:192.0.2.0/24",
 			[]byte{0x00, 0x01, 0x18, 0x03, 192, 0, 2},
 			false,
-			net.ParseIP("192.0.2.0").To4(),
-			net.CIDRMask(24, 32),
+			netip.MustParsePrefix("192.0.2.0/24"),
 		},
 		{
 			"2:2001:db8::/32",
 			[]byte{0x00, 0x02, 0x20, 0x04, 0x20, 0x01, 0x0d, 0xb8},
 			false,
-			net.ParseIP("2001:db8::"),
-			net.CIDRMask(32, 128),
+			netip.MustParsePrefix("2001:db8::/32"),
 		},
 		{
 			"!2:2001:db8:8000::/33",
 			[]byte{0x00, 0x02, 0x21, 0x85, 0x20, 0x01, 0x0d, 0xb8, 0x80},
 			true,
-			net.ParseIP("2001:db8:8000::"),
-			net.CIDRMask(33, 128),
+			netip.MustParsePrefix("2001:db8:8000::/33"),
 		},
 		{
 			"1:0.0.0.0/0",
 			[]byte{0x00, 0x01, 0x00, 0x00},
 			false,
-			net.ParseIP("0.0.0.0").To4(),
-			net.CIDRMask(0, 32),
+			netip.MustParsePrefix("0.0.0.0/0"),
 		},
 	}
 	for _, tt := range tests {
@@ -434,11 +409,8 @@ func TestUnpackDataAplPrefix(t *testing.T) {
 			if got.Negation != tt.negation {
 				t.Errorf("expected negation %v, got %v", tt.negation, got.Negation)
 			}
-			if !tt.ip.Equal(got.Network.IP) {
-				t.Errorf("expected IP %02x, got %02x", tt.ip, got.Network.IP)
-			}
-			if !bytes.Equal(got.Network.Mask, tt.mask) {
-				t.Errorf("expected mask %02x, got %02x", tt.mask, got.Network.Mask)
+			if tt.prefix != got.Network {
+				t.Errorf("expected prefix %02x, got %02x", tt.prefix, got.Network)
 			}
 		})
 	}
@@ -520,52 +492,31 @@ func TestUnpackDataApl(t *testing.T) {
 	expect := []APLPrefix{
 		{
 			Negation: false,
-			Network: net.IPNet{
-				IP:   net.ParseIP("2001:db8:cafe:4200::"),
-				Mask: net.CIDRMask(56, 128),
-			},
+			Network:  netip.MustParsePrefix("2001:db8:cafe:4200::/56"),
 		},
 		{
 			Negation: false,
-			Network: net.IPNet{
-				IP:   net.ParseIP("192.0.2.0").To4(),
-				Mask: net.CIDRMask(24, 32),
-			},
+			Network:  netip.MustParsePrefix("192.0.2.0/24"),
 		},
 		{
 			Negation: true,
-			Network: net.IPNet{
-				IP:   net.ParseIP("192.0.2.128").To4(),
-				Mask: net.CIDRMask(25, 32),
-			},
+			Network:  netip.MustParsePrefix("192.0.2.128/25"),
 		},
 		{
 			Negation: false,
-			Network: net.IPNet{
-				IP:   net.ParseIP("10.0.0.0").To4(),
-				Mask: net.CIDRMask(24, 32),
-			},
+			Network:  netip.MustParsePrefix("10.0.0.0/24"),
 		},
 		{
 			Negation: true,
-			Network: net.IPNet{
-				IP:   net.ParseIP("10.0.0.1").To4(),
-				Mask: net.CIDRMask(32, 32),
-			},
+			Network:  netip.MustParsePrefix("10.0.0.1/32"),
 		},
 		{
 			Negation: true,
-			Network: net.IPNet{
-				IP:   net.ParseIP("0.0.0.0").To4(),
-				Mask: net.CIDRMask(0, 32),
-			},
+			Network:  netip.MustParsePrefix("0.0.0.0/0"),
 		},
 		{
 			Negation: false,
-			Network: net.IPNet{
-				IP:   net.ParseIP("::").To16(),
-				Mask: net.CIDRMask(0, 128),
-			},
+			Network:  netip.MustParsePrefix("::/0"),
 		},
 	}
 
@@ -583,11 +534,8 @@ func TestUnpackDataApl(t *testing.T) {
 		if got[i].Negation != exp.Negation {
 			t.Errorf("[%d] expected negation %v, got %v", i, exp.Negation, got[i].Negation)
 		}
-		if !exp.Network.IP.Equal(got[i].Network.IP) {
-			t.Errorf("[%d] expected IP %02x, got %02x", i, exp.Network.IP, got[i].Network.IP)
-		}
-		if !bytes.Equal(got[i].Network.Mask, exp.Network.Mask) {
-			t.Errorf("[%d] expected mask %02x, got %02x", i, exp.Network.Mask, got[i].Network.Mask)
+		if exp.Network != got[i].Network {
+			t.Errorf("[%d] expected network %02x, got %02x", i, exp.Network, got[i].Network)
 		}
 	}
 }

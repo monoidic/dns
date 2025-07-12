@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
-	"net"
+	"net/netip"
 	"testing"
 )
 
@@ -18,7 +18,7 @@ func FuzzPackUnpack(f *testing.F) {
 		// keep name as "."
 		copy(msgx[1:3], msg[:2]) // rrtype
 		// keep class (2 bytes) and ttl (4 bytes) as 0
-		binary.BigEndian.PutUint16(msgx[9:11], uint16(len(msg)-2)) //rdlength
+		binary.BigEndian.PutUint16(msgx[9:11], uint16(len(msg)-2)) // rdlength
 
 		copy(msgx[11:], msg[2:]) // data
 		msg = msgx
@@ -48,7 +48,7 @@ func FuzzPackUnpack(f *testing.F) {
 
 		rr2, rr2Off, err := UnpackRR(buf, 0)
 		if err != nil {
-			t.Fatalf("error on second unpack: %s", err)
+			t.Fatalf("error on second unpack: %s\n%s\n%s", err, hex.EncodeToString(msg[:msgOff]), hex.EncodeToString(buf[:bufOff]))
 		}
 
 		if rr2Off > expectedLen {
@@ -70,6 +70,8 @@ func FuzzPackUnpack(f *testing.F) {
 	})
 }
 
+// TODO fuzz string parsing too
+
 func TestPackUnpack(t *testing.T) {
 	out := new(Msg)
 	out.Answer = make([]RR, 1)
@@ -87,9 +89,11 @@ func TestPackUnpack(t *testing.T) {
 		t.Error("failed to unpack msg with DNSKEY")
 	}
 
-	sig := &RRSIG{TypeCovered: TypeDNSKEY, Algorithm: RSASHA1, Labels: 2,
+	sig := &RRSIG{
+		TypeCovered: TypeDNSKEY, Algorithm: RSASHA1, Labels: 2,
 		OrigTtl: 3600, Expiration: 4000, Inception: 4000, KeyTag: 34641, SignerName: "miek.nl.",
-		Signature: "AwEAAaHIwpx3w4VHKi6i1LHnTaWeHCL154Jug0Rtc9ji5qwPXpBo6A5sRv7cSsPQKPIwxLpyCrbJ4mr2L0EPOdvP6z6YfljK2ZmTbogU9aSU2fiq/4wjxbdkLyoDVgtO+JsxNN4bjr4WcWhsmk1Hg93FV9ZpkWb0Tbad8DFqNDzr//kZ"}
+		Signature: "AwEAAaHIwpx3w4VHKi6i1LHnTaWeHCL154Jug0Rtc9ji5qwPXpBo6A5sRv7cSsPQKPIwxLpyCrbJ4mr2L0EPOdvP6z6YfljK2ZmTbogU9aSU2fiq/4wjxbdkLyoDVgtO+JsxNN4bjr4WcWhsmk1Hg93FV9ZpkWb0Tbad8DFqNDzr//kZ",
+	}
 	sig.Hdr = RR_Header{Name: "miek.nl.", Rrtype: TypeRRSIG, Class: ClassINET, Ttl: 3600}
 
 	out.Answer[0] = sig
@@ -110,7 +114,7 @@ func TestPackUnpack2(t *testing.T) {
 	dom := "miek.nl."
 	rr := new(A)
 	rr.Hdr = RR_Header{Name: dom, Rrtype: TypeA, Class: ClassINET, Ttl: 0}
-	rr.A = net.IPv4(127, 0, 0, 1)
+	rr.A = netip.AddrFrom4([4]byte{127, 0, 0, 1})
 
 	x := new(TXT)
 	x.Hdr = RR_Header{Name: dom, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}
@@ -132,7 +136,7 @@ func TestPackUnpack3(t *testing.T) {
 	dom := "miek.nl."
 	rr := new(A)
 	rr.Hdr = RR_Header{Name: dom, Rrtype: TypeA, Class: ClassINET, Ttl: 0}
-	rr.A = net.IPv4(127, 0, 0, 1)
+	rr.A = netip.AddrFrom4([4]byte{127, 0, 0, 1})
 
 	x1 := new(TXT)
 	x1.Hdr = RR_Header{Name: dom, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}
@@ -306,7 +310,7 @@ func TestMsgCopy(t *testing.T) {
 }
 
 func TestMsgPackBuffer(t *testing.T) {
-	var testMessages = []string{
+	testMessages := []string{
 		// news.ycombinator.com.in.escapemg.com.	IN	A, response
 		"586285830001000000010000046e6577730b79636f6d62696e61746f7203636f6d02696e086573636170656d6703636f6d0000010001c0210006000100000e10002c036e7332c02103646e730b67726f6f7665736861726bc02d77ed50e600002a3000000e1000093a8000000e10",
 
@@ -379,6 +383,47 @@ func TestTKEY(t *testing.T) {
 	_, newError := NewRR(tkey.String())
 	if newError != nil {
 		t.Fatalf("unable to parse TKEY string: %s", newError)
+	}
+}
+
+func TestShortMsg(t *testing.T) {
+	testEmpty := []byte{}
+
+	rr, _, err := UnpackRR(testEmpty, 0)
+	if err == nil {
+		t.Errorf("expected unpack failure for empty message, got %s", rr)
+	}
+
+	rr, _, err = UnpackRR(nil, 0)
+	if err == nil {
+		t.Errorf("expected unpack failure for nil message, got %s", rr)
+	}
+
+	rr = &MX{
+		Hdr: RR_Header{
+			Name:   "miek.nl.",
+			Rrtype: TypeMX,
+			Class:  ClassINET,
+			Ttl:    30,
+		},
+		Preference: 50,
+		Mx:         "",
+	}
+
+	msg := make([]byte, Len(rr))
+	_, err = PackRR(rr, msg, 0, nil, false)
+	if err != nil {
+		t.Fatalf("unexpected error in TestShortMsg: %s", err)
+		return
+	}
+
+	headerOff := Len(rr.Header())
+	// manually set rdlength to 2, covering just the preference
+	binary.BigEndian.PutUint16(msg[headerOff-2:headerOff], 2)
+
+	rr, _, err = UnpackRR(msg, 0)
+	if err == nil {
+		t.Errorf("expected unpack success for short message, got %s", rr)
 	}
 }
 

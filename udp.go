@@ -5,6 +5,7 @@ package dns
 
 import (
 	"net"
+	"net/netip"
 
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
@@ -66,37 +67,39 @@ func setUDPSocketOptions(conn *net.UDPConn) error {
 }
 
 // parseDstFromOOB takes oob data and returns the destination IP.
-func parseDstFromOOB(oob []byte) net.IP {
+func parseDstFromOOB(oob []byte) netip.Addr {
 	// Start with IPv6 and then fallback to IPv4
 	// TODO(fastest963): Figure out a way to prefer one or the other. Looking at
 	// the lvl of the header for a 0 or 41 isn't cross-platform.
 	cm6 := new(ipv6.ControlMessage)
 	if cm6.Parse(oob) == nil && cm6.Dst != nil {
-		return cm6.Dst
+		addr, _ := netip.AddrFromSlice(cm6.Dst)
+		return addr
 	}
 	cm4 := new(ipv4.ControlMessage)
 	if cm4.Parse(oob) == nil && cm4.Dst != nil {
-		return cm4.Dst
+		addr, _ := netip.AddrFromSlice(cm4.Dst)
+		return addr
 	}
-	return nil
+	return netip.Addr{}
 }
 
 // correctSource takes oob data and returns new oob data with the Src equal to the Dst
 func correctSource(oob []byte) []byte {
 	dst := parseDstFromOOB(oob)
-	if dst == nil {
+	if !dst.IsValid() {
 		return nil
 	}
 	// If the dst is definitely an IPv6, then use ipv6's ControlMessage to
 	// respond otherwise use ipv4's because ipv6's marshal ignores ipv4
 	// addresses.
-	if dst.To4() == nil {
-		cm := new(ipv6.ControlMessage)
-		cm.Src = dst
+	if dst.Unmap().Is4() {
+		cm := new(ipv4.ControlMessage)
+		cm.Src = dst.AsSlice()
 		oob = cm.Marshal()
 	} else {
-		cm := new(ipv4.ControlMessage)
-		cm.Src = dst
+		cm := new(ipv6.ControlMessage)
+		cm.Src = dst.AsSlice()
 		oob = cm.Marshal()
 	}
 	return oob

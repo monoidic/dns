@@ -6,6 +6,7 @@ package dns
 import (
 	"bytes"
 	"net"
+	"net/netip"
 	"runtime"
 	"strings"
 	"testing"
@@ -58,7 +59,7 @@ func TestSetUDPSocketOptions(t *testing.T) {
 			t.Fatalf("empty session context: %v", sess)
 		}
 		ip := parseDstFromOOB(sess.context)
-		if ip == nil {
+		if !ip.IsValid() {
 			t.Fatalf("failed to parse dst: %v", sess)
 		}
 		if !strings.Contains(c.LocalAddr().String(), ip.String()) {
@@ -92,31 +93,28 @@ func TestParseDstFromOOB(t *testing.T) {
 	// dst is :ffff:100.100.100.100
 	oob := []byte{36, 0, 0, 0, 0, 0, 0, 0, 41, 0, 0, 0, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 100, 100, 100, 100, 2, 0, 0, 0}
 	dst := parseDstFromOOB(oob)
-	dst4 := dst.To4()
-	if dst4 == nil {
+	if !dst.Is4In6() {
 		t.Errorf("failed to parse IPv4 in IPv6: %v", dst)
-	} else if dst4.String() != "100.100.100.100" {
-		t.Errorf("unexpected IPv4: %v", dst4)
+	} else if dst.Unmap() != netip.MustParseAddr("100.100.100.100") {
+		t.Errorf("unexpected IPv4: %v", dst)
 	}
 
 	// dst is 2001:db8::1
 	oob = []byte{36, 0, 0, 0, 0, 0, 0, 0, 41, 0, 0, 0, 50, 0, 0, 0, 32, 1, 13, 184, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0}
 	dst = parseDstFromOOB(oob)
-	dst6 := dst.To16()
-	if dst6 == nil {
+	if !dst.Is6() {
 		t.Errorf("failed to parse IPv6: %v", dst)
-	} else if dst6.String() != "2001:db8::1" {
-		t.Errorf("unexpected IPv6: %v", dst4)
+	} else if dst != netip.MustParseAddr("2001:db8::1") {
+		t.Errorf("unexpected IPv6: %v", dst)
 	}
 
 	// dst is 100.100.100.100 but was received on 10.10.10.10
 	oob = []byte{28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 2, 0, 0, 0, 10, 10, 10, 10, 100, 100, 100, 100, 0, 0, 0, 0}
 	dst = parseDstFromOOB(oob)
-	dst4 = dst.To4()
-	if dst4 == nil {
+	if !dst.Is4() {
 		t.Errorf("failed to parse IPv4: %v", dst)
-	} else if dst4.String() != "100.100.100.100" {
-		t.Errorf("unexpected IPv4: %v", dst4)
+	} else if dst != netip.MustParseAddr("100.100.100.100") {
+		t.Errorf("unexpected IPv4: %v", dst)
 	}
 }
 
@@ -132,7 +130,7 @@ func TestCorrectSource(t *testing.T) {
 	cm4 := new(ipv4.ControlMessage)
 	cm4.Src = net.ParseIP("100.100.100.100")
 	if !bytes.Equal(soob, cm4.Marshal()) {
-		t.Errorf("unexpected oob for ipv4 address: %v", soob)
+		t.Errorf("unexpected oob for ipv4 address: %v, expected %v", soob, cm4.Marshal())
 	}
 
 	// dst is 2001:db8::1

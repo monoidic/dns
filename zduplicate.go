@@ -10,7 +10,7 @@ func (r1 *A) isDuplicate(_r2 RR) bool {
 		return false
 	}
 	_ = r2
-	if !r1.A.Equal(r2.A) {
+	if r1.A != r2.A {
 		return false
 	}
 	return true
@@ -22,7 +22,7 @@ func (r1 *AAAA) isDuplicate(_r2 RR) bool {
 		return false
 	}
 	_ = r2
-	if !r1.AAAA.Equal(r2.AAAA) {
+	if r1.AAAA != r2.AAAA {
 		return false
 	}
 	return true
@@ -57,7 +57,7 @@ func (r1 *AMTRELAY) isDuplicate(_r2 RR) bool {
 	}
 	switch r1.GatewayType {
 	case IPSECGatewayIPv4, IPSECGatewayIPv6:
-		if !r1.GatewayAddr.Equal(r2.GatewayAddr) {
+		if r1.GatewayAddr != r2.GatewayAddr {
 			return false
 		}
 	case IPSECGatewayHost:
@@ -466,7 +466,7 @@ func (r1 *IPSECKEY) isDuplicate(_r2 RR) bool {
 	}
 	switch r1.GatewayType {
 	case IPSECGatewayIPv4, IPSECGatewayIPv6:
-		if !r1.GatewayAddr.Equal(r2.GatewayAddr) {
+		if r1.GatewayAddr != r2.GatewayAddr {
 			return false
 		}
 	case IPSECGatewayHost:
@@ -541,7 +541,7 @@ func (r1 *L32) isDuplicate(_r2 RR) bool {
 	if r1.Preference != r2.Preference {
 		return false
 	}
-	if !r1.Locator32.Equal(r2.Locator32) {
+	if r1.Locator32 != r2.Locator32 {
 		return false
 	}
 	return true

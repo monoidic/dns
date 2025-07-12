@@ -1,9 +1,8 @@
 package dns
 
 import (
-	"bytes"
 	"fmt"
-	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -252,9 +251,6 @@ var CertTypeToString = map[uint16]string{
 	CertURI:     "URI",
 	CertOID:     "OID",
 }
-
-// Prefix for IPv4 encoded as IPv6 address
-const ipv4InIPv6Prefix = "::ffff:"
 
 //go:generate go run types_generate.go
 
@@ -784,11 +780,11 @@ func (rr *DNAME) String() string {
 // A RR. See RFC 1035.
 type A struct {
 	Hdr RR_Header
-	A   net.IP `dns:"a"`
+	A   netip.Addr `dns:"a"`
 }
 
 func (rr *A) String() string {
-	if rr.A == nil {
+	if !rr.A.IsValid() {
 		return rr.Hdr.String()
 	}
 	return rr.Hdr.String() + rr.A.String()
@@ -797,16 +793,12 @@ func (rr *A) String() string {
 // AAAA RR. See RFC 3596.
 type AAAA struct {
 	Hdr  RR_Header
-	AAAA net.IP `dns:"aaaa"`
+	AAAA netip.Addr `dns:"aaaa"`
 }
 
 func (rr *AAAA) String() string {
-	if rr.AAAA == nil {
+	if !rr.AAAA.IsValid() {
 		return rr.Hdr.String()
-	}
-
-	if rr.AAAA.To4() != nil {
-		return rr.Hdr.String() + ipv4InIPv6Prefix + rr.AAAA.String()
 	}
 
 	return rr.Hdr.String() + rr.AAAA.String()
@@ -1083,9 +1075,9 @@ type IPSECKEY struct {
 	Precedence  uint8
 	GatewayType uint8
 	Algorithm   uint8
-	GatewayAddr net.IP `dns:"-"` // packing/unpacking/parsing/etc handled together with GatewayHost
-	GatewayHost string `dns:"ipsechost"`
-	PublicKey   string `dns:"base64"`
+	GatewayAddr netip.Addr `dns:"-"` // packing/unpacking/parsing/etc handled together with GatewayHost
+	GatewayHost string     `dns:"ipsechost"`
+	PublicKey   string     `dns:"base64"`
 }
 
 func (rr *IPSECKEY) String() string {
@@ -1112,9 +1104,9 @@ func (rr *IPSECKEY) String() string {
 type AMTRELAY struct {
 	Hdr         RR_Header
 	Precedence  uint8
-	GatewayType uint8  // discovery is packed in here at bit 0x80
-	GatewayAddr net.IP `dns:"-"` // packing/unpacking/parsing/etc handled together with GatewayHost
-	GatewayHost string `dns:"amtrelayhost"`
+	GatewayType uint8      // discovery is packed in here at bit 0x80
+	GatewayAddr netip.Addr `dns:"-"` // packing/unpacking/parsing/etc handled together with GatewayHost
+	GatewayHost string     `dns:"amtrelayhost"`
 }
 
 func (rr *AMTRELAY) String() string {
@@ -1379,11 +1371,11 @@ func (rr *NID) String() string {
 type L32 struct {
 	Hdr        RR_Header
 	Preference uint16
-	Locator32  net.IP `dns:"a"`
+	Locator32  netip.Addr `dns:"a"`
 }
 
 func (rr *L32) String() string {
-	if rr.Locator32 == nil {
+	if !rr.Locator32.IsValid() {
 		return rr.Hdr.String() + strconv.Itoa(int(rr.Preference))
 	}
 	return rr.Hdr.String() + strconv.Itoa(int(rr.Preference)) +
@@ -1551,7 +1543,7 @@ type APL struct {
 // APLPrefix is an address prefix hold by an APL record.
 type APLPrefix struct {
 	Negation bool
-	Network  net.IPNet
+	Network  netip.Prefix
 }
 
 // String returns presentation form of the APL record.
@@ -1574,53 +1566,36 @@ func (a *APLPrefix) str() string {
 		sb.WriteByte('!')
 	}
 
-	switch len(a.Network.IP) {
-	case net.IPv4len:
+	if a.Network.Addr().Is4() {
 		sb.WriteByte('1')
-	case net.IPv6len:
+	} else if a.Network.Addr().Is6() {
 		sb.WriteByte('2')
 	}
 
 	sb.WriteByte(':')
 
-	switch len(a.Network.IP) {
-	case net.IPv4len:
-		sb.WriteString(a.Network.IP.String())
-	case net.IPv6len:
-		// add prefix for IPv4-mapped IPv6
-		if v4 := a.Network.IP.To4(); v4 != nil {
-			sb.WriteString(ipv4InIPv6Prefix)
-		}
-		sb.WriteString(a.Network.IP.String())
-	}
-
-	sb.WriteByte('/')
-
-	prefix, _ := a.Network.Mask.Size()
-	sb.WriteString(strconv.Itoa(prefix))
+	sb.WriteString(a.Network.String())
 
 	return sb.String()
 }
 
 // equals reports whether two APL prefixes are identical.
 func (a *APLPrefix) equals(b *APLPrefix) bool {
-	return a.Negation == b.Negation &&
-		a.Network.IP.Equal(b.Network.IP) &&
-		bytes.Equal(a.Network.Mask, b.Network.Mask)
+	return a.Negation == b.Negation && a.Network == b.Network
 }
 
 // copy returns a copy of the APL prefix.
 func (a *APLPrefix) copy() APLPrefix {
 	return APLPrefix{
 		Negation: a.Negation,
-		Network:  copyNet(a.Network),
+		Network:  a.Network,
 	}
 }
 
 // len returns size of the prefix in wire format.
 func (a *APLPrefix) len() int {
 	// 4-byte header and the network address prefix (see Section 4 of RFC 3123)
-	masked := a.Network.IP.Mask(a.Network.Mask)
+	masked := a.Network.Masked().Addr().AsSlice()
 	ret := 4 + len(masked)
 	for i := len(masked) - 1; i >= 0; i-- {
 		if masked[i] != 0 {
@@ -1678,22 +1653,6 @@ func euiToString(eui uint64, bits int) (hex string) {
 			"-" + hex[8:10] + "-" + hex[10:12]
 	}
 	return
-}
-
-// cloneSlice returns a shallow copy of s.
-func cloneSlice[E any, S ~[]E](s S) S {
-	if s == nil {
-		return nil
-	}
-	return append(S(nil), s...)
-}
-
-// copyNet returns a copy of a subnet.
-func copyNet(n net.IPNet) net.IPNet {
-	return net.IPNet{
-		IP:   cloneSlice(n.IP),
-		Mask: cloneSlice(n.Mask),
-	}
 }
 
 // SplitN splits a string into N sized string chunks.

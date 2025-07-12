@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -68,7 +69,7 @@ func ClientConfigFromReader(resolvconf io.Reader) (*ClientConfig, error) {
 			}
 
 		case "search": // set search path to given servers
-			c.Search = cloneSlice(f[1:])
+			c.Search = slices.Clone(f[1:])
 
 		case "options": // magic options
 			for _, s := range f[1:] {

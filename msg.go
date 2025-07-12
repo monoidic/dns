@@ -15,6 +15,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -1060,7 +1061,7 @@ func (dns *Msg) CopyTo(r1 *Msg) *Msg {
 
 	if len(dns.Question) > 0 {
 		// TODO(miek): Question is an immutable value, ok to do a shallow-copy
-		r1.Question = cloneSlice(dns.Question)
+		r1.Question = slices.Clone(dns.Question)
 	}
 
 	rrArr := make([]RR, len(dns.Answer)+len(dns.Ns)+len(dns.Extra))

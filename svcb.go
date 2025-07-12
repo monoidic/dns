@@ -5,7 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"net"
+	"net/netip"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -285,7 +286,7 @@ func (s *SVCBMandatory) String() string {
 }
 
 func (s *SVCBMandatory) pack() ([]byte, error) {
-	codes := cloneSlice(s.Code)
+	codes := slices.Clone(s.Code)
 	sort.Slice(codes, func(i, j int) bool {
 		return codes[i] < codes[j]
 	})
@@ -325,7 +326,7 @@ func (s *SVCBMandatory) len() int {
 }
 
 func (s *SVCBMandatory) copy() SVCBKeyValue {
-	return &SVCBMandatory{cloneSlice(s.Code)}
+	return &SVCBMandatory{slices.Clone(s.Code)}
 }
 
 // SVCBAlpn pair is used to list supported connection protocols.
@@ -479,7 +480,7 @@ func (s *SVCBAlpn) len() int {
 }
 
 func (s *SVCBAlpn) copy() SVCBKeyValue {
-	return &SVCBAlpn{cloneSlice(s.Alpn)}
+	return &SVCBAlpn{slices.Clone(s.Alpn)}
 }
 
 // SVCBNoDefaultAlpn pair signifies no support for default connection protocols.
@@ -569,7 +570,7 @@ func (s *SVCBPort) parse(b string) error {
 //		e.Hint = []net.IP{net.ParseIP("1.1.1.1").To4()}
 //		h.Value = append(h.Value, e)
 type SVCBIPv4Hint struct {
-	Hint []net.IP
+	Hint []netip.Addr
 }
 
 func (*SVCBIPv4Hint) Key() SVCBKey { return SVCB_IPV4HINT }
@@ -578,11 +579,10 @@ func (s *SVCBIPv4Hint) len() int   { return 4 * len(s.Hint) }
 func (s *SVCBIPv4Hint) pack() ([]byte, error) {
 	b := make([]byte, 0, 4*len(s.Hint))
 	for _, e := range s.Hint {
-		x := e.To4()
-		if x == nil {
+		if !e.Is4() {
 			return nil, errors.New("bad svcbipv4hint: expected ipv4, hint is ipv6")
 		}
-		b = append(b, x...)
+		b = append(b, e.AsSlice()...)
 	}
 	return b, nil
 }
@@ -591,10 +591,11 @@ func (s *SVCBIPv4Hint) unpack(b []byte) error {
 	if len(b) == 0 || len(b)%4 != 0 {
 		return errors.New("bad svcbipv4hint: ipv4 address byte array length is not a multiple of 4")
 	}
-	b = cloneSlice(b)
-	x := make([]net.IP, 0, len(b)/4)
+	b = slices.Clone(b)
+	x := make([]netip.Addr, 0, len(b)/4)
 	for i := 0; i < len(b); i += 4 {
-		x = append(x, net.IP(b[i:i+4]))
+		addr, _ := netip.AddrFromSlice(b[i : i+4])
+		x = append(x, addr)
 	}
 	s.Hint = x
 	return nil
@@ -603,11 +604,10 @@ func (s *SVCBIPv4Hint) unpack(b []byte) error {
 func (s *SVCBIPv4Hint) String() string {
 	str := make([]string, len(s.Hint))
 	for i, e := range s.Hint {
-		x := e.To4()
-		if x == nil {
+		if !e.Is4() {
 			return "<nil>"
 		}
-		str[i] = x.String()
+		str[i] = e.String()
 	}
 	return strings.Join(str, ",")
 }
@@ -620,12 +620,12 @@ func (s *SVCBIPv4Hint) parse(b string) error {
 		return errors.New("bad svcbipv4hint: expected ipv4, got ipv6")
 	}
 
-	hint := make([]net.IP, 0, strings.Count(b, ",")+1)
+	hint := make([]netip.Addr, 0, strings.Count(b, ",")+1)
 	for len(b) > 0 {
 		var e string
 		e, b, _ = strings.Cut(b, ",")
-		ip := net.ParseIP(e).To4()
-		if ip == nil {
+		ip, err := netip.ParseAddr(e)
+		if err != nil {
 			return errors.New("bad svcbipv4hint: bad ip")
 		}
 		hint = append(hint, ip)
@@ -635,11 +635,7 @@ func (s *SVCBIPv4Hint) parse(b string) error {
 }
 
 func (s *SVCBIPv4Hint) copy() SVCBKeyValue {
-	hint := make([]net.IP, len(s.Hint))
-	for i, ip := range s.Hint {
-		hint[i] = cloneSlice(ip)
-	}
-	return &SVCBIPv4Hint{Hint: hint}
+	return &SVCBIPv4Hint{Hint: slices.Clone(s.Hint)}
 }
 
 // SVCBECHConfig pair contains the ECHConfig structure defined in draft-ietf-tls-esni [RFC xxxx].
@@ -659,15 +655,15 @@ func (s *SVCBECHConfig) String() string { return toBase64(s.ECH) }
 func (s *SVCBECHConfig) len() int       { return len(s.ECH) }
 
 func (s *SVCBECHConfig) pack() ([]byte, error) {
-	return cloneSlice(s.ECH), nil
+	return slices.Clone(s.ECH), nil
 }
 
 func (s *SVCBECHConfig) copy() SVCBKeyValue {
-	return &SVCBECHConfig{cloneSlice(s.ECH)}
+	return &SVCBECHConfig{slices.Clone(s.ECH)}
 }
 
 func (s *SVCBECHConfig) unpack(b []byte) error {
-	s.ECH = cloneSlice(b)
+	s.ECH = slices.Clone(b)
 	return nil
 }
 
@@ -692,7 +688,7 @@ func (s *SVCBECHConfig) parse(b string) error {
 //	e.Hint = []net.IP{net.ParseIP("2001:db8::1")}
 //	h.Value = append(h.Value, e)
 type SVCBIPv6Hint struct {
-	Hint []net.IP
+	Hint []netip.Addr
 }
 
 func (*SVCBIPv6Hint) Key() SVCBKey { return SVCB_IPV6HINT }
@@ -701,10 +697,10 @@ func (s *SVCBIPv6Hint) len() int   { return 16 * len(s.Hint) }
 func (s *SVCBIPv6Hint) pack() ([]byte, error) {
 	b := make([]byte, 0, 16*len(s.Hint))
 	for _, e := range s.Hint {
-		if len(e) != net.IPv6len || e.To4() != nil {
+		if !e.Is6() {
 			return nil, errors.New("bad svcbipv6hint: expected ipv6, hint is ipv4")
 		}
-		b = append(b, e...)
+		b = append(b, e.AsSlice()...)
 	}
 	return b, nil
 }
@@ -713,11 +709,11 @@ func (s *SVCBIPv6Hint) unpack(b []byte) error {
 	if len(b) == 0 || len(b)%16 != 0 {
 		return errors.New("bas svcbipv6hint: ipv6 address byte array length not a multiple of 16")
 	}
-	b = cloneSlice(b)
-	x := make([]net.IP, 0, len(b)/16)
+	b = slices.Clone(b)
+	x := make([]netip.Addr, 0, len(b)/16)
 	for i := 0; i < len(b); i += 16 {
-		ip := net.IP(b[i : i+16])
-		if ip.To4() != nil {
+		ip, ok := netip.AddrFromSlice(b[i : i+16])
+		if !(ok && ip.Unmap().Is6()) {
 			return errors.New("bad svcbipv6hint: expected ipv6, got ipv4")
 		}
 		x = append(x, ip)
@@ -729,7 +725,7 @@ func (s *SVCBIPv6Hint) unpack(b []byte) error {
 func (s *SVCBIPv6Hint) String() string {
 	str := make([]string, len(s.Hint))
 	for i, e := range s.Hint {
-		if x := e.To4(); x != nil {
+		if !e.Is6() {
 			return "<nil>"
 		}
 		str[i] = e.String()
@@ -742,15 +738,15 @@ func (s *SVCBIPv6Hint) parse(b string) error {
 		return errors.New("bad svcbipv6hint: empty hint")
 	}
 
-	hint := make([]net.IP, 0, strings.Count(b, ",")+1)
+	hint := make([]netip.Addr, 0, strings.Count(b, ",")+1)
 	for len(b) > 0 {
 		var e string
 		e, b, _ = strings.Cut(b, ",")
-		ip := net.ParseIP(e)
-		if ip == nil {
+		ip, err := netip.ParseAddr(e)
+		if err != nil {
 			return errors.New("bad svcbipv6hint: bad ip")
 		}
-		if ip.To4() != nil {
+		if ip.Unmap().Is4() {
 			return errors.New("bad svcbipv6hint: expected ipv6, got ipv4-mapped-ipv6")
 		}
 		hint = append(hint, ip)
@@ -760,11 +756,7 @@ func (s *SVCBIPv6Hint) parse(b string) error {
 }
 
 func (s *SVCBIPv6Hint) copy() SVCBKeyValue {
-	hint := make([]net.IP, len(s.Hint))
-	for i, ip := range s.Hint {
-		hint[i] = cloneSlice(ip)
-	}
-	return &SVCBIPv6Hint{Hint: hint}
+	return &SVCBIPv6Hint{Hint: slices.Clone(s.Hint)}
 }
 
 // SVCBDoHPath pair is used to indicate the URI template that the
@@ -870,11 +862,11 @@ type SVCBLocal struct {
 
 func (s *SVCBLocal) Key() SVCBKey          { return s.KeyCode }
 func (s *SVCBLocal) String() string        { return svcbParamToStr(s.Data) }
-func (s *SVCBLocal) pack() ([]byte, error) { return cloneSlice(s.Data), nil }
+func (s *SVCBLocal) pack() ([]byte, error) { return slices.Clone(s.Data), nil }
 func (s *SVCBLocal) len() int              { return len(s.Data) }
 
 func (s *SVCBLocal) unpack(b []byte) error {
-	s.Data = cloneSlice(b)
+	s.Data = slices.Clone(b)
 	return nil
 }
 
@@ -888,7 +880,7 @@ func (s *SVCBLocal) parse(b string) error {
 }
 
 func (s *SVCBLocal) copy() SVCBKeyValue {
-	return &SVCBLocal{s.KeyCode, cloneSlice(s.Data)}
+	return &SVCBLocal{s.KeyCode, slices.Clone(s.Data)}
 }
 
 func (rr *SVCB) String() string {
@@ -904,8 +896,8 @@ func (rr *SVCB) String() string {
 // areSVCBPairArraysEqual checks if SVCBKeyValue arrays are equal after sorting their
 // copies. arrA and arrB have equal lengths, otherwise zduplicate.go wouldn't call this function.
 func areSVCBPairArraysEqual(a []SVCBKeyValue, b []SVCBKeyValue) bool {
-	a = cloneSlice(a)
-	b = cloneSlice(b)
+	a = slices.Clone(a)
+	b = slices.Clone(b)
 	sort.Slice(a, func(i, j int) bool { return a[i].Key() < a[j].Key() })
 	sort.Slice(b, func(i, j int) bool { return b[i].Key() < b[j].Key() })
 	for i, e := range a {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"syscall"
@@ -521,7 +522,7 @@ func TestTruncatedMsg(t *testing.T) {
 
 		re := &A{
 			Hdr: RR_Header{Name: m.Question[0].Name, Rrtype: TypeA, Class: ClassINET, Ttl: 0},
-			A:   net.ParseIP(fmt.Sprintf("127.0.0.%d", i)).To4(),
+			A:   netip.MustParseAddr(fmt.Sprintf("127.0.0.%d", i)),
 		}
 		m.Extra = append(m.Extra, re)
 	}

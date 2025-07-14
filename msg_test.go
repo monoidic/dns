@@ -122,42 +122,55 @@ func TestUnPackExtendedRcode(t *testing.T) {
 }
 
 func TestUnpackDomainName(t *testing.T) {
-	var cases = []struct {
+	cases := []struct {
 		label          string
 		input          string
 		expectedOutput string
 		expectedError  string
 	}{
-		{"empty domain",
+		{
+			"empty domain",
 			"\x00",
 			".",
-			""},
-		{"long label",
+			"",
+		},
+		{
+			"long label",
 			"?" + maxPrintableLabel + "\x00",
 			maxPrintableLabel + ".",
-			""},
-		{"unprintable label",
+			"",
+		},
+		{
+			"unprintable label",
 			"?" + regexp.MustCompile(`\\[0-9]+`).ReplaceAllStringFunc(maxUnprintableLabel,
 				func(escape string) string {
 					n, _ := strconv.ParseInt(escape[1:], 10, 8)
 					return string(rune(n))
 				}) + "\x00",
 			maxUnprintableLabel + ".",
-			""},
-		{"long domain",
+			"",
+		},
+		{
+			"long domain",
 			"5" + strings.Replace(longDomain, ".", "1", -1) + "\x00",
 			longDomain + ".",
-			""},
-		{"compression pointer",
+			"",
+		},
+		{
+			"compression pointer",
 			// an unrealistic but functional test referencing an offset _inside_ a label
 			"\x03foo" + "\x05\x03com\x00" + "\x07example" + "\xC0\x05",
 			"foo.\\003com\\000.example.com.",
-			""},
-		{"too long domain",
+			"",
+		},
+		{
+			"too long domain",
 			"6" + "x" + strings.Replace(longDomain, ".", "1", -1) + "\x00",
 			"",
-			ErrLongDomain.Error()},
-		{"too long by pointer",
+			ErrLongDomain.Error(),
+		},
+		{
+			"too long by pointer",
 			// a matryoshka doll name to get over 255 octets after expansion via internal pointers
 			string([]byte{
 				// 11 length values, first to last
@@ -168,8 +181,10 @@ func TestUnpackDomainName(t *testing.T) {
 				192, 10, 192, 9, 192, 8, 192, 7, 192, 6, 192, 5, 192, 4, 192, 3, 192, 2, 192, 1,
 			}),
 			"",
-			ErrLongDomain.Error()},
-		{"long by pointer",
+			ErrLongDomain.Error(),
+		},
+		{
+			"long by pointer",
 			// a matryoshka doll name _not_ exceeding 255 octets after expansion
 			string([]byte{
 				// 11 length values, first to last
@@ -194,14 +209,17 @@ func TestUnpackDomainName(t *testing.T) {
 				`\013\010\000xxxxxxxxx\192\010\192\009.` +
 				`\010\000xxxxxxxxx\192\010.` +
 				`\000xxxxxxxxx.`,
-			""},
+			"",
+		},
 		{"truncated name", "\x07example\x03", "", "dns: buffer size too small"},
 		{"non-absolute name", "\x07example\x03com", "", "dns: buffer size too small"},
 		{"compression pointer cycle (too many)", "\xC0\x00", "", "dns: too many compression pointers"},
-		{"compression pointer cycle (too long)",
+		{
+			"compression pointer cycle (too long)",
 			"\x03foo" + "\x03bar" + "\x07example" + "\xC0\x04",
 			"",
-			ErrLongDomain.Error()},
+			ErrLongDomain.Error(),
+		},
 		{"forward compression pointer", "\x02\xC0\xFF\xC0\x01", "", ErrBuf.Error()},
 		{"reserved compression pointer 0b10", "\x07example\x80", "", "dns: bad rdata"},
 		{"reserved compression pointer 0b01", "\x07example\x40", "", "dns: bad rdata"},

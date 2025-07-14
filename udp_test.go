@@ -1,5 +1,4 @@
 //go:build linux && !appengine
-// +build linux,!appengine
 
 package dns
 

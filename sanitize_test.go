@@ -18,14 +18,16 @@ func TestDedup(t *testing.T) {
 			testRR("miek.nl. IN A 127.0.0.1"),
 			testRR("miek.nl. CH A 127.0.0.1"),
 			testRR("miek.nl. IN A 127.0.0.1"),
-		}: {"miek.nl.\t3600\tIN\tA\t127.0.0.1",
+		}: {
+			"miek.nl.\t3600\tIN\tA\t127.0.0.1",
 			"miek.nl.\t3600\tCH\tA\t127.0.0.1",
 		},
 		[...]RR{
 			testRR("miek.nl. CH A 127.0.0.1"),
 			testRR("miek.nl. IN A 127.0.0.1"),
 			testRR("miek.de. IN A 127.0.0.1"),
-		}: {"miek.nl.\t3600\tCH\tA\t127.0.0.1",
+		}: {
+			"miek.nl.\t3600\tCH\tA\t127.0.0.1",
 			"miek.nl.\t3600\tIN\tA\t127.0.0.1",
 			"miek.de.\t3600\tIN\tA\t127.0.0.1",
 		},
@@ -33,7 +35,8 @@ func TestDedup(t *testing.T) {
 			testRR("miek.de. IN A 127.0.0.1"),
 			testRR("miek.nl. 200 IN A 127.0.0.1"),
 			testRR("miek.nl. 300 IN A 127.0.0.1"),
-		}: {"miek.de.\t3600\tIN\tA\t127.0.0.1",
+		}: {
+			"miek.de.\t3600\tIN\tA\t127.0.0.1",
 			"miek.nl.\t200\tIN\tA\t127.0.0.1",
 		},
 	}

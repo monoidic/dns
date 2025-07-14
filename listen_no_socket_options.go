@@ -1,5 +1,4 @@
-//go:build !aix && !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd
-// +build !aix,!darwin,!dragonfly,!freebsd,!linux,!netbsd,!openbsd
+//go:build !(aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd)
 
 package dns
 

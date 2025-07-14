@@ -162,7 +162,6 @@ func (c *Client) DialContext(ctx context.Context, address string) (conn *Conn, e
 // attribute appropriately
 func (c *Client) Exchange(m *Msg, address string) (r *Msg, rtt time.Duration, err error) {
 	co, err := c.Dial(address)
-
 	if err != nil {
 		return nil, 0, err
 	}

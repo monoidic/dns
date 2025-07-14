@@ -246,7 +246,7 @@ func TestNoRdataUnpack(t *testing.T) {
 		*r.Header() = RR_Header{Name: "miek.nl.", Rrtype: typ, Class: ClassINET, Ttl: 16}
 		_, err := PackRR(r, data, 0, nil, false)
 		if err != nil {
-			// Should always works, TestNoDataPack should have caught this
+			// Should always work, TestNoDataPack should have caught this
 			t.Errorf("failed to pack RR: %v", err)
 			continue
 		}

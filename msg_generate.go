@@ -1,5 +1,4 @@
 //go:build ignore
-// +build ignore
 
 // msg_generate.go is meant to run with go generate. It will use
 // go/{importer,types} to track down all the RR struct types. Then for each type
@@ -110,7 +109,7 @@ return off, err
 				switch st.Tag(i) {
 				case `dns:"-"`: // ignored
 				case `dns:"txt"`:
-					o("off, err = packStringTxt(rr.%s, msg, off)\n")
+					o("off, err = packTxt(rr.%s, msg, off)\n")
 				case `dns:"opt"`:
 					o("off, err = packDataOpt(rr.%s, msg, off)\n")
 				case `dns:"nsec"`:
@@ -140,7 +139,7 @@ return off, err
 			case st.Tag(i) == `dns:"uint48"`:
 				o("off, err = packUint48(rr.%s, msg, off)\n")
 			case st.Tag(i) == `dns:"txt"`:
-				o("off, err = packString(rr.%s, msg, off)\n")
+				o("off, err = packTxtString(rr.%s, msg, off)\n")
 
 			case strings.HasPrefix(st.Tag(i), `dns:"size-base32`): // size-base32 can be packed just like base32
 				fallthrough
@@ -185,7 +184,7 @@ if rr.%s != "-" {
 				case types.Uint64:
 					o("off, err = packUint64(rr.%s, msg, off)\n")
 				case types.String:
-					o("off, err = packString(rr.%s, msg, off)\n")
+					o("off, err = packTxtString(rr.%s, msg, off)\n")
 				default:
 					log.Fatalln(name, st.Field(i).Name())
 				}
@@ -245,7 +244,7 @@ return off, err
 				switch st.Tag(i) {
 				case `dns:"-"`: // ignored
 				case `dns:"txt"`:
-					o("rr.%s, off, err = unpackStringTxt(msg, off)\n")
+					o("rr.%s, off, err = unpackTxt(msg, off)\n")
 				case `dns:"opt"`:
 					o("rr.%s, off, err = unpackDataOpt(msg, off)\n")
 				case `dns:"nsec"`:

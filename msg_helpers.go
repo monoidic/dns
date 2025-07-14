@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"cmp"
 	"encoding/base32"
 	"encoding/base64"
 	"encoding/binary"
@@ -8,7 +9,6 @@ import (
 	"net"
 	"net/netip"
 	"slices"
-	"sort"
 	"strings"
 )
 
@@ -34,6 +34,10 @@ func packDataA(a netip.Addr, msg []byte, off int) (int, error) {
 	if !a.Is4() {
 		return len(msg), &Error{err: "invalid address"}
 	}
+	if off+net.IPv4len > len(msg) {
+		return len(msg), &Error{err: "overflow packing a"}
+	}
+
 	off += copy(msg[off:], a.AsSlice())
 	return off, nil
 }
@@ -71,22 +75,17 @@ func unpackHeader(msg []byte, off int) (rr RR_Header, off1 int, truncmsg []byte,
 	if err != nil {
 		return hdr, len(msg), msg, err
 	}
-	hdr.Rrtype, off, err = unpackUint16(msg, off)
-	if err != nil {
-		return hdr, len(msg), msg, err
+
+	if len(msg[off:]) < 10 {
+		return hdr, len(msg), msg, ErrBuf
 	}
-	hdr.Class, off, err = unpackUint16(msg, off)
-	if err != nil {
-		return hdr, len(msg), msg, err
-	}
-	hdr.Ttl, off, err = unpackUint32(msg, off)
-	if err != nil {
-		return hdr, len(msg), msg, err
-	}
-	hdr.Rdlength, off, err = unpackUint16(msg, off)
-	if err != nil {
-		return hdr, len(msg), msg, err
-	}
+
+	hdr.Rrtype = binary.BigEndian.Uint16(msg[off+0:])
+	hdr.Class = binary.BigEndian.Uint16(msg[off+2:])
+	hdr.Ttl = binary.BigEndian.Uint32(msg[off+4:])
+	hdr.Rdlength = binary.BigEndian.Uint16(msg[off+8:])
+	off += 10
+
 	msg, err = truncateMsgFromRdlength(msg, off, hdr.Rdlength)
 	return hdr, off, msg, err
 }
@@ -98,22 +97,15 @@ func (hdr RR_Header) packHeader(msg []byte, off int, compression compressionMap,
 	if err != nil {
 		return len(msg), err
 	}
-	off, err = packUint16(hdr.Rrtype, msg, off)
-	if err != nil {
-		return len(msg), err
+
+	if len(msg[off:]) < 10 {
+		return len(msg), ErrBuf
 	}
-	off, err = packUint16(hdr.Class, msg, off)
-	if err != nil {
-		return len(msg), err
-	}
-	off, err = packUint32(hdr.Ttl, msg, off)
-	if err != nil {
-		return len(msg), err
-	}
-	off, err = packUint16(0, msg, off) // The RDLENGTH field will be set later in packRR.
-	if err != nil {
-		return len(msg), err
-	}
+	binary.BigEndian.PutUint16(msg[off+0:], hdr.Rrtype)
+	binary.BigEndian.PutUint16(msg[off+2:], hdr.Class)
+	binary.BigEndian.PutUint32(msg[off+4:], hdr.Ttl)
+	binary.BigEndian.PutUint16(msg[off+8:], 0) // The RDLENGTH field will be set later in packRR.
+	off += 10
 	return off, nil
 }
 
@@ -134,7 +126,7 @@ var base32HexNoPadEncoding = base32.HexEncoding.WithPadding(base32.NoPadding)
 func fromBase32(s []byte) (buf []byte, err error) {
 	for i, b := range s {
 		if b >= 'a' && b <= 'z' {
-			s[i] = b - 32
+			s[i] = b - ('a' - 'A')
 		}
 	}
 	buflen := base32HexNoPadEncoding.DecodedLen(len(s))
@@ -294,14 +286,6 @@ func unpackString(msg []byte, off int) (string, int, error) {
 	return s.String(), off + l, nil
 }
 
-func packString(s string, msg []byte, off int) (int, error) {
-	off, err := packTxtString(s, msg, off)
-	if err != nil {
-		return len(msg), err
-	}
-	return off, nil
-}
-
 func unpackStringBase32(msg []byte, off, end int) (string, int, error) {
 	if end > len(msg) {
 		return "", len(msg), &Error{err: "overflow unpacking base32"}
@@ -385,22 +369,6 @@ func packStringAny(s string, msg []byte, off int) (int, error) {
 	}
 	copy(msg[off:off+len(s)], s)
 	off += len(s)
-	return off, nil
-}
-
-func unpackStringTxt(msg []byte, off int) ([]string, int, error) {
-	txt, off, err := unpackTxt(msg, off)
-	if err != nil {
-		return nil, len(msg), err
-	}
-	return txt, off, nil
-}
-
-func packStringTxt(s []string, msg []byte, off int) (int, error) {
-	off, err := packTxt(s, msg, off)
-	if err != nil {
-		return len(msg), err
-	}
 	return off, nil
 }
 
@@ -621,8 +589,8 @@ func unpackDataSVCB(msg []byte, off int) ([]SVCBKeyValue, int, error) {
 
 func packDataSVCB(pairs []SVCBKeyValue, msg []byte, off int) (int, error) {
 	pairs = slices.Clone(pairs)
-	sort.Slice(pairs, func(i, j int) bool {
-		return pairs[i].Key() < pairs[j].Key()
+	slices.SortFunc(pairs, func(l, r SVCBKeyValue) int {
+		return cmp.Compare(l.Key(), r.Key())
 	})
 	prev := svcb_RESERVED
 	for _, el := range pairs {
@@ -694,29 +662,16 @@ func packDataAplPrefix(p *APLPrefix, msg []byte, off int) (int, error) {
 		return len(msg), &Error{err: "unrecognized address family"}
 	}
 
-	prefix := p.Network.Bits()
 	addr := p.Network.Masked().Addr()
 
-	var err error
 	var family uint16
-
 	switch {
-	case p.Network.Addr().Is4():
+	case addr.Is4():
 		family = 1
-	case p.Network.Addr().Is6():
+	case addr.Is6():
 		family = 2
 	default:
 		return len(msg), &Error{err: "unrecognized address family"}
-	}
-
-	off, err = packUint16(family, msg, off)
-	if err != nil {
-		return len(msg), err
-	}
-
-	off, err = packUint8(uint8(prefix), msg, off)
-	if err != nil {
-		return len(msg), err
 	}
 
 	var n uint8
@@ -732,14 +687,15 @@ func packDataAplPrefix(p *APLPrefix, msg []byte, off int) (int, error) {
 	trimmedAddr = trimmedAddr[:i+1]
 
 	adflen := uint8(len(trimmedAddr))
-	off, err = packUint8(n|adflen, msg, off)
-	if err != nil {
-		return len(msg), err
-	}
 
-	if off+len(trimmedAddr) > len(msg) {
+	if len(msg[off:]) < len(trimmedAddr)+4 {
 		return len(msg), &Error{err: "overflow packing APL prefix"}
 	}
+
+	binary.BigEndian.PutUint16(msg[off:], family)
+	msg[off+2] = uint8(p.Network.Bits())
+	msg[off+3] = n | adflen
+	off += 4
 	off += copy(msg[off:], trimmedAddr)
 
 	return off, nil
@@ -759,18 +715,14 @@ func unpackDataApl(msg []byte, off int) ([]APLPrefix, int, error) {
 }
 
 func unpackDataAplPrefix(msg []byte, off int) (APLPrefix, int, error) {
-	family, off, err := unpackUint16(msg, off)
-	if err != nil {
+	if len(msg[off:]) < 4 {
 		return APLPrefix{}, len(msg), &Error{err: "overflow unpacking APL prefix"}
 	}
-	prefix, off, err := unpackUint8(msg, off)
-	if err != nil {
-		return APLPrefix{}, len(msg), &Error{err: "overflow unpacking APL prefix"}
-	}
-	nlen, off, err := unpackUint8(msg, off)
-	if err != nil {
-		return APLPrefix{}, len(msg), &Error{err: "overflow unpacking APL prefix"}
-	}
+
+	family := binary.BigEndian.Uint16(msg[off:])
+	prefix := msg[off+2]
+	nlen := msg[off+3]
+	off += 4
 
 	var ip []byte
 	switch family {

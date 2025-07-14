@@ -116,17 +116,20 @@ func (k *DNSKEY) setPublicKeyED25519(_K ed25519.PublicKey) bool {
 // RFC 3110: Section 2. RSA Public KEY Resource Records
 func exponentToBuf(_E int) []byte {
 	var buf []byte
+	var off int
 	i := big.NewInt(int64(_E)).Bytes()
 	if len(i) < 256 {
-		buf = make([]byte, 1, 1+len(i))
+		buf = make([]byte, 1+len(i))
 		buf[0] = uint8(len(i))
+		off = 1
 	} else {
-		buf = make([]byte, 3, 3+len(i))
+		buf = make([]byte, 3+len(i))
 		buf[0] = 0
 		buf[1] = uint8(len(i) >> 8)
 		buf[2] = uint8(len(i))
+		off = 3
 	}
-	buf = append(buf, i...)
+	copy(buf[off:], i)
 	return buf
 }
 

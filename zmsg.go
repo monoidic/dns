@@ -63,7 +63,7 @@ func (rr *APL) pack(msg []byte, off int, compression compressionMap, compress bo
 }
 
 func (rr *AVC) pack(msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
-	off, err = packStringTxt(rr.Txt, msg, off)
+	off, err = packTxt(rr.Txt, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -75,7 +75,7 @@ func (rr *CAA) pack(msg []byte, off int, compression compressionMap, compress bo
 	if err != nil {
 		return off, err
 	}
-	off, err = packString(rr.Tag, msg, off)
+	off, err = packTxtString(rr.Tag, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -279,15 +279,15 @@ func (rr *GID) pack(msg []byte, off int, compression compressionMap, compress bo
 }
 
 func (rr *GPOS) pack(msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
-	off, err = packString(rr.Longitude, msg, off)
+	off, err = packTxtString(rr.Longitude, msg, off)
 	if err != nil {
 		return off, err
 	}
-	off, err = packString(rr.Latitude, msg, off)
+	off, err = packTxtString(rr.Latitude, msg, off)
 	if err != nil {
 		return off, err
 	}
-	off, err = packString(rr.Altitude, msg, off)
+	off, err = packTxtString(rr.Altitude, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -295,11 +295,11 @@ func (rr *GPOS) pack(msg []byte, off int, compression compressionMap, compress b
 }
 
 func (rr *HINFO) pack(msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
-	off, err = packString(rr.Cpu, msg, off)
+	off, err = packTxtString(rr.Cpu, msg, off)
 	if err != nil {
 		return off, err
 	}
-	off, err = packString(rr.Os, msg, off)
+	off, err = packTxtString(rr.Os, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -375,11 +375,11 @@ func (rr *IPSECKEY) pack(msg []byte, off int, compression compressionMap, compre
 }
 
 func (rr *ISDN) pack(msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
-	off, err = packString(rr.Address, msg, off)
+	off, err = packTxtString(rr.Address, msg, off)
 	if err != nil {
 		return off, err
 	}
-	off, err = packString(rr.SubAddress, msg, off)
+	off, err = packTxtString(rr.SubAddress, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -559,15 +559,15 @@ func (rr *NAPTR) pack(msg []byte, off int, compression compressionMap, compress 
 	if err != nil {
 		return off, err
 	}
-	off, err = packString(rr.Flags, msg, off)
+	off, err = packTxtString(rr.Flags, msg, off)
 	if err != nil {
 		return off, err
 	}
-	off, err = packString(rr.Service, msg, off)
+	off, err = packTxtString(rr.Service, msg, off)
 	if err != nil {
 		return off, err
 	}
-	off, err = packString(rr.Regexp, msg, off)
+	off, err = packTxtString(rr.Regexp, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -599,7 +599,7 @@ func (rr *NIMLOC) pack(msg []byte, off int, compression compressionMap, compress
 }
 
 func (rr *NINFO) pack(msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
-	off, err = packStringTxt(rr.ZSData, msg, off)
+	off, err = packTxt(rr.ZSData, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -765,7 +765,7 @@ func (rr *PX) pack(msg []byte, off int, compression compressionMap, compress boo
 }
 
 func (rr *RESINFO) pack(msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
-	off, err = packStringTxt(rr.Txt, msg, off)
+	off, err = packTxt(rr.Txt, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -957,7 +957,7 @@ func (rr *SOA) pack(msg []byte, off int, compression compressionMap, compress bo
 }
 
 func (rr *SPF) pack(msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
-	off, err = packStringTxt(rr.Txt, msg, off)
+	off, err = packTxt(rr.Txt, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -1149,7 +1149,7 @@ func (rr *TSIG) pack(msg []byte, off int, compression compressionMap, compress b
 }
 
 func (rr *TXT) pack(msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
-	off, err = packStringTxt(rr.Txt, msg, off)
+	off, err = packTxt(rr.Txt, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -1165,7 +1165,7 @@ func (rr *UID) pack(msg []byte, off int, compression compressionMap, compress bo
 }
 
 func (rr *UINFO) pack(msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
-	off, err = packString(rr.Uinfo, msg, off)
+	off, err = packTxtString(rr.Uinfo, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -1189,7 +1189,7 @@ func (rr *URI) pack(msg []byte, off int, compression compressionMap, compress bo
 }
 
 func (rr *X25) pack(msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
-	off, err = packString(rr.PSDNAddress, msg, off)
+	off, err = packTxtString(rr.PSDNAddress, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -1296,7 +1296,7 @@ func (rr *AVC) unpack(msg []byte, off int) (off1 int, err error) {
 	rdStart := off
 	_ = rdStart
 
-	rr.Txt, off, err = unpackStringTxt(msg, off)
+	rr.Txt, off, err = unpackTxt(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("AVC.Txt: %w", err)
 	}
@@ -1946,7 +1946,7 @@ func (rr *NINFO) unpack(msg []byte, off int) (off1 int, err error) {
 	rdStart := off
 	_ = rdStart
 
-	rr.ZSData, off, err = unpackStringTxt(msg, off)
+	rr.ZSData, off, err = unpackTxt(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("NINFO.ZSData: %w", err)
 	}
@@ -2145,7 +2145,7 @@ func (rr *RESINFO) unpack(msg []byte, off int) (off1 int, err error) {
 	rdStart := off
 	_ = rdStart
 
-	rr.Txt, off, err = unpackStringTxt(msg, off)
+	rr.Txt, off, err = unpackTxt(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("RESINFO.Txt: %w", err)
 	}
@@ -2364,7 +2364,7 @@ func (rr *SPF) unpack(msg []byte, off int) (off1 int, err error) {
 	rdStart := off
 	_ = rdStart
 
-	rr.Txt, off, err = unpackStringTxt(msg, off)
+	rr.Txt, off, err = unpackTxt(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SPF.Txt: %w", err)
 	}
@@ -2583,7 +2583,7 @@ func (rr *TXT) unpack(msg []byte, off int) (off1 int, err error) {
 	rdStart := off
 	_ = rdStart
 
-	rr.Txt, off, err = unpackStringTxt(msg, off)
+	rr.Txt, off, err = unpackTxt(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("TXT.Txt: %w", err)
 	}

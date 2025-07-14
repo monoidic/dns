@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"slices"
 	"strconv"
+	"strings"
 )
 
 // EDNS0 Option codes.
@@ -76,62 +77,69 @@ type OPT struct {
 }
 
 func (rr *OPT) String() string {
-	s := "\n;; OPT PSEUDOSECTION:\n; EDNS: version " + strconv.Itoa(int(rr.Version())) + "; "
+	var s strings.Builder
+	s.WriteString("\n;; OPT PSEUDOSECTION:\n; EDNS: version ")
+	s.WriteString(strconv.Itoa(int(rr.Version())))
+	s.WriteString("; flags:")
 	if rr.Do() {
+		s.WriteString(" do")
 		if rr.Co() {
-			s += "flags: do, co; "
-		} else {
-			s += "flags: do; "
+			s.WriteString(", co")
 		}
-	} else {
-		s += "flags:; "
 	}
+	s.WriteString("; ")
 	if rr.Hdr.Ttl&0x7FFF != 0 {
-		s += fmt.Sprintf("MBZ: 0x%04x, ", rr.Hdr.Ttl&0x7FFF)
+		s.WriteString(fmt.Sprintf("MBZ: 0x%04x, ", rr.Hdr.Ttl&0x7FFF))
 	}
-	s += "udp: " + strconv.Itoa(int(rr.UDPSize()))
+	s.WriteString("udp: ")
+	s.WriteString(strconv.Itoa(int(rr.UDPSize())))
 
 	for _, o := range rr.Option {
 		switch o.(type) {
 		case *EDNS0_NSID:
-			s += "\n; NSID: " + o.String()
+			s.WriteString("\n; NSID ")
+			s.WriteString(o.String())
 			h, e := o.pack()
-			var r string
 			if e == nil {
+				var r string
 				for _, c := range h {
 					r += "(" + string(c) + ")"
 				}
-				s += "  " + r
+				s.WriteString("  ")
+				s.WriteString(r)
 			}
 		case *EDNS0_SUBNET:
-			s += "\n; SUBNET: " + o.String()
+			s.WriteString("\n; SUBNET: ")
 		case *EDNS0_COOKIE:
-			s += "\n; COOKIE: " + o.String()
+			s.WriteString("\n; COOKIE: ")
 		case *EDNS0_EXPIRE:
-			s += "\n; EXPIRE: " + o.String()
+			s.WriteString("\n; EXPIRE: ")
 		case *EDNS0_TCP_KEEPALIVE:
-			s += "\n; KEEPALIVE: " + o.String()
+			s.WriteString("\n; KEEPALIVE: ")
 		case *EDNS0_UL:
-			s += "\n; UPDATE LEASE: " + o.String()
+			s.WriteString("\n; UPDATE LEASE: ")
 		case *EDNS0_LLQ:
-			s += "\n; LONG LIVED QUERIES: " + o.String()
+			s.WriteString("\n; LONG LIVED QUERIES: ")
 		case *EDNS0_DAU:
-			s += "\n; DNSSEC ALGORITHM UNDERSTOOD: " + o.String()
+			s.WriteString("\n; DNSSEC ALGORITHM UNDERSTOOD: ")
 		case *EDNS0_DHU:
-			s += "\n; DS HASH UNDERSTOOD: " + o.String()
+			s.WriteString("\n; DS HASH UNDERSTOOD: ")
 		case *EDNS0_N3U:
-			s += "\n; NSEC3 HASH UNDERSTOOD: " + o.String()
+			s.WriteString("\n; NSEC3 HASH UNDERSTOOD: ")
 		case *EDNS0_LOCAL:
-			s += "\n; LOCAL OPT: " + o.String()
+			s.WriteString("\n; LOCAL OPT: ")
 		case *EDNS0_PADDING:
-			s += "\n; PADDING: " + o.String()
+			s.WriteString("\n; PADDING: ")
 		case *EDNS0_EDE:
-			s += "\n; EDE: " + o.String()
+			s.WriteString("\n; EDE: ")
 		case *EDNS0_ESU:
-			s += "\n; ESU: " + o.String()
+			s.WriteString("\n; ESU: ")
+		default:
+			return "unexpected EDNS0"
 		}
+		s.WriteString(o.String())
 	}
-	return s
+	return s.String()
 }
 
 func (rr *OPT) len(off int, compression map[string]struct{}) int {
@@ -191,12 +199,8 @@ func (rr *OPT) Do() bool {
 // If we pass an argument, set the DO bit to that value.
 // It is possible to pass 2 or more arguments, but they will be ignored.
 func (rr *OPT) SetDo(do ...bool) {
-	if len(do) == 1 {
-		if do[0] {
-			rr.Hdr.Ttl |= _DO
-		} else {
-			rr.Hdr.Ttl &^= _DO
-		}
+	if len(do) == 1 && !do[0] {
+		rr.Hdr.Ttl &^= _DO
 	} else {
 		rr.Hdr.Ttl |= _DO
 	}
@@ -211,12 +215,8 @@ func (rr *OPT) Co() bool {
 // If we pass an argument, set the CO bit to that value.
 // It is possible to pass 2 or more arguments, but they will be ignored.
 func (rr *OPT) SetCo(co ...bool) {
-	if len(co) == 1 {
-		if co[0] {
-			rr.Hdr.Ttl |= _CO
-		} else {
-			rr.Hdr.Ttl &^= _CO
-		}
+	if len(co) == 1 && !co[0] {
+		rr.Hdr.Ttl &^= _CO
 	} else {
 		rr.Hdr.Ttl |= _CO
 	}
@@ -310,10 +310,6 @@ type EDNS0_SUBNET struct {
 func (e *EDNS0_SUBNET) Option() uint16 { return EDNS0SUBNET }
 
 func (e *EDNS0_SUBNET) pack() ([]byte, error) {
-	b := make([]byte, 4)
-	binary.BigEndian.PutUint16(b[0:], e.Family)
-	b[2] = e.SourceNetmask
-	b[3] = e.SourceScope
 	switch e.Family {
 	case 0:
 		// "dig" sets AddressFamily to 0 if SourceNetmask is also 0
@@ -341,7 +337,13 @@ func (e *EDNS0_SUBNET) pack() ([]byte, error) {
 
 	ip := netip.PrefixFrom(e.Address, int(e.SourceNetmask)).Masked().Addr()
 	needLength := (e.SourceNetmask + 8 - 1) / 8 // division rounding up
-	b = append(b, ip.AsSlice()[:needLength]...)
+
+	b := make([]byte, 4+needLength)
+	binary.BigEndian.PutUint16(b[0:], e.Family)
+	b[2] = e.SourceNetmask
+	b[3] = e.SourceScope
+	copy(b[4:], ip.AsSlice())
+
 	return b, nil
 }
 
@@ -380,16 +382,22 @@ func (e *EDNS0_SUBNET) unpack(b []byte) error {
 	return nil
 }
 
-func (e *EDNS0_SUBNET) String() (s string) {
+func (e *EDNS0_SUBNET) String() string {
+	var s strings.Builder
 	if !e.Address.IsValid() {
-		s = "<nil>"
+		s.WriteString("<nil>")
 	} else if e.Address.Is4() {
-		s = e.Address.String()
+		s.WriteString(e.Address.String())
 	} else {
-		s = "[" + e.Address.String() + "]"
+		s.WriteByte('[')
+		s.WriteString(e.Address.String())
+		s.WriteByte(']')
 	}
-	s += "/" + strconv.Itoa(int(e.SourceNetmask)) + "/" + strconv.Itoa(int(e.SourceScope))
-	return
+	s.WriteByte('/')
+	s.WriteString(strconv.Itoa(int(e.SourceNetmask)))
+	s.WriteByte('/')
+	s.WriteString(strconv.Itoa(int(e.SourceScope)))
+	return s.String()
 }
 
 func (e *EDNS0_SUBNET) copy() EDNS0 {
@@ -525,10 +533,17 @@ func (e *EDNS0_LLQ) unpack(b []byte) error {
 }
 
 func (e *EDNS0_LLQ) String() string {
-	s := strconv.FormatUint(uint64(e.Version), 10) + " " + strconv.FormatUint(uint64(e.Opcode), 10) +
-		" " + strconv.FormatUint(uint64(e.Error), 10) + " " + strconv.FormatUint(e.Id, 10) +
-		" " + strconv.FormatUint(uint64(e.LeaseLife), 10)
-	return s
+	var s strings.Builder
+	s.WriteString(strconv.FormatUint(uint64(e.Version), 10))
+	s.WriteByte(' ')
+	s.WriteString(strconv.FormatUint(uint64(e.Opcode), 10))
+	s.WriteByte(' ')
+	s.WriteString(strconv.FormatUint(uint64(e.Error), 10))
+	s.WriteByte(' ')
+	s.WriteString(strconv.FormatUint(e.Id, 10))
+	s.WriteByte(' ')
+	s.WriteString(strconv.FormatUint(uint64(e.LeaseLife), 10))
+	return s.String()
 }
 
 func (e *EDNS0_LLQ) copy() EDNS0 {
@@ -547,16 +562,18 @@ func (e *EDNS0_DAU) pack() ([]byte, error) { return slices.Clone(e.AlgCode), nil
 func (e *EDNS0_DAU) unpack(b []byte) error { e.AlgCode = slices.Clone(b); return nil }
 
 func (e *EDNS0_DAU) String() string {
-	s := ""
+	var s strings.Builder
 	for _, alg := range e.AlgCode {
+		s.WriteByte(' ')
 		if a, ok := AlgorithmToString[alg]; ok {
-			s += " " + a
+			s.WriteString(a)
 		} else {
-			s += " " + strconv.Itoa(int(alg))
+			s.WriteString(strconv.Itoa(int(alg)))
 		}
 	}
-	return s
+	return s.String()
 }
+
 func (e *EDNS0_DAU) copy() EDNS0 { return &EDNS0_DAU{e.Code, e.AlgCode} }
 
 // EDNS0_DHU implements the EDNS0 "DS Hash Understood" option. See RFC 6975.
@@ -571,15 +588,16 @@ func (e *EDNS0_DHU) pack() ([]byte, error) { return slices.Clone(e.AlgCode), nil
 func (e *EDNS0_DHU) unpack(b []byte) error { e.AlgCode = slices.Clone(b); return nil }
 
 func (e *EDNS0_DHU) String() string {
-	s := ""
+	var s strings.Builder
 	for _, alg := range e.AlgCode {
+		s.WriteByte(' ')
 		if a, ok := HashToString[alg]; ok {
-			s += " " + a
+			s.WriteString(a)
 		} else {
-			s += " " + strconv.Itoa(int(alg))
+			s.WriteString(strconv.Itoa(int(alg)))
 		}
 	}
-	return s
+	return s.String()
 }
 func (e *EDNS0_DHU) copy() EDNS0 { return &EDNS0_DHU{e.Code, e.AlgCode} }
 
@@ -596,15 +614,16 @@ func (e *EDNS0_N3U) unpack(b []byte) error { e.AlgCode = slices.Clone(b); return
 
 func (e *EDNS0_N3U) String() string {
 	// Re-use the hash map
-	s := ""
+	var s strings.Builder
 	for _, alg := range e.AlgCode {
+		s.WriteByte(' ')
 		if a, ok := HashToString[alg]; ok {
-			s += " " + a
+			s.WriteString(a)
 		} else {
-			s += " " + strconv.Itoa(int(alg))
+			s.WriteString(strconv.Itoa(int(alg)))
 		}
 	}
-	return s
+	return s.String()
 }
 func (e *EDNS0_N3U) copy() EDNS0 { return &EDNS0_N3U{e.Code, e.AlgCode} }
 
@@ -726,13 +745,14 @@ func (e *EDNS0_TCP_KEEPALIVE) unpack(b []byte) error {
 }
 
 func (e *EDNS0_TCP_KEEPALIVE) String() string {
-	s := "use tcp keep-alive"
+	var s strings.Builder
+	s.WriteString("use tcp keep-alive, timeout ")
 	if e.Timeout == 0 {
-		s += ", timeout omitted"
+		s.WriteString("omitted")
 	} else {
-		s += fmt.Sprintf(", timeout %dms", e.Timeout*100)
+		s.WriteString(fmt.Sprintf("%dms", e.Timeout*100))
 	}
-	return s
+	return s.String()
 }
 
 func (e *EDNS0_TCP_KEEPALIVE) copy() EDNS0 { return &EDNS0_TCP_KEEPALIVE{e.Code, e.Timeout, e.Length} }

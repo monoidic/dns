@@ -15,10 +15,11 @@ import (
 // NewPrivateKey returns a PrivateKey by parsing the string s.
 // s should be in the same form of the BIND private key files.
 func (k *DNSKEY) NewPrivateKey(s string) (crypto.PrivateKey, error) {
+	var suffix string
 	if s == "" || s[len(s)-1] != '\n' { // We need a closing newline
-		return k.ReadPrivateKey(strings.NewReader(s+"\n"), "")
+		suffix = "\n"
 	}
-	return k.ReadPrivateKey(strings.NewReader(s), "")
+	return k.ReadPrivateKey(strings.NewReader(s+suffix), "")
 }
 
 // ReadPrivateKey reads a private key from the io.Reader q. The string file is

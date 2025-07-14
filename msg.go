@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	maxCompressionOffset    = 2 << 13 // We have 14 bits for the compression pointer
+	maxCompressionOffset    = 1 << 14 // We have 14 bits for the compression pointer
 	maxDomainNameWireOctets = 255     // See RFC 1035 section 2.3.4
 
 	// This is the maximum number of compression pointers that should occur in a
@@ -173,7 +173,7 @@ type compressionMap struct {
 }
 
 func (m compressionMap) valid() bool {
-	return m.int != nil || m.ext != nil
+	return !(m.int == nil && m.ext == nil)
 }
 
 func (m compressionMap) insert(s string, pos int) {
@@ -665,38 +665,43 @@ func (h *MsgHdr) String() string {
 		return "<nil> MsgHdr"
 	}
 
-	s := ";; opcode: " + OpcodeToString[h.Opcode]
-	s += ", status: " + RcodeToString[h.Rcode]
-	s += ", id: " + strconv.Itoa(int(h.Id)) + "\n"
+	var s strings.Builder
+	s.WriteString(";; opcode: ")
+	s.WriteString(OpcodeToString[h.Opcode])
+	s.WriteString(", status: ")
+	s.WriteString(RcodeToString[h.Rcode])
+	s.WriteString(", id: ")
+	s.WriteString(strconv.Itoa(int(h.Id)))
 
-	s += ";; flags:"
+	s.WriteString("\n;; flags:")
+
 	if h.Response {
-		s += " qr"
+		s.WriteString(" qr")
 	}
 	if h.Authoritative {
-		s += " aa"
+		s.WriteString(" aa")
 	}
 	if h.Truncated {
-		s += " tc"
+		s.WriteString(" tc")
 	}
 	if h.RecursionDesired {
-		s += " rd"
+		s.WriteString(" rd")
 	}
 	if h.RecursionAvailable {
-		s += " ra"
+		s.WriteString(" ra")
 	}
 	if h.Zero { // Hmm
-		s += " z"
+		s.WriteString(" z")
 	}
 	if h.AuthenticatedData {
-		s += " ad"
+		s.WriteString(" ad")
 	}
 	if h.CheckingDisabled {
-		s += " cd"
+		s.WriteString(" cd")
 	}
 
-	s += ";"
-	return s
+	s.WriteByte(';')
+	return s.String()
 }
 
 // Pack packs a Msg: it is converted to wire format.
@@ -877,66 +882,88 @@ func (dns *Msg) String() string {
 	if dns == nil {
 		return "<nil> MsgHdr"
 	}
-	s := dns.MsgHdr.String() + " "
+	var s strings.Builder
+	s.WriteString(dns.MsgHdr.String())
+	s.WriteByte(' ')
 	if dns.MsgHdr.Opcode == OpcodeUpdate {
-		s += "ZONE: " + strconv.Itoa(len(dns.Question)) + ", "
-		s += "PREREQ: " + strconv.Itoa(len(dns.Answer)) + ", "
-		s += "UPDATE: " + strconv.Itoa(len(dns.Ns)) + ", "
-		s += "ADDITIONAL: " + strconv.Itoa(len(dns.Extra)) + "\n"
+		s.WriteString("ZONE: ")
+		s.WriteString(strconv.Itoa(len(dns.Question)))
+		s.WriteString(", ")
+		s.WriteString("PREREQ: ")
+		s.WriteString(strconv.Itoa(len(dns.Answer)))
+		s.WriteString(", ")
+		s.WriteString("UPDATE: ")
+		s.WriteString(strconv.Itoa(len(dns.Ns)))
+		s.WriteString(", ")
+
 	} else {
-		s += "QUERY: " + strconv.Itoa(len(dns.Question)) + ", "
-		s += "ANSWER: " + strconv.Itoa(len(dns.Answer)) + ", "
-		s += "AUTHORITY: " + strconv.Itoa(len(dns.Ns)) + ", "
-		s += "ADDITIONAL: " + strconv.Itoa(len(dns.Extra)) + "\n"
+		s.WriteString("QUERY: ")
+		s.WriteString(strconv.Itoa(len(dns.Question)))
+		s.WriteString(", ")
+		s.WriteString("ANSWER: ")
+		s.WriteString(strconv.Itoa(len(dns.Answer)))
+		s.WriteString(", ")
+		s.WriteString("AUTHORITY: ")
+		s.WriteString(strconv.Itoa(len(dns.Ns)))
+		s.WriteString(", ")
 	}
+	s.WriteString("ADDITIONAL: ")
+	s.WriteString(strconv.Itoa(len(dns.Extra)))
+	s.WriteByte('\n')
+
 	opt := dns.IsEdns0()
 	if opt != nil {
 		// OPT PSEUDOSECTION
-		s += opt.String() + "\n"
+		s.WriteString(opt.String())
+		s.WriteByte('\n')
 	}
 	if len(dns.Question) > 0 {
 		if dns.MsgHdr.Opcode == OpcodeUpdate {
-			s += "\n;; ZONE SECTION:\n"
+			s.WriteString("\n;; ZONE SECTION:\n")
 		} else {
-			s += "\n;; QUESTION SECTION:\n"
+			s.WriteString("\n;; QUESTION SECTION:\n")
 		}
 		for _, r := range dns.Question {
-			s += r.String() + "\n"
+			s.WriteString(r.String())
+			s.WriteByte('\n')
 		}
 	}
 	if len(dns.Answer) > 0 {
 		if dns.MsgHdr.Opcode == OpcodeUpdate {
-			s += "\n;; PREREQUISITE SECTION:\n"
+			s.WriteString("\n;; PREREQUISITE SECTION:\n")
 		} else {
-			s += "\n;; ANSWER SECTION:\n"
+			s.WriteString("\n;; ANSWER SECTION:\n")
 		}
 		for _, r := range dns.Answer {
 			if r != nil {
-				s += r.String() + "\n"
+				s.WriteString(r.String())
+				s.WriteByte('\n')
 			}
 		}
 	}
 	if len(dns.Ns) > 0 {
 		if dns.MsgHdr.Opcode == OpcodeUpdate {
-			s += "\n;; UPDATE SECTION:\n"
+			s.WriteString("\n;; UPDATE SECTION:\n")
 		} else {
-			s += "\n;; AUTHORITY SECTION:\n"
+			s.WriteString("\n;; AUTHORITY SECTION:\n")
 		}
 		for _, r := range dns.Ns {
 			if r != nil {
-				s += r.String() + "\n"
+				s.WriteString(r.String())
+				s.WriteByte('\n')
 			}
 		}
 	}
 	if len(dns.Extra) > 0 && (opt == nil || len(dns.Extra) > 1) {
-		s += "\n;; ADDITIONAL SECTION:\n"
+		s.WriteString("\n;; ADDITIONAL SECTION:\n")
 		for _, r := range dns.Extra {
 			if r != nil && r.Header().Rrtype != TypeOPT {
-				s += r.String() + "\n"
+				s.WriteString(r.String())
+				s.WriteByte('\n')
 			}
 		}
 	}
-	return s
+	return s.String()
 }
 
 // isCompressible returns whether the msg may be compressible.
@@ -1065,20 +1092,20 @@ func (dns *Msg) CopyTo(r1 *Msg) *Msg {
 	}
 
 	rrArr := make([]RR, len(dns.Answer)+len(dns.Ns)+len(dns.Extra))
-	r1.Answer, rrArr = rrArr[:0:len(dns.Answer)], rrArr[len(dns.Answer):]
-	r1.Ns, rrArr = rrArr[:0:len(dns.Ns)], rrArr[len(dns.Ns):]
-	r1.Extra = rrArr[:0:len(dns.Extra)]
+	r1.Answer, rrArr = rrArr[:len(dns.Answer):len(dns.Answer)], rrArr[len(dns.Answer):]
+	r1.Ns, rrArr = rrArr[:len(dns.Ns):len(dns.Ns)], rrArr[len(dns.Ns):]
+	r1.Extra = rrArr[:len(dns.Extra):len(dns.Extra)]
 
-	for _, r := range dns.Answer {
-		r1.Answer = append(r1.Answer, r.copy())
+	for i, r := range dns.Answer {
+		r1.Answer[i] = r.copy()
 	}
 
-	for _, r := range dns.Ns {
-		r1.Ns = append(r1.Ns, r.copy())
+	for i, r := range dns.Ns {
+		r1.Ns[i] = r.copy()
 	}
 
-	for _, r := range dns.Extra {
-		r1.Extra = append(r1.Extra, r.copy())
+	for i, r := range dns.Extra {
+		r1.Extra[i] = r.copy()
 	}
 
 	return r1
@@ -1089,14 +1116,12 @@ func (q *Question) pack(msg []byte, off int, compression compressionMap, compres
 	if err != nil {
 		return off, err
 	}
-	off, err = packUint16(q.Qtype, msg, off)
-	if err != nil {
-		return off, err
+	if len(msg[off:]) < 4 {
+		return len(msg), ErrBuf
 	}
-	off, err = packUint16(q.Qclass, msg, off)
-	if err != nil {
-		return off, err
-	}
+	binary.BigEndian.PutUint16(msg[off+0:], q.Qtype)
+	binary.BigEndian.PutUint16(msg[off+2:], q.Qclass)
+	off += 4
 	return off, nil
 }
 
@@ -1109,75 +1134,48 @@ func unpackQuestion(msg []byte, off int) (Question, int, error) {
 	if err != nil {
 		return q, off, fmt.Errorf("bad question name: %w", err)
 	}
-	q.Qtype, off, err = unpackUint16(msg, off)
-	if err != nil {
-		return q, off, fmt.Errorf("bad question qtype: %w", err)
+
+	if len(msg[off:]) < 4 {
+		return q, len(msg), ErrBuf
 	}
-	q.Qclass, off, err = unpackUint16(msg, off)
-	if err != nil {
-		return q, off, fmt.Errorf("bad question qclass: %w", err)
-	}
+	q.Qtype = binary.BigEndian.Uint16(msg[off+0:])
+	q.Qclass = binary.BigEndian.Uint16(msg[off+2:])
+	off += 4
 
 	return q, off, nil
 }
 
 func (dh *Header) pack(msg []byte, off int, compression compressionMap, compress bool) (int, error) {
-	off, err := packUint16(dh.Id, msg, off)
-	if err != nil {
-		return off, err
+	if len(msg[off:]) < 12 {
+		return len(msg), ErrBuf
 	}
-	off, err = packUint16(dh.Bits, msg, off)
-	if err != nil {
-		return off, err
-	}
-	off, err = packUint16(dh.Qdcount, msg, off)
-	if err != nil {
-		return off, err
-	}
-	off, err = packUint16(dh.Ancount, msg, off)
-	if err != nil {
-		return off, err
-	}
-	off, err = packUint16(dh.Nscount, msg, off)
-	if err != nil {
-		return off, err
-	}
-	off, err = packUint16(dh.Arcount, msg, off)
-	if err != nil {
-		return off, err
-	}
+
+	binary.BigEndian.PutUint16(msg[off+0:], dh.Id)
+	binary.BigEndian.PutUint16(msg[off+2:], dh.Bits)
+	binary.BigEndian.PutUint16(msg[off+4:], dh.Qdcount)
+	binary.BigEndian.PutUint16(msg[off+6:], dh.Ancount)
+	binary.BigEndian.PutUint16(msg[off+8:], dh.Nscount)
+	binary.BigEndian.PutUint16(msg[off+10:], dh.Arcount)
+	off += 12
+
 	return off, nil
 }
 
 func unpackMsgHdr(msg []byte, off int) (Header, int, error) {
-	var (
-		dh  Header
-		err error
-	)
-	dh.Id, off, err = unpackUint16(msg, off)
-	if err != nil {
-		return dh, off, fmt.Errorf("bad header id: %w", err)
+	var dh Header
+
+	if len(msg[off:]) < 12 {
+		return dh, len(msg), ErrBuf
 	}
-	dh.Bits, off, err = unpackUint16(msg, off)
-	if err != nil {
-		return dh, off, fmt.Errorf("bad header bits: %w", err)
-	}
-	dh.Qdcount, off, err = unpackUint16(msg, off)
-	if err != nil {
-		return dh, off, fmt.Errorf("bad header question count: %w", err)
-	}
-	dh.Ancount, off, err = unpackUint16(msg, off)
-	if err != nil {
-		return dh, off, fmt.Errorf("bad header answer count: %w", err)
-	}
-	dh.Nscount, off, err = unpackUint16(msg, off)
-	if err != nil {
-		return dh, off, fmt.Errorf("bad header ns count: %w", err)
-	}
-	dh.Arcount, off, err = unpackUint16(msg, off)
-	if err != nil {
-		return dh, off, fmt.Errorf("bad header extra count: %w", err)
-	}
+
+	dh.Id = binary.BigEndian.Uint16(msg[off+0:])
+	dh.Bits = binary.BigEndian.Uint16(msg[off+2:])
+	dh.Qdcount = binary.BigEndian.Uint16(msg[off+4:])
+	dh.Ancount = binary.BigEndian.Uint16(msg[off+6:])
+	dh.Nscount = binary.BigEndian.Uint16(msg[off+8:])
+	dh.Arcount = binary.BigEndian.Uint16(msg[off+10:])
+	off += 12
+
 	return dh, off, nil
 }
 

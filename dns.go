@@ -3,6 +3,7 @@ package dns
 import (
 	"encoding/hex"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -76,21 +77,31 @@ type RR_Header struct {
 func (h *RR_Header) Header() *RR_Header { return h }
 
 // Just to implement the RR interface.
-func (h *RR_Header) copy() RR { return nil }
+func (h *RR_Header) copy() RR {
+	panic("dns: internal error: copy should never be called on RR_Header")
+}
 
 func (h *RR_Header) String() string {
-	var s string
+	var s strings.Builder
 
 	if h.Rrtype == TypeOPT {
-		s = ";"
+		s.WriteByte(';')
 		// and maybe other things
 	}
 
-	s += sprintName(h.Name) + "\t"
-	s += strconv.FormatInt(int64(h.Ttl), 10) + "\t"
-	s += Class(h.Class).String() + "\t"
-	s += Type(h.Rrtype).String() + "\t"
-	return s
+	s.WriteString(sprintName(h.Name))
+	s.WriteByte('\t')
+
+	s.WriteString(strconv.FormatInt(int64(h.Ttl), 10))
+	s.WriteByte('\t')
+
+	s.WriteString(Class(h.Class).String())
+	s.WriteByte('\t')
+
+	s.WriteString(Type(h.Rrtype).String())
+	s.WriteByte('\t')
+
+	return s.String()
 }
 
 func (h *RR_Header) len(off int, compression map[string]struct{}) int {

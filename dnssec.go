@@ -612,6 +612,65 @@ func (p wireSlice) Less(i, j int) bool {
 	return bytes.Compare(p[i][ioff+10:], p[j][joff+10:]) < 0
 }
 
+func canonicalize(r1 RR) {
+	// 6.2. Canonical RR Form. (3) - domain rdata to lowercase.
+	//   NS, MD, MF, CNAME, SOA, MB, MG, MR, PTR,
+	//   HINFO, MINFO, MX, RP, AFSDB, RT, SIG, PX, NXT, NAPTR, KX,
+	//   SRV, DNAME, A6
+	//
+	// RFC 6840 - Clarifications and Implementation Notes for DNS Security (DNSSEC):
+	//	Section 6.2 of [RFC4034] also erroneously lists HINFO as a record
+	//	that needs conversion to lowercase, and twice at that.  Since HINFO
+	//	records contain no domain names, they are not subject to case
+	//	conversion.
+	switch x := r1.(type) {
+	case *NS:
+		x.Ns = CanonicalName(x.Ns)
+	case *MD:
+		x.Md = CanonicalName(x.Md)
+	case *MF:
+		x.Mf = CanonicalName(x.Mf)
+	case *CNAME:
+		x.Target = CanonicalName(x.Target)
+	case *SOA:
+		x.Ns = CanonicalName(x.Ns)
+		x.Mbox = CanonicalName(x.Mbox)
+	case *MB:
+		x.Mb = CanonicalName(x.Mb)
+	case *MG:
+		x.Mg = CanonicalName(x.Mg)
+	case *MR:
+		x.Mr = CanonicalName(x.Mr)
+	case *PTR:
+		x.Ptr = CanonicalName(x.Ptr)
+	case *MINFO:
+		x.Rmail = CanonicalName(x.Rmail)
+		x.Email = CanonicalName(x.Email)
+	case *MX:
+		x.Mx = CanonicalName(x.Mx)
+	case *RP:
+		x.Mbox = CanonicalName(x.Mbox)
+		x.Txt = CanonicalName(x.Txt)
+	case *AFSDB:
+		x.Hostname = CanonicalName(x.Hostname)
+	case *RT:
+		x.Host = CanonicalName(x.Host)
+	case *SIG:
+		x.SignerName = CanonicalName(x.SignerName)
+	case *PX:
+		x.Map822 = CanonicalName(x.Map822)
+		x.Mapx400 = CanonicalName(x.Mapx400)
+	case *NAPTR:
+		x.Replacement = CanonicalName(x.Replacement)
+	case *KX:
+		x.Exchanger = CanonicalName(x.Exchanger)
+	case *SRV:
+		x.Target = CanonicalName(x.Target)
+	case *DNAME:
+		x.Target = CanonicalName(x.Target)
+	}
+}
+
 // Return the raw signature data.
 func rawSignatureData(rrset []RR, s *RRSIG) (buf []byte, err error) {
 	wires := make(wireSlice, len(rrset))
@@ -627,62 +686,7 @@ func rawSignatureData(rrset []RR, s *RRSIG) (buf []byte, err error) {
 		}
 		// RFC 4034: 6.2.  Canonical RR Form. (2) - domain name to lowercase
 		h.Name = CanonicalName(h.Name)
-		// 6.2. Canonical RR Form. (3) - domain rdata to lowercase.
-		//   NS, MD, MF, CNAME, SOA, MB, MG, MR, PTR,
-		//   HINFO, MINFO, MX, RP, AFSDB, RT, SIG, PX, NXT, NAPTR, KX,
-		//   SRV, DNAME, A6
-		//
-		// RFC 6840 - Clarifications and Implementation Notes for DNS Security (DNSSEC):
-		//	Section 6.2 of [RFC4034] also erroneously lists HINFO as a record
-		//	that needs conversion to lowercase, and twice at that.  Since HINFO
-		//	records contain no domain names, they are not subject to case
-		//	conversion.
-		switch x := r1.(type) {
-		case *NS:
-			x.Ns = CanonicalName(x.Ns)
-		case *MD:
-			x.Md = CanonicalName(x.Md)
-		case *MF:
-			x.Mf = CanonicalName(x.Mf)
-		case *CNAME:
-			x.Target = CanonicalName(x.Target)
-		case *SOA:
-			x.Ns = CanonicalName(x.Ns)
-			x.Mbox = CanonicalName(x.Mbox)
-		case *MB:
-			x.Mb = CanonicalName(x.Mb)
-		case *MG:
-			x.Mg = CanonicalName(x.Mg)
-		case *MR:
-			x.Mr = CanonicalName(x.Mr)
-		case *PTR:
-			x.Ptr = CanonicalName(x.Ptr)
-		case *MINFO:
-			x.Rmail = CanonicalName(x.Rmail)
-			x.Email = CanonicalName(x.Email)
-		case *MX:
-			x.Mx = CanonicalName(x.Mx)
-		case *RP:
-			x.Mbox = CanonicalName(x.Mbox)
-			x.Txt = CanonicalName(x.Txt)
-		case *AFSDB:
-			x.Hostname = CanonicalName(x.Hostname)
-		case *RT:
-			x.Host = CanonicalName(x.Host)
-		case *SIG:
-			x.SignerName = CanonicalName(x.SignerName)
-		case *PX:
-			x.Map822 = CanonicalName(x.Map822)
-			x.Mapx400 = CanonicalName(x.Mapx400)
-		case *NAPTR:
-			x.Replacement = CanonicalName(x.Replacement)
-		case *KX:
-			x.Exchanger = CanonicalName(x.Exchanger)
-		case *SRV:
-			x.Target = CanonicalName(x.Target)
-		case *DNAME:
-			x.Target = CanonicalName(x.Target)
-		}
+		canonicalize(r1)
 		// 6.2. Canonical RR Form. (5) - origTTL
 		wire := make([]byte, Len(r1)+1) // +1 to be safe(r)
 		off, err1 := PackRR(r1, wire, 0, nil, false)

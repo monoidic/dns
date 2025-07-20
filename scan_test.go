@@ -15,9 +15,9 @@ func TestZoneParserGenerate(t *testing.T) {
 	zone := "$ORIGIN example.org.\n$GENERATE 10-12 foo${2,3,d} IN A 127.0.0.$"
 
 	wantRRs := []RR{
-		&A{Hdr: RR_Header{Name: "foo012.example.org."}, A: netip.MustParseAddr("127.0.0.10")},
-		&A{Hdr: RR_Header{Name: "foo013.example.org."}, A: netip.MustParseAddr("127.0.0.11")},
-		&A{Hdr: RR_Header{Name: "foo014.example.org."}, A: netip.MustParseAddr("127.0.0.12")},
+		&A{Hdr: RR_Header{Name: mustParseName("foo012.example.org.")}, A: netip.MustParseAddr("127.0.0.10")},
+		&A{Hdr: RR_Header{Name: mustParseName("foo013.example.org.")}, A: netip.MustParseAddr("127.0.0.11")},
+		&A{Hdr: RR_Header{Name: mustParseName("foo014.example.org.")}, A: netip.MustParseAddr("127.0.0.12")},
 	}
 
 	wantIdx := 0
@@ -71,7 +71,7 @@ func TestZoneParserInclude(t *testing.T) {
 	z.SetIncludeAllowed(true)
 	for rr, ok := z.Next(); ok; _, ok = z.Next() {
 		switch rr.Header().Name {
-		case "foo.example.org.", "bar.example.org.":
+		case mustParseName("foo.example.org."), mustParseName("bar.example.org."):
 		default:
 			t.Fatalf("expected foo.example.org. or bar.example.org., but got %s", rr.Header().Name)
 		}
@@ -113,7 +113,7 @@ func TestZoneParserIncludeFS(t *testing.T) {
 	z.SetIncludeFS(fsys)
 	for rr, ok := z.Next(); ok; _, ok = z.Next() {
 		switch rr.Header().Name {
-		case "foo.example.org.", "bar.example.org.":
+		case mustParseName("foo.example.org."), mustParseName("bar.example.org."):
 		default:
 			t.Fatalf("expected foo.example.org. or bar.example.org., but got %s", rr.Header().Name)
 		}
@@ -156,7 +156,7 @@ func TestZoneParserIncludeFSPaths(t *testing.T) {
 		z.SetIncludeFS(fsys)
 		for rr, ok := z.Next(); ok; _, ok = z.Next() {
 			switch rr.Header().Name {
-			case "foo.example.org.", "bar.example.org.":
+			case mustParseName("foo.example.org."), mustParseName("bar.example.org."):
 			default:
 				t.Fatalf("$INCLUDE %q: expected foo.example.org. or bar.example.org., but got %s", p, rr.Header().Name)
 			}
@@ -203,11 +203,11 @@ func TestZoneParserAddressAAAA(t *testing.T) {
 	}{
 		{
 			record: "1.example.org. 600 IN AAAA ::1",
-			want:   &AAAA{Hdr: RR_Header{Name: "1.example.org."}, AAAA: netip.IPv6Loopback()},
+			want:   &AAAA{Hdr: RR_Header{Name: mustParseName("1.example.org.")}, AAAA: netip.IPv6Loopback()},
 		},
 		{
 			record: "2.example.org. 600 IN AAAA ::FFFF:127.0.0.1",
-			want:   &AAAA{Hdr: RR_Header{Name: "2.example.org."}, AAAA: netip.MustParseAddr("::FFFF:127.0.0.1")},
+			want:   &AAAA{Hdr: RR_Header{Name: mustParseName("2.example.org.")}, AAAA: netip.MustParseAddr("::FFFF:127.0.0.1")},
 		},
 	}
 
@@ -379,7 +379,7 @@ func TestParseOpenEscape(t *testing.T) {
 	if _, err := NewRR("example.net IN CNAME example.net."); err != nil {
 		t.Fatalf("expected no error, but got: %s", err)
 	}
-	if _, err := NewRR("example.net IN CNAME example.org\\"); err == nil {
+	if _, err := NewRR(`example.net IN CNAME example.org\`); err == nil {
 		t.Fatalf("expected an error, but got none")
 	}
 }

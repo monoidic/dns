@@ -1,14 +1,17 @@
 package dns
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestCompareDomainName(t *testing.T) {
-	s1 := "www.miek.nl."
-	s2 := "miek.nl."
-	s3 := "www.bla.nl."
-	s4 := "nl.www.bla."
-	s5 := "nl."
-	s6 := "miek.nl."
+	s1 := mustParseName("www.miek.nl.")
+	s2 := mustParseName("miek.nl.")
+	s3 := mustParseName("www.bla.nl.")
+	s4 := mustParseName("nl.www.bla.")
+	s5 := mustParseName("nl.")
+	s6 := mustParseName("miek.nl.")
 
 	if CompareDomainName(s1, s2) != 2 {
 		t.Errorf("%s with %s should be %d", s1, s2, 2)
@@ -27,13 +30,13 @@ func TestCompareDomainName(t *testing.T) {
 		t.Errorf("%s with %s should be %d", s1, s5, 2)
 	}
 
-	if CompareDomainName(s1, ".") != 0 {
+	if CompareDomainName(s1, mustParseName(".")) != 0 {
 		t.Errorf("%s with %s should be %d", s1, s5, 0)
 	}
-	if CompareDomainName(".", ".") != 0 {
+	if CompareDomainName(mustParseName("."), mustParseName(".")) != 0 {
 		t.Errorf("%s with %s should be %d", ".", ".", 0)
 	}
-	if CompareDomainName("test.com.", "TEST.COM.") != 2 {
+	if CompareDomainName(mustParseName("test.com."), mustParseName("TEST.COM.")) != 2 {
 		t.Errorf("test.com. and TEST.COM. should be an exact match")
 	}
 }
@@ -41,18 +44,15 @@ func TestCompareDomainName(t *testing.T) {
 func TestSplit(t *testing.T) {
 	splitter := map[string]int{
 		"www.miek.nl.":    3,
-		"www.miek.nl":     3,
-		"www..miek.nl":    4,
 		`www\.miek.nl.`:   2,
 		`www\\.miek.nl.`:  3,
 		`www\\\.miek.nl.`: 2,
 		".":               0,
 		"nl.":             1,
-		"nl":              1,
 		"com.":            1,
-		".com.":           2,
 	}
-	for s, i := range splitter {
+	for ss, i := range splitter {
+		s := mustParseName(ss)
 		if x := len(Split(s)); x != i {
 			t.Errorf("labels should be %d, got %d: %s %v", i, x, s, Split(s))
 		}
@@ -62,10 +62,10 @@ func TestSplit(t *testing.T) {
 func TestSplit2(t *testing.T) {
 	splitter := map[string][]int{
 		"www.miek.nl.": {0, 4, 9},
-		"www.miek.nl":  {0, 4, 9},
-		"nl":           {0},
+		"nl.":          {0},
 	}
-	for s, i := range splitter {
+	for ss, i := range splitter {
+		s := mustParseName(ss)
 		x := Split(s)
 		switch len(i) {
 		case 1:
@@ -92,38 +92,10 @@ func TestNextLabel(t *testing.T) {
 		{"www.miek.nl.", 9}: 12,
 	}
 	for s, i := range nexts {
-		x, ok := NextLabel(s.string, s.int)
+		name := mustParseName(s.string)
+		x, ok := NextLabel(name, s.int)
 		if i != x {
-			t.Errorf("label should be %d, got %d, %t: next %d, %s", i, x, ok, s.int, s.string)
-		}
-	}
-}
-
-func TestPrevLabel(t *testing.T) {
-	type prev struct {
-		string
-		int
-	}
-	prever := map[prev]int{
-		{"", 1}:             0,
-		{"www.miek.nl.", 0}: 12,
-		{"www.miek.nl.", 1}: 9,
-		{"www.miek.nl.", 2}: 4,
-
-		{"www.miek.nl", 0}: 11,
-		{"www.miek.nl", 1}: 9,
-		{"www.miek.nl", 2}: 4,
-
-		{"www.miek.nl.", 5}: 0,
-		{"www.miek.nl", 5}:  0,
-
-		{"www.miek.nl.", 3}: 0,
-		{"www.miek.nl", 3}:  0,
-	}
-	for s, i := range prever {
-		x, ok := PrevLabel(s.string, s.int)
-		if i != x {
-			t.Errorf("label should be %d, got %d, %t: previous %d, %s", i, x, ok, s.int, s.string)
+			t.Errorf("label should be %d, got %d, %t: next %d, %s", i, x, ok, s.int, name)
 		}
 	}
 }
@@ -131,12 +103,12 @@ func TestPrevLabel(t *testing.T) {
 func TestCountLabel(t *testing.T) {
 	splitter := map[string]int{
 		"www.miek.nl.": 3,
-		"www.miek.nl":  3,
-		"nl":           1,
+		"nl.":          1,
 		".":            0,
 	}
-	for s, i := range splitter {
-		x := CountLabel(s)
+	for ss, i := range splitter {
+		s := mustParseName(ss)
+		x := s.CountLabel()
 		if x != i {
 			t.Errorf("CountLabel should have %d, got %d", i, x)
 		}
@@ -145,27 +117,17 @@ func TestCountLabel(t *testing.T) {
 
 func TestSplitDomainName(t *testing.T) {
 	labels := map[string][]string{
-		"miek.nl":       {"miek", "nl"},
-		".":             nil,
-		"www.miek.nl.":  {"www", "miek", "nl"},
-		"www.miek.nl":   {"www", "miek", "nl"},
-		"www..miek.nl":  {"www", "", "miek", "nl"},
-		`www\.miek.nl`:  {`www\.miek`, "nl"},
-		`www\\.miek.nl`: {`www\\`, "miek", "nl"},
-		".www.miek.nl.": {"", "www", "miek", "nl"},
+		"miek.nl.":       {"miek", "nl"},
+		".":              nil,
+		"www.miek.nl.":   {"www", "miek", "nl"},
+		`www\.miek.nl.`:  {`www\.miek`, "nl"},
+		`www\\.miek.nl.`: {`www\\`, "miek", "nl"},
 	}
-domainLoop:
-	for domain, splits := range labels {
-		parts := SplitDomainName(domain)
-		if len(parts) != len(splits) {
+	for domainS, splits := range labels {
+		domain := mustParseName(domainS)
+		parts := domain.Split()
+		if !slices.Equal(parts, splits) {
 			t.Errorf("SplitDomainName returned %v for %s, expected %v", parts, domain, splits)
-			continue domainLoop
-		}
-		for i := range parts {
-			if parts[i] != splits[i] {
-				t.Errorf("SplitDomainName returned %v for %s, expected %v", parts, domain, splits)
-				continue domainLoop
-			}
 		}
 	}
 }
@@ -178,14 +140,12 @@ func TestIsDomainName(t *testing.T) {
 	names := map[string]*ret{
 		".":                      {true, 1},
 		"..":                     {false, 0},
-		"double-dot..test":       {false, 1},
-		".leading-dot.test":      {false, 0},
+		"double-dot..test.":      {false, 0},
+		".leading-dot.test.":     {false, 0},
 		"@.":                     {true, 1},
-		"www.example.com":        {true, 3},
-		"www.e%ample.com":        {true, 3},
 		"www.example.com.":       {true, 3},
+		"www.e%ample.com.":       {true, 3},
 		"mi\\k.nl.":              {true, 2},
-		"mi\\k.nl":               {true, 2},
 		longestDomain:            {true, 4},
 		longestUnprintableDomain: {true, 4},
 	}
@@ -200,33 +160,33 @@ func TestIsDomainName(t *testing.T) {
 
 func TestIsFqdnEscaped(t *testing.T) {
 	for s, expect := range map[string]bool{
-		".":                  true,
-		"\\.":                false,
-		"\\\\.":              true,
-		"\\\\\\.":            false,
-		"\\\\\\\\.":          true,
-		"a.":                 true,
-		"a\\.":               false,
-		"a\\\\.":             true,
-		"a\\\\\\.":           false,
-		"ab.":                true,
-		"ab\\.":              false,
-		"ab\\\\.":            true,
-		"ab\\\\\\.":          false,
-		"..":                 true,
-		".\\.":               false,
-		".\\\\.":             true,
-		".\\\\\\.":           false,
-		"example.org.":       true,
-		"example.org\\.":     false,
-		"example.org\\\\.":   true,
-		"example.org\\\\\\.": false,
-		"example\\.org.":     true,
-		"example\\\\.org.":   true,
-		"example\\\\\\.org.": true,
-		"\\example.org.":     true,
-		"\\\\example.org.":   true,
-		"\\\\\\example.org.": true,
+		`.`:               true,
+		`\.`:              false,
+		`\\.`:             true,
+		`\\\.`:            false,
+		`\\\\.`:           true,
+		`a.`:              true,
+		`a\.`:             false,
+		`a\\.`:            true,
+		`a\\\.`:           false,
+		`ab.`:             true,
+		`ab\.`:            false,
+		`ab\\.`:           true,
+		`ab\\\.`:          false,
+		`..`:              false,
+		`.\.`:             false,
+		`.\\.`:            false,
+		`.\\\.`:           false,
+		`example.org.`:    true,
+		`example.org\.`:   false,
+		`example.org\\.`:  true,
+		`example.org\\\.`: false,
+		`example\.org.`:   true,
+		`example\\.org.`:  true,
+		`example\\\.org.`: true,
+		`\example.org.`:   true,
+		`\\example.org.`:  true,
+		`\\\example.org.`: true,
 	} {
 		if got := IsFqdn(s); got != expect {
 			t.Errorf("IsFqdn(%q) = %t, expected %t", s, got, expect)
@@ -238,29 +198,33 @@ func TestCanonicalName(t *testing.T) {
 	for s, expect := range map[string]string{
 		"":                 ".",
 		".":                ".",
-		"tld":              "tld.",
 		"tld.":             "tld.",
-		"example.test":     "example.test.",
+		"example.test.":    "example.test.",
 		"Lower.CASE.test.": "lower.case.test.",
-		"*.Test":           "*.test.",
-		"ÉxamplE.com":      "Éxample.com.",
-		"É.com":            "É.com.",
+		"*.Test.":          "*.test.",
+		"ÉxamplE.com.":     "Éxample.com.",
+		"É.com.":           "É.com.",
 	} {
 		if got := CanonicalName(s); got != expect {
 			t.Errorf("CanonicalName(%q) = %q, expected %q", s, got, expect)
+		}
+		if canonical := mustParseName(s).Canonical(); canonical != mustParseName(expect) {
+			t.Errorf("Name.Canonical() for %s was %s, expected %s", s, canonical, expect)
 		}
 	}
 }
 
 func BenchmarkCompare(b *testing.B) {
+	l := mustParseName("\\097.")
+	r := mustParseName("A.")
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		Compare("\\097.", "A.")
+		Compare(l, r)
 	}
 }
 
 func TestCompare(t *testing.T) {
-	domains := []string{ // based on an exanple from RFC 4034
+	domainsS := []string{ // based on an exanple from RFC 4034
 		"example.",
 		"a.example.",
 		"yljkjljk.a.example.",
@@ -271,6 +235,11 @@ func TestCompare(t *testing.T) {
 		"\001.z.example.",
 		"*.z.example.",
 		"\200.z.example.",
+	}
+
+	domains := make([]Name, len(domainsS))
+	for i, v := range domainsS {
+		domains[i] = mustParseName(v)
 	}
 
 	len_domains := len(domains)
@@ -295,95 +264,81 @@ func TestCompare(t *testing.T) {
 		}
 	}
 
-	if Compare("\\097.", "A.") != 0 {
+	if Compare(mustParseName(`\097.`), mustParseName("A.")) != 0 {
 		t.Fatal("failure to normalize DDD escape sequence")
 	}
 }
 
 func BenchmarkSplitLabels(b *testing.B) {
+	name := mustParseName("www.example.com.")
 	for i := 0; i < b.N; i++ {
-		Split("www.example.com.")
+		Split(name)
 	}
 }
 
 func BenchmarkLenLabels(b *testing.B) {
+	name := mustParseName("www.example.com.")
 	for i := 0; i < b.N; i++ {
-		CountLabel("www.example.com.")
+		name.CountLabel()
 	}
 }
 
 func BenchmarkCompareDomainName(b *testing.B) {
+	lname := mustParseName("www.example.com.")
+	rname := mustParseName("aa.example.com.")
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		CompareDomainName("www.example.com.", "aa.example.com.")
+		CompareDomainName(lname, rname)
 	}
 }
 
 func BenchmarkIsSubDomain(b *testing.B) {
+	www := mustParseName("www.example.com.")
+	example := mustParseName("example.com.")
+	aa := mustParseName("aa.example.com.")
+	miek := mustParseName("miek.nl.")
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		IsSubDomain("www.example.com.", "aa.example.com.")
-		IsSubDomain("example.com.", "aa.example.com.")
-		IsSubDomain("miek.nl.", "aa.example.com.")
+		IsSubDomain(www, aa)
+		IsSubDomain(example, aa)
+		IsSubDomain(miek, aa)
 	}
 }
 
 func BenchmarkNextLabelSimple(b *testing.B) {
+	www := mustParseName("www.example.com")
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		NextLabel("www.example.com", 0)
-		NextLabel("www.example.com", 5)
-		NextLabel("www.example.com", 12)
-	}
-}
-
-func BenchmarkPrevLabelSimple(b *testing.B) {
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		PrevLabel("www.example.com", 0)
-		PrevLabel("www.example.com", 5)
-		PrevLabel("www.example.com", 12)
+		NextLabel(www, 0)
+		NextLabel(www, 5)
+		NextLabel(www, 12)
 	}
 }
 
 func BenchmarkNextLabelComplex(b *testing.B) {
+	www1 := mustParseName(`www\.example.com`)
+	www2 := mustParseName(`www\\.example.com`)
+	www3 := mustParseName(`www\\\.example.com`)
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		NextLabel(`www\.example.com`, 0)
-		NextLabel(`www\\.example.com`, 0)
-		NextLabel(`www\\\.example.com`, 0)
-	}
-}
-
-func BenchmarkPrevLabelComplex(b *testing.B) {
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		PrevLabel(`www\.example.com`, 10)
-		PrevLabel(`www\\.example.com`, 10)
-		PrevLabel(`www\\\.example.com`, 10)
+		NextLabel(www1, 0)
+		NextLabel(www2, 0)
+		NextLabel(www3, 0)
 	}
 }
 
 func BenchmarkNextLabelMixed(b *testing.B) {
+	d1 := mustParseName("www.example.com.")
+	d2 := mustParseName(`www\.example.com.`)
+	d3 := mustParseName(`www\\.example.com.`)
+	d4 := mustParseName(`www\\\.example.com`)
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		NextLabel("www.example.com", 0)
-		NextLabel(`www\.example.com`, 0)
-		NextLabel("www.example.com", 5)
-		NextLabel(`www\\.example.com`, 0)
-		NextLabel("www.example.com", 12)
-		NextLabel(`www\\\.example.com`, 0)
-	}
-}
-
-func BenchmarkPrevLabelMixed(b *testing.B) {
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		PrevLabel("www.example.com", 0)
-		PrevLabel(`www\.example.com`, 10)
-		PrevLabel("www.example.com", 5)
-		PrevLabel(`www\\.example.com`, 10)
-		PrevLabel("www.example.com", 12)
-		PrevLabel(`www\\\.example.com`, 10)
+		NextLabel(d1, 0)
+		NextLabel(d2, 0)
+		NextLabel(d1, 5)
+		NextLabel(d3, 0)
+		NextLabel(d1, 12)
+		NextLabel(d4, 0)
 	}
 }

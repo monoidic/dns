@@ -4,25 +4,25 @@ import "testing"
 
 func TestDotAsCatchAllWildcard(t *testing.T) {
 	mux := NewServeMux()
-	mux.Handle(".", HandlerFunc(HelloServer))
-	mux.Handle("example.com.", HandlerFunc(AnotherHelloServer))
+	mux.Handle(mustParseName("."), HandlerFunc(HelloServer))
+	mux.Handle(mustParseName("example.com."), HandlerFunc(AnotherHelloServer))
 
-	handler := mux.match("www.miek.nl.", TypeTXT)
+	handler := mux.match(mustParseName("www.miek.nl."), TypeTXT)
 	if handler == nil {
 		t.Error("wildcard match failed")
 	}
 
-	handler = mux.match("www.example.com.", TypeTXT)
+	handler = mux.match(mustParseName("www.example.com."), TypeTXT)
 	if handler == nil {
 		t.Error("example.com match failed")
 	}
 
-	handler = mux.match("a.www.example.com.", TypeTXT)
+	handler = mux.match(mustParseName("a.www.example.com."), TypeTXT)
 	if handler == nil {
 		t.Error("a.www.example.com match failed")
 	}
 
-	handler = mux.match("boe.", TypeTXT)
+	handler = mux.match(mustParseName("boe."), TypeTXT)
 	if handler == nil {
 		t.Error("boe. match failed")
 	}
@@ -30,14 +30,14 @@ func TestDotAsCatchAllWildcard(t *testing.T) {
 
 func TestCaseFolding(t *testing.T) {
 	mux := NewServeMux()
-	mux.Handle("_udp.example.com.", HandlerFunc(HelloServer))
+	mux.Handle(mustParseName("_udp.example.com."), HandlerFunc(HelloServer))
 
-	handler := mux.match("_dns._udp.example.com.", TypeSRV)
+	handler := mux.match(mustParseName("_dns._udp.example.com."), TypeSRV)
 	if handler == nil {
 		t.Error("case sensitive characters folded")
 	}
 
-	handler = mux.match("_DNS._UDP.EXAMPLE.COM.", TypeSRV)
+	handler = mux.match(mustParseName("_DNS._UDP.EXAMPLE.COM."), TypeSRV)
 	if handler == nil {
 		t.Error("case insensitive characters not folded")
 	}
@@ -45,9 +45,9 @@ func TestCaseFolding(t *testing.T) {
 
 func TestRootServer(t *testing.T) {
 	mux := NewServeMux()
-	mux.Handle(".", HandlerFunc(HelloServer))
+	mux.Handle(mustParseName("."), HandlerFunc(HelloServer))
 
-	handler := mux.match(".", TypeNS)
+	handler := mux.match(mustParseName("."), TypeNS)
 	if handler == nil {
 		t.Error("root match failed")
 	}
@@ -55,12 +55,12 @@ func TestRootServer(t *testing.T) {
 
 func BenchmarkMuxMatch(b *testing.B) {
 	mux := NewServeMux()
-	mux.Handle("_udp.example.com.", HandlerFunc(HelloServer))
+	mux.Handle(mustParseName("_udp.example.com."), HandlerFunc(HelloServer))
 
 	bench := func(q string) func(*testing.B) {
 		return func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
-				handler := mux.match(q, TypeSRV)
+				handler := mux.match(mustParseName(q), TypeSRV)
 				if handler == nil {
 					b.Fatal("couldn't find match")
 				}

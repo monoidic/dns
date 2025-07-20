@@ -30,12 +30,14 @@ var (
 
 func TestPackNoSideEffect(t *testing.T) {
 	m := new(Msg)
-	m.SetQuestion(Fqdn("example.com."), TypeNS)
+	name, _ := NameFromString("example.com.")
+	m.SetQuestion(name, TypeNS)
 
+	root, _ := NameFromString(".")
 	a := new(Msg)
 	o := &OPT{
 		Hdr: RR_Header{
-			Name:   ".",
+			Name:   root,
 			Rrtype: TypeOPT,
 		},
 	}
@@ -52,13 +54,15 @@ func TestPackNoSideEffect(t *testing.T) {
 
 func TestPackExtendedBadCookie(t *testing.T) {
 	m := new(Msg)
-	m.SetQuestion(Fqdn("example.com."), TypeNS)
+	name, _ := NameFromString("example.com.")
+	m.SetQuestion(name, TypeNS)
+	root, _ := NameFromString(".")
 
 	a := new(Msg)
 	a.SetReply(m)
 	o := &OPT{
 		Hdr: RR_Header{
-			Name:   ".",
+			Name:   root,
 			Rrtype: TypeOPT,
 		},
 	}
@@ -91,13 +95,15 @@ func TestPackExtendedBadCookie(t *testing.T) {
 
 func TestUnPackExtendedRcode(t *testing.T) {
 	m := new(Msg)
-	m.SetQuestion(Fqdn("example.com."), TypeNS)
+	name, _ := NameFromString("example.com.")
+	m.SetQuestion(name, TypeNS)
 
+	root, _ := NameFromString(".")
 	a := new(Msg)
 	a.SetReply(m)
 	o := &OPT{
 		Hdr: RR_Header{
-			Name:   ".",
+			Name:   root,
 			Rrtype: TypeOPT,
 		},
 	}
@@ -226,7 +232,8 @@ func TestUnpackDomainName(t *testing.T) {
 	}
 	for _, test := range cases {
 		output, idx, err := UnpackDomainName([]byte(test.input), 0)
-		if test.expectedOutput != "" && output != test.expectedOutput {
+		expected := mustParseName(test.expectedOutput)
+		if expected.String() != "" && output != expected {
 			t.Errorf("%s: expected %s, got %s", test.label, test.expectedOutput, output)
 		}
 		if test.expectedError == "" && err != nil {
@@ -238,19 +245,19 @@ func TestUnpackDomainName(t *testing.T) {
 }
 
 func TestPackDomainNameCompressionMap(t *testing.T) {
-	expected := map[string]struct{}{
-		`www\.this.is.\131an.example.org.`: {},
-		`is.\131an.example.org.`:           {},
-		`\131an.example.org.`:              {},
-		`example.org.`:                     {},
-		`org.`:                             {},
+	expected := map[Name]struct{}{
+		mustParseName(`www\.this.is.\131an.example.org.`): {},
+		mustParseName(`is.\131an.example.org.`):           {},
+		mustParseName(`\131an.example.org.`):              {},
+		mustParseName(`example.org.`):                     {},
+		mustParseName(`org.`):                             {},
 	}
 
 	msg := make([]byte, 256)
 	for _, compress := range []bool{true, false} {
-		compression := make(map[string]int)
+		compression := make(map[Name]int)
 
-		_, err := PackDomainName(`www\.this.is.\131an.example.org.`, msg, 0, compression, compress)
+		_, err := PackDomainName(mustParseName(`www\.this.is.\131an.example.org.`), msg, 0, compression, compress)
 		if err != nil {
 			t.Fatalf("PackDomainName failed: %v", err)
 		}
@@ -262,7 +269,7 @@ func TestPackDomainNameCompressionMap(t *testing.T) {
 }
 
 func TestPackDomainNameNSECTypeBitmap(t *testing.T) {
-	ownername := "some-very-long-ownername.com."
+	ownername := mustParseName("some-very-long-ownername.com.")
 	msg := &Msg{
 		Compress: true,
 		Answer: []RR{
@@ -272,7 +279,7 @@ func TestPackDomainNameNSECTypeBitmap(t *testing.T) {
 					Rrtype: TypeNS,
 					Class:  ClassINET,
 				},
-				Ns: "ns1.server.com.",
+				Ns: mustParseName("ns1.server.com."),
 			},
 			&NSEC{
 				Hdr: RR_Header{
@@ -280,7 +287,7 @@ func TestPackDomainNameNSECTypeBitmap(t *testing.T) {
 					Rrtype: TypeNSEC,
 					Class:  ClassINET,
 				},
-				NextDomain: "a.com.",
+				NextDomain: mustParseName("a.com."),
 				TypeBitMap: []uint16{TypeNS, TypeNSEC},
 			},
 		},
@@ -309,10 +316,11 @@ func TestPackDomainNameNSECTypeBitmap(t *testing.T) {
 func TestPackUnpackManyCompressionPointers(t *testing.T) {
 	m := new(Msg)
 	m.Compress = true
-	m.SetQuestion("example.org.", TypeNS)
+	name := mustParseName("example.org.")
+	m.SetQuestion(name, TypeNS)
 
 	for domain := "a."; len(domain) < maxDomainNameWireOctets; domain += "a." {
-		m.Answer = append(m.Answer, &NS{Hdr: RR_Header{Name: domain, Rrtype: TypeNS, Class: ClassINET}, Ns: "example.org."})
+		m.Answer = append(m.Answer, &NS{Hdr: RR_Header{Name: mustParseName(domain), Rrtype: TypeNS, Class: ClassINET}, Ns: name})
 
 		b, err := m.Pack()
 		if err != nil {

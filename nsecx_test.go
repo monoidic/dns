@@ -6,34 +6,34 @@ import (
 )
 
 func TestPackNsec3(t *testing.T) {
-	nsec3 := HashName("dnsex.nl.", SHA1, 0, "DEAD")
+	nsec3 := HashName(mustParseName("dnsex.nl."), SHA1, 0, "DEAD")
 	if nsec3 != "ROCCJAE8BJJU7HN6T7NG3TNM8ACRS87J" {
 		t.Error(nsec3)
 	}
 
-	nsec3 = HashName("a.b.c.example.org.", SHA1, 2, "DEAD")
+	nsec3 = HashName(mustParseName("a.b.c.example.org."), SHA1, 2, "DEAD")
 	if nsec3 != "6LQ07OAHBTOOEU2R9ANI2AT70K5O0RCG" {
 		t.Error(nsec3)
 	}
 }
 
 func TestNsec3(t *testing.T) {
-	nsec3 := testRR("sk4e8fj94u78smusb40o1n0oltbblu2r.nl. IN NSEC3 1 1 5 F10E9F7EA83FC8F3 SK4F38CQ0ATIEI8MH3RGD0P5I4II6QAN NS SOA TXT RRSIG DNSKEY NSEC3PARAM")
-	if !nsec3.(*NSEC3).Match("nl.") { // name hash = sk4e8fj94u78smusb40o1n0oltbblu2r
-		t.Fatal("sk4e8fj94u78smusb40o1n0oltbblu2r.nl. should match sk4e8fj94u78smusb40o1n0oltbblu2r.nl.")
+	nsec3 := testRR("sk4e8fj94u78smusb40o1n0oltbblu2r.nl. IN NSEC3 1 1 5 F10E9F7EA83FC8F3 SK4F38CQ0ATIEI8MH3RGD0P5I4II6QAN NS SOA TXT RRSIG DNSKEY NSEC3PARAM").(*NSEC3)
+	if !nsec3.Match(mustParseName("nl.")) { // name hash = sk4e8fj94u78smusb40o1n0oltbblu2r
+		t.Error("sk4e8fj94u78smusb40o1n0oltbblu2r.nl. should match sk4e8fj94u78smusb40o1n0oltbblu2r.nl.")
 	}
-	if !nsec3.(*NSEC3).Match("NL.") { // name hash = sk4e8fj94u78smusb40o1n0oltbblu2r
-		t.Fatal("sk4e8fj94u78smusb40o1n0oltbblu2r.NL. should match sk4e8fj94u78smusb40o1n0oltbblu2r.nl.")
+	if !nsec3.Match(mustParseName("NL.")) { // name hash = sk4e8fj94u78smusb40o1n0oltbblu2r
+		t.Error("sk4e8fj94u78smusb40o1n0oltbblu2r.NL. should match sk4e8fj94u78smusb40o1n0oltbblu2r.nl.")
 	}
-	if nsec3.(*NSEC3).Match("com.") { //
-		t.Fatal("com. is not in the zone nl.")
+	if nsec3.Match(mustParseName("com.")) { //
+		t.Error("com. is not in the zone nl.")
 	}
-	if nsec3.(*NSEC3).Match("test.nl.") { // name hash = gd0ptr5bnfpimpu2d3v6gd4n0bai7s0q
-		t.Fatal("gd0ptr5bnfpimpu2d3v6gd4n0bai7s0q.nl. should not match sk4e8fj94u78smusb40o1n0oltbblu2r.nl.")
+	if nsec3.Match(mustParseName("test.nl.")) { // name hash = gd0ptr5bnfpimpu2d3v6gd4n0bai7s0q
+		t.Error("gd0ptr5bnfpimpu2d3v6gd4n0bai7s0q.nl. should not match sk4e8fj94u78smusb40o1n0oltbblu2r.nl.")
 	}
-	nsec3 = testRR("nl. IN NSEC3 1 1 5 F10E9F7EA83FC8F3 SK4F38CQ0ATIEI8MH3RGD0P5I4II6QAN NS SOA TXT RRSIG DNSKEY NSEC3PARAM")
-	if nsec3.(*NSEC3).Match("nl.") {
-		t.Fatal("sk4e8fj94u78smusb40o1n0oltbblu2r.nl. should not match a record without a owner hash")
+	nsec3 = testRR("nl. IN NSEC3 1 1 5 F10E9F7EA83FC8F3 SK4F38CQ0ATIEI8MH3RGD0P5I4II6QAN NS SOA TXT RRSIG DNSKEY NSEC3PARAM").(*NSEC3)
+	if nsec3.Match(mustParseName("nl.")) {
+		t.Error("sk4e8fj94u78smusb40o1n0oltbblu2r.nl. should not match a record without a owner hash")
 	}
 
 	for _, tc := range []struct {
@@ -44,7 +44,7 @@ func TestNsec3(t *testing.T) {
 		// positive tests
 		{ // name hash between owner hash and next hash
 			rr: &NSEC3{
-				Hdr:        RR_Header{Name: "2N1TB3VAIRUOBL6RKDVII42N9TFMIALP.com."},
+				Hdr:        RR_Header{Name: mustParseName("2N1TB3VAIRUOBL6RKDVII42N9TFMIALP.com.")},
 				Hash:       1,
 				Flags:      1,
 				Iterations: 5,
@@ -56,7 +56,7 @@ func TestNsec3(t *testing.T) {
 		},
 		{ // end of zone, name hash is after owner hash
 			rr: &NSEC3{
-				Hdr:        RR_Header{Name: "3v62ulr0nre83v0rja2vjgtlif9v6rab.com."},
+				Hdr:        RR_Header{Name: mustParseName("3v62ulr0nre83v0rja2vjgtlif9v6rab.com.")},
 				Hash:       1,
 				Flags:      1,
 				Iterations: 5,
@@ -68,7 +68,7 @@ func TestNsec3(t *testing.T) {
 		},
 		{ // end of zone, name hash is before beginning of zone
 			rr: &NSEC3{
-				Hdr:        RR_Header{Name: "PT3RON8N7PM3A0OE989IB84OOSADP7O8.com."},
+				Hdr:        RR_Header{Name: mustParseName("PT3RON8N7PM3A0OE989IB84OOSADP7O8.com.")},
 				Hash:       1,
 				Flags:      1,
 				Iterations: 5,
@@ -81,7 +81,7 @@ func TestNsec3(t *testing.T) {
 		// negative tests
 		{ // too short owner name
 			rr: &NSEC3{
-				Hdr:        RR_Header{Name: "nl."},
+				Hdr:        RR_Header{Name: mustParseName("nl.")},
 				Hash:       1,
 				Flags:      1,
 				Iterations: 5,
@@ -93,7 +93,7 @@ func TestNsec3(t *testing.T) {
 		},
 		{ // outside of zone
 			rr: &NSEC3{
-				Hdr:        RR_Header{Name: "39p91242oslggest5e6a7cci4iaeqvnk.nl."},
+				Hdr:        RR_Header{Name: mustParseName("39p91242oslggest5e6a7cci4iaeqvnk.nl.")},
 				Hash:       1,
 				Flags:      1,
 				Iterations: 5,
@@ -105,7 +105,7 @@ func TestNsec3(t *testing.T) {
 		},
 		{ // empty interval
 			rr: &NSEC3{
-				Hdr:        RR_Header{Name: "2n1tb3vairuobl6rkdvii42n9tfmialp.com."},
+				Hdr:        RR_Header{Name: mustParseName("2n1tb3vairuobl6rkdvii42n9tfmialp.com.")},
 				Hash:       1,
 				Flags:      1,
 				Iterations: 5,
@@ -117,7 +117,7 @@ func TestNsec3(t *testing.T) {
 		},
 		{ // empty interval wildcard
 			rr: &NSEC3{
-				Hdr:        RR_Header{Name: "2n1tb3vairuobl6rkdvii42n9tfmialp.com."},
+				Hdr:        RR_Header{Name: mustParseName("2n1tb3vairuobl6rkdvii42n9tfmialp.com.")},
 				Hash:       1,
 				Flags:      1,
 				Iterations: 5,
@@ -129,7 +129,7 @@ func TestNsec3(t *testing.T) {
 		},
 		{ // name hash is before owner hash, not covered
 			rr: &NSEC3{
-				Hdr:        RR_Header{Name: "3V62ULR0NRE83V0RJA2VJGTLIF9V6RAB.com."},
+				Hdr:        RR_Header{Name: mustParseName("3V62ULR0NRE83V0RJA2VJGTLIF9V6RAB.com.")},
 				Hash:       1,
 				Flags:      1,
 				Iterations: 5,
@@ -140,7 +140,7 @@ func TestNsec3(t *testing.T) {
 			covers: false,
 		},
 	} {
-		covers := tc.rr.Cover(tc.name)
+		covers := tc.rr.Cover(mustParseName(tc.name))
 		if tc.covers != covers {
 			t.Fatalf("cover failed for %s: expected %t, got %t [record: %s]", tc.name, tc.covers, covers, tc.rr)
 		}
@@ -150,7 +150,7 @@ func TestNsec3(t *testing.T) {
 func TestNsec3EmptySalt(t *testing.T) {
 	rr, _ := NewRR("CK0POJMG874LJREF7EFN8430QVIT8BSM.com. 86400 IN NSEC3 1 1 0 - CK0Q1GIN43N1ARRC9OSM6QPQR81H5M9A  NS SOA RRSIG DNSKEY NSEC3PARAM")
 
-	if !rr.(*NSEC3).Match("com.") {
+	if !rr.(*NSEC3).Match(mustParseName("com.")) {
 		t.Fatalf("expected record to match com. label")
 	}
 }
@@ -161,7 +161,7 @@ func BenchmarkHashName(b *testing.B) {
 	} {
 		b.Run(strconv.Itoa(int(iter)), func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
-				if HashName("some.example.org.", SHA1, iter, "deadbeef") == "" {
+				if HashName(mustParseName("some.example.org."), SHA1, iter, "deadbeef") == "" {
 					b.Fatalf("HashName failed")
 				}
 			}

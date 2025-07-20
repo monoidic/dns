@@ -76,7 +76,7 @@ func TestPackUnpack(t *testing.T) {
 	out := new(Msg)
 	out.Answer = make([]RR, 1)
 	key := &DNSKEY{Flags: 257, Protocol: 3, Algorithm: RSASHA1}
-	key.Hdr = RR_Header{Name: "miek.nl.", Rrtype: TypeDNSKEY, Class: ClassINET, Ttl: 3600}
+	key.Hdr = RR_Header{Name: mustParseName("miek.nl."), Rrtype: TypeDNSKEY, Class: ClassINET, Ttl: 3600}
 	key.PublicKey = "AwEAAaHIwpx3w4VHKi6i1LHnTaWeHCL154Jug0Rtc9ji5qwPXpBo6A5sRv7cSsPQKPIwxLpyCrbJ4mr2L0EPOdvP6z6YfljK2ZmTbogU9aSU2fiq/4wjxbdkLyoDVgtO+JsxNN4bjr4WcWhsmk1Hg93FV9ZpkWb0Tbad8DFqNDzr//kZ"
 
 	out.Answer[0] = key
@@ -91,10 +91,10 @@ func TestPackUnpack(t *testing.T) {
 
 	sig := &RRSIG{
 		TypeCovered: TypeDNSKEY, Algorithm: RSASHA1, Labels: 2,
-		OrigTtl: 3600, Expiration: 4000, Inception: 4000, KeyTag: 34641, SignerName: "miek.nl.",
+		OrigTtl: 3600, Expiration: 4000, Inception: 4000, KeyTag: 34641, SignerName: key.Hdr.Name,
 		Signature: "AwEAAaHIwpx3w4VHKi6i1LHnTaWeHCL154Jug0Rtc9ji5qwPXpBo6A5sRv7cSsPQKPIwxLpyCrbJ4mr2L0EPOdvP6z6YfljK2ZmTbogU9aSU2fiq/4wjxbdkLyoDVgtO+JsxNN4bjr4WcWhsmk1Hg93FV9ZpkWb0Tbad8DFqNDzr//kZ",
 	}
-	sig.Hdr = RR_Header{Name: "miek.nl.", Rrtype: TypeRRSIG, Class: ClassINET, Ttl: 3600}
+	sig.Hdr = RR_Header{Name: key.Hdr.Name, Rrtype: TypeRRSIG, Class: ClassINET, Ttl: 3600}
 
 	out.Answer[0] = sig
 	msg, err = out.Pack()
@@ -111,7 +111,7 @@ func TestPackUnpack2(t *testing.T) {
 	m := new(Msg)
 	m.Extra = make([]RR, 1)
 	m.Answer = make([]RR, 1)
-	dom := "miek.nl."
+	dom := mustParseName("miek.nl.")
 	rr := new(A)
 	rr.Hdr = RR_Header{Name: dom, Rrtype: TypeA, Class: ClassINET, Ttl: 0}
 	rr.A = netip.AddrFrom4([4]byte{127, 0, 0, 1})
@@ -133,7 +133,7 @@ func TestPackUnpack3(t *testing.T) {
 	m := new(Msg)
 	m.Extra = make([]RR, 2)
 	m.Answer = make([]RR, 1)
-	dom := "miek.nl."
+	dom := mustParseName("miek.nl.")
 	rr := new(A)
 	rr.Hdr = RR_Header{Name: dom, Rrtype: TypeA, Class: ClassINET, Ttl: 0}
 	rr.A = netip.AddrFrom4([4]byte{127, 0, 0, 1})
@@ -165,29 +165,33 @@ func TestPackUnpack3(t *testing.T) {
 
 func TestBailiwick(t *testing.T) {
 	yes := map[string]string{
-		"miek1.nl": "miek1.nl",
-		"miek.nl":  "ns.miek.nl",
-		".":        "miek.nl",
+		"miek1.nl.": "miek1.nl.",
+		"miek.nl.":  "ns.miek.nl.",
+		".":         "miek.nl.",
 	}
-	for parent, child := range yes {
+	for parentS, childS := range yes {
+		parent := mustParseName(parentS)
+		child := mustParseName(childS)
 		if !IsSubDomain(parent, child) {
 			t.Errorf("%s should be child of %s", child, parent)
 			t.Errorf("comparelabels %d", CompareDomainName(parent, child))
-			t.Errorf("lenlabels %d %d", CountLabel(parent), CountLabel(child))
+			t.Errorf("lenlabels %d %d", parent.CountLabel(), child.CountLabel())
 		}
 	}
 	no := map[string]string{
-		"www.miek.nl":  "ns.miek.nl",
-		"m\\.iek.nl":   "ns.miek.nl",
-		"w\\.iek.nl":   "w.iek.nl",
-		"p\\\\.iek.nl": "ns.p.iek.nl", // p\\.iek.nl , literal \ in domain name
-		"miek.nl":      ".",
+		`www.miek.nl.`: "ns.miek.nl.",
+		`m\.iek.nl.`:   "ns.miek.nl.",
+		`w\.iek.nl.`:   "w.iek.nl.",
+		`p\\.iek.nl.`:  "ns.p.iek.nl.", // p\\.iek.nl , literal \ in domain name
+		`miek.nl.`:     ".",
 	}
-	for parent, child := range no {
+	for parentS, childS := range no {
+		parent := mustParseName(parentS)
+		child := mustParseName(childS)
 		if IsSubDomain(parent, child) {
 			t.Errorf("%s should not be child of %s", child, parent)
 			t.Errorf("comparelabels %d", CompareDomainName(parent, child))
-			t.Errorf("lenlabels %d %d", CountLabel(parent), CountLabel(child))
+			t.Errorf("lenlabels %d %d", parent.CountLabel(), child.CountLabel())
 		}
 	}
 }
@@ -226,7 +230,7 @@ func TestNoRdataPack(t *testing.T) {
 	data := make([]byte, 1024)
 	for typ, fn := range TypeToRR {
 		r := fn()
-		*r.Header() = RR_Header{Name: "miek.nl.", Rrtype: typ, Class: ClassINET, Ttl: 16}
+		*r.Header() = RR_Header{Name: mustParseName("miek.nl."), Rrtype: typ, Class: ClassINET, Ttl: 16}
 		_, err := PackRR(r, data, 0, nil, false)
 		if err != nil {
 			t.Errorf("failed to pack RR with zero rdata: %s: %v", TypeToString[typ], err)
@@ -243,7 +247,7 @@ func TestNoRdataUnpack(t *testing.T) {
 			continue
 		}
 		r := fn()
-		*r.Header() = RR_Header{Name: "miek.nl.", Rrtype: typ, Class: ClassINET, Ttl: 16}
+		*r.Header() = RR_Header{Name: mustParseName("miek.nl."), Rrtype: typ, Class: ClassINET, Ttl: 16}
 		_, err := PackRR(r, data, 0, nil, false)
 		if err != nil {
 			// Should always work, TestNoDataPack should have caught this
@@ -262,7 +266,7 @@ func TestNoRdataUnpack(t *testing.T) {
 
 func TestRdataOverflow(t *testing.T) {
 	rr := new(RFC3597)
-	rr.Hdr.Name = "."
+	rr.Hdr.Name = mustParseName(".")
 	rr.Hdr.Class = ClassINET
 	rr.Hdr.Rrtype = 65280
 	rr.Rdata = hex.EncodeToString(make([]byte, 0xFFFF))
@@ -286,10 +290,10 @@ func TestCopy(t *testing.T) {
 
 func TestMsgCopy(t *testing.T) {
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeA)
+	m.SetQuestion(mustParseName("miek.nl."), TypeA)
 	rr := testRR("miek.nl. 2311 IN A 127.0.0.1")
 	m.Answer = []RR{rr}
-	rr = testRR("miek.nl. 2311 IN NS 127.0.0.1")
+	rr = testRR("miek.nl. 2311 IN NS 127.0.0.1.")
 	m.Ns = []RR{rr}
 
 	m1 := m.Copy()
@@ -401,13 +405,12 @@ func TestShortMsg(t *testing.T) {
 
 	rr = &MX{
 		Hdr: RR_Header{
-			Name:   "miek.nl.",
+			Name:   mustParseName("miek.nl."),
 			Rrtype: TypeMX,
 			Class:  ClassINET,
 			Ttl:    30,
 		},
 		Preference: 50,
-		Mx:         "",
 	}
 
 	msg := make([]byte, Len(rr))

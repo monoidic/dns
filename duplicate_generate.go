@@ -94,7 +94,6 @@ func main() {
 		for i := 1; i < st.NumFields(); i++ {
 			field := st.Field(i).Name()
 			o2 := func(s string) { fmt.Fprintf(b, s+"\n", field, field) }
-			o3 := func(s string) { fmt.Fprintf(b, s+"\n", field, field, field) }
 
 			// For some reason, a and aaaa don't pop up as *types.Slice here (mostly like because the are
 			// *indirectly* defined as a slice in the net package).
@@ -102,8 +101,8 @@ func main() {
 				o2("if len(r1.%s) != len(r2.%s) {\nreturn false\n}")
 
 				if st.Tag(i) == `dns:"cdomain-name"` || st.Tag(i) == `dns:"domain-name"` {
-					o3(`for i := 0; i < len(r1.%s); i++ {
-						if !isDuplicateName(r1.%s[i], r2.%s[i]) {
+					o2(`for i, v := range r1.%s {
+						if !isDuplicateName(v, r2.%s[i]) {
 							return false
 						}
 					}`)
@@ -112,8 +111,8 @@ func main() {
 				}
 
 				if st.Tag(i) == `dns:"apl"` {
-					o3(`for i := 0; i < len(r1.%s); i++ {
-						if !r1.%s[i].equals(&r2.%s[i]) {
+					o2(`for i, v := range r1.%s {
+						if !v.equals(&r2.%s[i]) {
 							return false
 						}
 					}`)
@@ -129,8 +128,8 @@ func main() {
 					continue
 				}
 
-				o3(`for i := 0; i < len(r1.%s); i++ {
-					if r1.%s[i] != r2.%s[i] {
+				o2(`for i, v := range r1.%s {
+					if v != r2.%s[i] {
 						return false
 					}
 				}`)

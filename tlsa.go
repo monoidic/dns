@@ -24,10 +24,10 @@ func (r *TLSA) Verify(cert *x509.Certificate) error {
 	if err != nil {
 		return err // Not also ErrSig?
 	}
-	if r.Certificate == c {
-		return nil
+	if r.Certificate != c {
+		return ErrSig // ErrSig, really?
 	}
-	return ErrSig // ErrSig, really?
+	return nil
 }
 
 // TLSAName returns the ownername of a TLSA resource record as per the

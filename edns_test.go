@@ -9,7 +9,7 @@ import (
 
 func TestOPTTtl(t *testing.T) {
 	e := &OPT{}
-	e.Hdr.Name = "."
+	e.Hdr.Name = mustParseName(".")
 	e.Hdr.Rrtype = TypeOPT
 
 	// verify the default setting of DO=0
@@ -171,7 +171,7 @@ func TestEDNS0_UL(t *testing.T) {
 
 func TestZ(t *testing.T) {
 	e := &OPT{}
-	e.Hdr.Name = "."
+	e.Hdr.Name = mustParseName(".")
 	e.Hdr.Rrtype = TypeOPT
 	e.SetVersion(8)
 	e.SetDo()

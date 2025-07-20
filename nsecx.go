@@ -7,24 +7,17 @@ import (
 )
 
 // HashName hashes a string (label) according to RFC 5155. It returns the hashed string in uppercase.
-func HashName(label string, ha uint8, iter uint16, salt string) string {
+func HashName(label Name, ha uint8, iter uint16, salt string) string {
 	if ha != SHA1 {
 		return ""
 	}
 
-	wireSalt := make([]byte, hex.DecodedLen(len(salt)))
-	n, err := packStringHex(salt, wireSalt, 0)
+	wireSalt, err := hex.DecodeString(salt)
 	if err != nil {
 		return ""
 	}
-	wireSalt = wireSalt[:n]
 
-	name := make([]byte, 255)
-	off, err := PackDomainName(strings.ToLower(label), name, 0, nil, false)
-	if err != nil {
-		return ""
-	}
-	name = name[:off]
+	name := label.Canonical().ToWire()
 
 	s := sha1.New()
 	// k = 0
@@ -44,16 +37,16 @@ func HashName(label string, ha uint8, iter uint16, salt string) string {
 }
 
 // Cover returns true if a name is covered by the NSEC3 record.
-func (rr *NSEC3) Cover(name string) bool {
+func (rr *NSEC3) Cover(name Name) bool {
 	nameHash := HashName(name, rr.Hash, rr.Iterations, rr.Salt)
-	owner := strings.ToUpper(rr.Hdr.Name)
-	labelIndices := Split(owner)
-	if len(labelIndices) < 2 {
+	owner := rr.Hdr.Name
+	labels := owner.SplitRaw()
+	if len(labels) < 2 {
 		return false
 	}
-	ownerHash := owner[:labelIndices[1]-1]
-	ownerZone := owner[labelIndices[1]:]
-	if !IsSubDomain(ownerZone, strings.ToUpper(name)) { // name is outside owner zone
+	ownerHash := string(labels[0])
+	ownerZone, _ := NameFromLabels(labels[1:])
+	if !IsSubDomain(ownerZone, name) { // name is outside owner zone
 		return false
 	}
 
@@ -76,26 +69,26 @@ func (rr *NSEC3) Cover(name string) bool {
 }
 
 // Match returns true if a name matches the NSEC3 record
-func (rr *NSEC3) Match(name string) bool {
+func (rr *NSEC3) Match(name Name) bool {
 	nameHash := HashName(name, rr.Hash, rr.Iterations, rr.Salt)
-	owner := strings.ToUpper(rr.Hdr.Name)
-	labelIndices := Split(owner)
-	if len(labelIndices) < 2 {
+	owner := rr.Hdr.Name
+	labels := owner.SplitRaw()
+	if len(labels) < 2 {
 		return false
 	}
-	ownerHash := owner[:labelIndices[1]-1]
-	ownerZone := owner[labelIndices[1]:]
-	if !IsSubDomain(ownerZone, strings.ToUpper(name)) { // name is outside owner zone
+	ownerHash := strings.ToUpper(string(labels[0]))
+	ownerZone, err := NameFromLabels(labels[1:])
+	if err != nil {
+		panic(err)
+	}
+	if !IsSubDomain(ownerZone, name) { // name is outside owner zone
 		return false
 	}
-	if ownerHash == nameHash {
-		return true
-	}
-	return false
+	return ownerHash == nameHash
 }
 
 // Match returns true if the given name is covered by the NSEC record
-func (rr *NSEC) Cover(name, zone string) bool {
+func (rr *NSEC) Cover(name Name) bool {
 	switch Compare(rr.Hdr.Name, name) {
 	default: // case 0:
 		// equals to start => covers
@@ -114,7 +107,7 @@ func (rr *NSEC) Cover(name, zone string) bool {
 			return true
 		case 1:
 			// after end? only covers for the case of [zone-last-record.zone.tld., zone.tld.]
-			return equal(rr.NextDomain, zone)
+			return Compare(rr.Hdr.Name, rr.NextDomain) == 1
 		}
 	}
 }

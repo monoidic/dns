@@ -153,7 +153,6 @@ func (rr *RP) parse(c *zlexer, o string) *ParseError {
 
 	c.Next() // zBlank
 	l, _ = c.Next()
-	rr.Txt = l.token
 
 	txt, txtOk := toAbsoluteName(l.token, o)
 	if l.err || !txtOk {
@@ -250,7 +249,6 @@ func (rr *MINFO) parse(c *zlexer, o string) *ParseError {
 
 	c.Next() // zBlank
 	l, _ = c.Next()
-	rr.Email = l.token
 
 	email, emailOk := toAbsoluteName(l.token, o)
 	if l.err || !emailOk {
@@ -291,7 +289,6 @@ func (rr *MX) parse(c *zlexer, o string) *ParseError {
 
 	c.Next()        // zBlank
 	l, _ = c.Next() // zString
-	rr.Mx = l.token
 
 	name, nameOk := toAbsoluteName(l.token, o)
 	if l.err || !nameOk {
@@ -312,7 +309,6 @@ func (rr *RT) parse(c *zlexer, o string) *ParseError {
 
 	c.Next()        // zBlank
 	l, _ = c.Next() // zString
-	rr.Host = l.token
 
 	name, nameOk := toAbsoluteName(l.token, o)
 	if l.err || !nameOk {
@@ -333,7 +329,6 @@ func (rr *AFSDB) parse(c *zlexer, o string) *ParseError {
 
 	c.Next()        // zBlank
 	l, _ = c.Next() // zString
-	rr.Hostname = l.token
 
 	name, nameOk := toAbsoluteName(l.token, o)
 	if l.err || !nameOk {
@@ -362,7 +357,6 @@ func (rr *KX) parse(c *zlexer, o string) *ParseError {
 
 	c.Next()        // zBlank
 	l, _ = c.Next() // zString
-	rr.Exchanger = l.token
 
 	name, nameOk := toAbsoluteName(l.token, o)
 	if l.err || !nameOk {
@@ -402,7 +396,6 @@ func (rr *SOA) parse(c *zlexer, o string) *ParseError {
 
 	c.Next() // zBlank
 	l, _ = c.Next()
-	rr.Mbox = l.token
 
 	mbox, mboxOk := toAbsoluteName(l.token, o)
 	if l.err || !mboxOk {
@@ -416,7 +409,7 @@ func (rr *SOA) parse(c *zlexer, o string) *ParseError {
 		v  uint32
 		ok bool
 	)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		l, _ = c.Next()
 		if l.err {
 			return &ParseError{err: "bad SOA zone parameter", lex: l}
@@ -479,7 +472,6 @@ func (rr *SRV) parse(c *zlexer, o string) *ParseError {
 
 	c.Next()        // zBlank
 	l, _ = c.Next() // zString
-	rr.Target = l.token
 
 	name, nameOk := toAbsoluteName(l.token, o)
 	if l.err || !nameOk {
@@ -568,7 +560,6 @@ func (rr *NAPTR) parse(c *zlexer, o string) *ParseError {
 	// After quote no space??
 	c.Next()        // zBlank
 	l, _ = c.Next() // zString
-	rr.Replacement = l.token
 
 	name, nameOk := toAbsoluteName(l.token, o)
 	if l.err || !nameOk {
@@ -588,7 +579,6 @@ func (rr *TALINK) parse(c *zlexer, o string) *ParseError {
 
 	c.Next() // zBlank
 	l, _ = c.Next()
-	rr.NextName = l.token
 
 	nextName, nextNameOk := toAbsoluteName(l.token, o)
 	if l.err || !nextNameOk {
@@ -761,7 +751,7 @@ func (rr *HIP) parse(c *zlexer, o string) *ParseError {
 
 	// RendezvousServers (if any)
 	l, _ = c.Next()
-	var xs []string
+	var xs []Name
 	for l.value != zNewline && l.value != zEOF {
 		switch l.value {
 		case zString:
@@ -986,7 +976,6 @@ func (rr *RRSIG) parse(c *zlexer, o string) *ParseError {
 
 	c.Next() // zBlank
 	l, _ = c.Next()
-	rr.SignerName = l.token
 	name, nameOk := toAbsoluteName(l.token, o)
 	if l.err || !nameOk {
 		return &ParseError{err: "bad RRSIG SignerName", lex: l}
@@ -1330,7 +1319,7 @@ func (rr *AMTRELAY) parse(c *zlexer, o string) *ParseError {
 }
 
 // same constants and parsing between IPSECKEY and AMTRELAY
-func parseAddrHostUnion(token, o string, gatewayType uint8) (addr netip.Addr, host string, err error) {
+func parseAddrHostUnion(token, o string, gatewayType uint8) (addr netip.Addr, host Name, err error) {
 	switch gatewayType {
 	case IPSECGatewayNone:
 		if token != "." {
@@ -1707,7 +1696,6 @@ func (rr *LP) parse(c *zlexer, o string) *ParseError {
 
 	c.Next()        // zBlank
 	l, _ = c.Next() // zString
-	rr.Fqdn = l.token
 	name, nameOk := toAbsoluteName(l.token, o)
 	if l.err || !nameOk {
 		return &ParseError{err: "bad LP Fqdn", lex: l}
@@ -1775,7 +1763,6 @@ func (rr *PX) parse(c *zlexer, o string) *ParseError {
 
 	c.Next()        // zBlank
 	l, _ = c.Next() // zString
-	rr.Map822 = l.token
 	map822, map822Ok := toAbsoluteName(l.token, o)
 	if l.err || !map822Ok {
 		return &ParseError{err: "bad PX Map822", lex: l}
@@ -1784,7 +1771,6 @@ func (rr *PX) parse(c *zlexer, o string) *ParseError {
 
 	c.Next()        // zBlank
 	l, _ = c.Next() // zString
-	rr.Mapx400 = l.token
 	mapx400, mapx400Ok := toAbsoluteName(l.token, o)
 	if l.err || !mapx400Ok {
 		return &ParseError{err: "bad PX Mapx400", lex: l}
@@ -1827,7 +1813,11 @@ func (rr *TKEY) parse(c *zlexer, o string) *ParseError {
 	if l.value != zString {
 		return &ParseError{err: "bad TKEY algorithm", lex: l}
 	}
-	rr.Algorithm = l.token
+	var err error
+	rr.Algorithm, err = NameFromString(Fqdn(l.token))
+	if err != nil {
+		return &ParseError{err: "bad TKEY algorithm", lex: l}
+	}
 	c.Next() // zBlank
 
 	// Get the key length and key values

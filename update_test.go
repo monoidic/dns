@@ -47,7 +47,7 @@ func TestDynamicUpdateUnpack(t *testing.T) {
 
 func TestDynamicUpdateZeroRdataUnpack(t *testing.T) {
 	m := new(Msg)
-	rr := &RR_Header{Name: ".", Rrtype: 0, Class: 1, Ttl: ^uint32(0), Rdlength: 0}
+	rr := &RR_Header{Name: mustParseName("."), Rrtype: 0, Class: 1, Ttl: ^uint32(0), Rdlength: 0}
 	m.Answer = []RR{rr, rr, rr, rr, rr}
 	m.Ns = m.Answer
 	for n, s := range TypeToString {
@@ -68,7 +68,7 @@ func TestRemoveRRset(t *testing.T) {
 	// for each set mentioned in the RRs provided to it.
 	rr := testRR(". 100 IN A 127.0.0.1")
 	m := new(Msg)
-	m.Ns = []RR{&RR_Header{Name: ".", Rrtype: TypeA, Class: ClassANY, Ttl: 0, Rdlength: 0}}
+	m.Ns = []RR{&RR_Header{Name: mustParseName("."), Rrtype: TypeA, Class: ClassANY, Ttl: 0, Rdlength: 0}}
 	expectstr := m.String()
 	expect, err := m.Pack()
 	if err != nil {
@@ -95,7 +95,7 @@ func TestPreReqAndRemovals(t *testing.T) {
 	// Build a list of multiple prereqs and then some removes followed by an insert.
 	// We should be able to add multiple prereqs and updates.
 	m := new(Msg)
-	m.SetUpdate("example.org.")
+	m.SetUpdate(mustParseName("example.org."))
 	m.Id = 1234
 
 	// Use a full set of RRs each time, so we are sure the rdata is stripped.

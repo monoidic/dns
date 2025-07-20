@@ -48,7 +48,7 @@ func TestSplitN(t *testing.T) {
 	}
 
 	s := ""
-	for i := 0; i < 255; i++ {
+	for range 255 {
 		s += "a"
 	}
 
@@ -64,7 +64,7 @@ func TestSplitN(t *testing.T) {
 	}
 
 	// Make s longer
-	for i := 0; i < 255; i++ {
+	for range 255 {
 		s += "a"
 	}
 	xs = splitN(s, 255)
@@ -124,15 +124,23 @@ func TestSprintTxt(t *testing.T) {
 }
 
 func TestRPStringer(t *testing.T) {
+	mbox, err := NameFromString("\x05first.example.com.")
+	if err != nil {
+		panic(err)
+	}
+	txt, err := NameFromString("second.\x07example.com.")
+	if err != nil {
+		panic(err)
+	}
 	rp := &RP{
 		Hdr: RR_Header{
-			Name:   "test.example.com.",
+			Name:   mustParseName("test.example.com."),
 			Rrtype: TypeRP,
 			Class:  ClassINET,
 			Ttl:    600,
 		},
-		Mbox: "\x05first.example.com.",
-		Txt:  "second.\x07example.com.",
+		Mbox: mbox,
+		Txt:  txt,
 	}
 
 	const expected = "test.example.com.\t600\tIN\tRP\t\\005first.example.com. second.\\007example.com."
@@ -140,7 +148,7 @@ func TestRPStringer(t *testing.T) {
 		t.Errorf("expected %v, got %v", expected, rp)
 	}
 
-	_, err := NewRR(rp.String())
+	_, err = NewRR(rp.String())
 	if err != nil {
 		t.Fatalf("error parsing %q: %v", rp, err)
 	}

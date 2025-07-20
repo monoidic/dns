@@ -87,8 +87,8 @@ func (r1 *APL) isDuplicate(_r2 RR) bool {
 	if len(r1.Prefixes) != len(r2.Prefixes) {
 		return false
 	}
-	for i := 0; i < len(r1.Prefixes); i++ {
-		if !r1.Prefixes[i].equals(&r2.Prefixes[i]) {
+	for i, v := range r1.Prefixes {
+		if !v.equals(&r2.Prefixes[i]) {
 			return false
 		}
 	}
@@ -104,8 +104,8 @@ func (r1 *AVC) isDuplicate(_r2 RR) bool {
 	if len(r1.Txt) != len(r2.Txt) {
 		return false
 	}
-	for i := 0; i < len(r1.Txt); i++ {
-		if r1.Txt[i] != r2.Txt[i] {
+	for i, v := range r1.Txt {
+		if v != r2.Txt[i] {
 			return false
 		}
 	}
@@ -220,8 +220,8 @@ func (r1 *CSYNC) isDuplicate(_r2 RR) bool {
 	if len(r1.TypeBitMap) != len(r2.TypeBitMap) {
 		return false
 	}
-	for i := 0; i < len(r1.TypeBitMap); i++ {
-		if r1.TypeBitMap[i] != r2.TypeBitMap[i] {
+	for i, v := range r1.TypeBitMap {
+		if v != r2.TypeBitMap[i] {
 			return false
 		}
 	}
@@ -420,8 +420,8 @@ func (r1 *HIP) isDuplicate(_r2 RR) bool {
 	if len(r1.RendezvousServers) != len(r2.RendezvousServers) {
 		return false
 	}
-	for i := 0; i < len(r1.RendezvousServers); i++ {
-		if !isDuplicateName(r1.RendezvousServers[i], r2.RendezvousServers[i]) {
+	for i, v := range r1.RendezvousServers {
+		if !isDuplicateName(v, r2.RendezvousServers[i]) {
 			return false
 		}
 	}
@@ -760,8 +760,8 @@ func (r1 *NINFO) isDuplicate(_r2 RR) bool {
 	if len(r1.ZSData) != len(r2.ZSData) {
 		return false
 	}
-	for i := 0; i < len(r1.ZSData); i++ {
-		if r1.ZSData[i] != r2.ZSData[i] {
+	for i, v := range r1.ZSData {
+		if v != r2.ZSData[i] {
 			return false
 		}
 	}
@@ -804,8 +804,8 @@ func (r1 *NSEC) isDuplicate(_r2 RR) bool {
 	if len(r1.TypeBitMap) != len(r2.TypeBitMap) {
 		return false
 	}
-	for i := 0; i < len(r1.TypeBitMap); i++ {
-		if r1.TypeBitMap[i] != r2.TypeBitMap[i] {
+	for i, v := range r1.TypeBitMap {
+		if v != r2.TypeBitMap[i] {
 			return false
 		}
 	}
@@ -842,8 +842,8 @@ func (r1 *NSEC3) isDuplicate(_r2 RR) bool {
 	if len(r1.TypeBitMap) != len(r2.TypeBitMap) {
 		return false
 	}
-	for i := 0; i < len(r1.TypeBitMap); i++ {
-		if r1.TypeBitMap[i] != r2.TypeBitMap[i] {
+	for i, v := range r1.TypeBitMap {
+		if v != r2.TypeBitMap[i] {
 			return false
 		}
 	}
@@ -907,8 +907,8 @@ func (r1 *NXT) isDuplicate(_r2 RR) bool {
 	if len(r1.TypeBitMap) != len(r2.TypeBitMap) {
 		return false
 	}
-	for i := 0; i < len(r1.TypeBitMap); i++ {
-		if r1.TypeBitMap[i] != r2.TypeBitMap[i] {
+	for i, v := range r1.TypeBitMap {
+		if v != r2.TypeBitMap[i] {
 			return false
 		}
 	}
@@ -966,8 +966,8 @@ func (r1 *RESINFO) isDuplicate(_r2 RR) bool {
 	if len(r1.Txt) != len(r2.Txt) {
 		return false
 	}
-	for i := 0; i < len(r1.Txt); i++ {
-		if r1.Txt[i] != r2.Txt[i] {
+	for i, v := range r1.Txt {
+		if v != r2.Txt[i] {
 			return false
 		}
 	}
@@ -1169,8 +1169,8 @@ func (r1 *SPF) isDuplicate(_r2 RR) bool {
 	if len(r1.Txt) != len(r2.Txt) {
 		return false
 	}
-	for i := 0; i < len(r1.Txt); i++ {
-		if r1.Txt[i] != r2.Txt[i] {
+	for i, v := range r1.Txt {
+		if v != r2.Txt[i] {
 			return false
 		}
 	}
@@ -1375,8 +1375,8 @@ func (r1 *TXT) isDuplicate(_r2 RR) bool {
 	if len(r1.Txt) != len(r2.Txt) {
 		return false
 	}
-	for i := 0; i < len(r1.Txt); i++ {
-		if r1.Txt[i] != r2.Txt[i] {
+	for i, v := range r1.Txt {
+		if v != r2.Txt[i] {
 			return false
 		}
 	}

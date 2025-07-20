@@ -115,7 +115,7 @@ type rrsigWireFmt struct {
 	Expiration  uint32
 	Inception   uint32
 	KeyTag      uint16
-	SignerName  string `dns:"domain-name"`
+	SignerName  Name `dns:"domain-name"`
 	/* No Signature */
 }
 
@@ -196,7 +196,7 @@ func (k *DNSKEY) ToDS(h uint8) *DS {
 	wire = wire[:n]
 
 	owner := make([]byte, 255)
-	off, err1 := PackDomainName(CanonicalName(k.Hdr.Name), owner, 0, nil, false)
+	off, err1 := PackDomainName(k.Hdr.Name.Canonical(), owner, 0, nil, false)
 	if err1 != nil {
 		return nil
 	}
@@ -258,9 +258,9 @@ func (rr *RRSIG) Sign(k crypto.Signer, rrset []RR) error {
 		rr.OrigTtl = h0.Ttl
 	}
 	rr.TypeCovered = h0.Rrtype
-	rr.Labels = uint8(CountLabel(h0.Name))
+	rr.Labels = uint8(h0.Name.CountLabel())
 
-	if strings.HasPrefix(h0.Name, "*") {
+	if strings.HasPrefix(h0.Name.String(), "*") {
 		rr.Labels-- // wildcard, remove from label count
 	}
 
@@ -272,7 +272,7 @@ func (rr *RRSIG) signAsIs(k crypto.Signer, rrset []RR) error {
 		return ErrPrivKey
 	}
 	// s.Inception and s.Expiration may be 0 (rollover etc.), the rest must be set
-	if rr.KeyTag == 0 || len(rr.SignerName) == 0 || rr.Algorithm == 0 {
+	if rr.KeyTag == 0 || rr.SignerName.EncodedLen() == 0 || rr.Algorithm == 0 {
 		return ErrKey
 	}
 
@@ -285,7 +285,7 @@ func (rr *RRSIG) signAsIs(k crypto.Signer, rrset []RR) error {
 	sigwire.Inception = rr.Inception
 	sigwire.KeyTag = rr.KeyTag
 	// For signing, lowercase this name
-	sigwire.SignerName = CanonicalName(rr.SignerName)
+	sigwire.SignerName = rr.SignerName.Canonical()
 
 	// Create the desired binary blob
 	signdata := make([]byte, DefaultMsgSize)
@@ -375,8 +375,8 @@ func (rr *RRSIG) Verify(k *DNSKEY, rrset []RR) error {
 		return ErrKey
 	}
 
-	signerName := CanonicalName(rr.SignerName)
-	if !equal(signerName, k.Hdr.Name) {
+	signerName := rr.SignerName.Canonical()
+	if !isDuplicateName(signerName, k.Hdr.Name) {
 		return ErrKey
 	}
 
@@ -399,9 +399,9 @@ func (rr *RRSIG) Verify(k *DNSKEY, rrset []RR) error {
 	// Since we don't have SOA info, checking suffix may be the best we can do...?
 	if h0 := rrset[0].Header(); h0.Class != rr.Hdr.Class ||
 		h0.Rrtype != rr.TypeCovered ||
-		uint8(CountLabel(h0.Name)) < rr.Labels ||
-		!equal(h0.Name, rr.Hdr.Name) ||
-		!strings.HasSuffix(CanonicalName(h0.Name), signerName) {
+		uint8(h0.Name.CountLabel()) < rr.Labels ||
+		!isDuplicateName(h0.Name.Canonical(), rr.Hdr.Name.Canonical()) ||
+		!strings.HasSuffix(h0.Name.Canonical().String(), signerName.String()) {
 
 		return ErrRRset
 	}
@@ -625,49 +625,49 @@ func canonicalize(r1 RR) {
 	//	conversion.
 	switch x := r1.(type) {
 	case *NS:
-		x.Ns = CanonicalName(x.Ns)
+		x.Ns = x.Ns.Canonical()
 	case *MD:
-		x.Md = CanonicalName(x.Md)
+		x.Md = x.Md.Canonical()
 	case *MF:
-		x.Mf = CanonicalName(x.Mf)
+		x.Mf = x.Mf.Canonical()
 	case *CNAME:
-		x.Target = CanonicalName(x.Target)
+		x.Target = x.Target.Canonical()
 	case *SOA:
-		x.Ns = CanonicalName(x.Ns)
-		x.Mbox = CanonicalName(x.Mbox)
+		x.Ns = x.Ns.Canonical()
+		x.Mbox = x.Mbox.Canonical()
 	case *MB:
-		x.Mb = CanonicalName(x.Mb)
+		x.Mb = x.Mb.Canonical()
 	case *MG:
-		x.Mg = CanonicalName(x.Mg)
+		x.Mg = x.Mg.Canonical()
 	case *MR:
-		x.Mr = CanonicalName(x.Mr)
+		x.Mr = x.Mr.Canonical()
 	case *PTR:
-		x.Ptr = CanonicalName(x.Ptr)
+		x.Ptr = x.Ptr.Canonical()
 	case *MINFO:
-		x.Rmail = CanonicalName(x.Rmail)
-		x.Email = CanonicalName(x.Email)
+		x.Rmail = x.Rmail.Canonical()
+		x.Email = x.Email.Canonical()
 	case *MX:
-		x.Mx = CanonicalName(x.Mx)
+		x.Mx = x.Mx.Canonical()
 	case *RP:
-		x.Mbox = CanonicalName(x.Mbox)
-		x.Txt = CanonicalName(x.Txt)
+		x.Mbox = x.Mbox.Canonical()
+		x.Txt = x.Txt.Canonical()
 	case *AFSDB:
-		x.Hostname = CanonicalName(x.Hostname)
+		x.Hostname = x.Hostname.Canonical()
 	case *RT:
-		x.Host = CanonicalName(x.Host)
+		x.Host = x.Host.Canonical()
 	case *SIG:
-		x.SignerName = CanonicalName(x.SignerName)
+		x.SignerName = x.SignerName.Canonical()
 	case *PX:
-		x.Map822 = CanonicalName(x.Map822)
-		x.Mapx400 = CanonicalName(x.Mapx400)
+		x.Map822 = x.Map822.Canonical()
+		x.Mapx400 = x.Mapx400.Canonical()
 	case *NAPTR:
-		x.Replacement = CanonicalName(x.Replacement)
+		x.Replacement = x.Replacement.Canonical()
 	case *KX:
-		x.Exchanger = CanonicalName(x.Exchanger)
+		x.Exchanger = x.Exchanger.Canonical()
 	case *SRV:
-		x.Target = CanonicalName(x.Target)
+		x.Target = x.Target.Canonical()
 	case *DNAME:
-		x.Target = CanonicalName(x.Target)
+		x.Target = x.Target.Canonical()
 	}
 }
 
@@ -678,20 +678,24 @@ func rawSignatureData(rrset []RR, s *RRSIG) (buf []byte, err error) {
 		r1 := r.copy()
 		h := r1.Header()
 		h.Ttl = s.OrigTtl
-		labels := SplitDomainName(h.Name)
+		labels := h.Name.SplitRaw()
 		// 6.2. Canonical RR Form. (4) - wildcards
 		if len(labels) > int(s.Labels) {
 			// Wildcard
-			h.Name = "*." + strings.Join(labels[len(labels)-int(s.Labels):], ".") + "."
+			joinLabels := append([][]byte{[]byte("*")}, labels[len(labels)-int(s.Labels):]...)
+			h.Name, err = NameFromLabels(joinLabels)
+			if err != nil {
+				return nil, err
+			}
 		}
 		// RFC 4034: 6.2.  Canonical RR Form. (2) - domain name to lowercase
-		h.Name = CanonicalName(h.Name)
+		h.Name = h.Name.Canonical()
 		canonicalize(r1)
 		// 6.2. Canonical RR Form. (5) - origTTL
 		wire := make([]byte, Len(r1)+1) // +1 to be safe(r)
-		off, err1 := PackRR(r1, wire, 0, nil, false)
-		if err1 != nil {
-			return nil, err1
+		off, err := PackRR(r1, wire, 0, nil, false)
+		if err != nil {
+			return nil, err
 		}
 		wire = wire[:off]
 		wires[i] = wire
@@ -708,34 +712,18 @@ func rawSignatureData(rrset []RR, s *RRSIG) (buf []byte, err error) {
 
 func packSigWire(sw *rrsigWireFmt, msg []byte) (int, error) {
 	// copied from zmsg.go RRSIG packing
-	off, err := packUint16(sw.TypeCovered, msg, 0)
-	if err != nil {
-		return off, err
+	if len(msg) < 18 {
+		return len(msg), ErrBuf
 	}
-	off, err = packUint8(sw.Algorithm, msg, off)
-	if err != nil {
-		return off, err
-	}
-	off, err = packUint8(sw.Labels, msg, off)
-	if err != nil {
-		return off, err
-	}
-	off, err = packUint32(sw.OrigTtl, msg, off)
-	if err != nil {
-		return off, err
-	}
-	off, err = packUint32(sw.Expiration, msg, off)
-	if err != nil {
-		return off, err
-	}
-	off, err = packUint32(sw.Inception, msg, off)
-	if err != nil {
-		return off, err
-	}
-	off, err = packUint16(sw.KeyTag, msg, off)
-	if err != nil {
-		return off, err
-	}
+	binary.BigEndian.PutUint16(msg[0:], sw.TypeCovered)
+	msg[2] = sw.Algorithm
+	msg[3] = sw.Labels
+	binary.BigEndian.PutUint32(msg[4:], sw.OrigTtl)
+	binary.BigEndian.PutUint32(msg[8:], sw.Expiration)
+	binary.BigEndian.PutUint32(msg[12:], sw.Inception)
+	binary.BigEndian.PutUint16(msg[16:], sw.KeyTag)
+	off := 18
+	var err error
 	off, err = PackDomainName(sw.SignerName, msg, off, nil, false)
 	if err != nil {
 		return off, err
@@ -745,18 +733,14 @@ func packSigWire(sw *rrsigWireFmt, msg []byte) (int, error) {
 
 func packKeyWire(dw *dnskeyWireFmt, msg []byte) (int, error) {
 	// copied from zmsg.go DNSKEY packing
-	off, err := packUint16(dw.Flags, msg, 0)
-	if err != nil {
-		return off, err
+	if len(msg) < 4 {
+		return len(msg), ErrBuf
 	}
-	off, err = packUint8(dw.Protocol, msg, off)
-	if err != nil {
-		return off, err
-	}
-	off, err = packUint8(dw.Algorithm, msg, off)
-	if err != nil {
-		return off, err
-	}
+	binary.BigEndian.PutUint16(msg[0:], dw.Flags)
+	msg[2] = dw.Protocol
+	msg[3] = dw.Algorithm
+	off := 4
+	var err error
 	off, err = packStringBase64(dw.PublicKey, msg, off)
 	if err != nil {
 		return off, err

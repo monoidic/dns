@@ -49,8 +49,8 @@ func MultipleEnvelopeXfrServer(w ResponseWriter, req *Msg) {
 }
 
 func TestInvalidXfr(t *testing.T) {
-	HandleFunc("miek.nl.", InvalidXfrServer)
-	defer HandleRemove("miek.nl.")
+	HandleFunc(mustParseName("miek.nl."), InvalidXfrServer)
+	defer HandleRemove(mustParseName("miek.nl."))
 
 	s, addrstr, _, err := RunLocalTCPServer(":0")
 	if err != nil {
@@ -60,7 +60,7 @@ func TestInvalidXfr(t *testing.T) {
 
 	tr := new(Transfer)
 	m := new(Msg)
-	m.SetAxfr("miek.nl.")
+	m.SetAxfr(mustParseName("miek.nl."))
 
 	c, err := tr.In(m, addrstr)
 	if err != nil {
@@ -75,8 +75,8 @@ func TestInvalidXfr(t *testing.T) {
 }
 
 func TestSingleEnvelopeXfr(t *testing.T) {
-	HandleFunc("miek.nl.", SingleEnvelopeXfrServer)
-	defer HandleRemove("miek.nl.")
+	HandleFunc(mustParseName("miek.nl."), SingleEnvelopeXfrServer)
+	defer HandleRemove(mustParseName("miek.nl."))
 
 	s, addrstr, _, err := RunLocalTCPServer(":0", func(srv *Server) {
 		srv.TsigSecret = tsigSecret
@@ -90,8 +90,8 @@ func TestSingleEnvelopeXfr(t *testing.T) {
 }
 
 func TestSingleEnvelopeXfrTLS(t *testing.T) {
-	HandleFunc("miek.nl.", SingleEnvelopeXfrServer)
-	defer HandleRemove("miek.nl.")
+	HandleFunc(mustParseName("miek.nl."), SingleEnvelopeXfrServer)
+	defer HandleRemove(mustParseName("miek.nl."))
 
 	cert, err := tls.X509KeyPair(CertPEMBlock, KeyPEMBlock)
 	if err != nil {
@@ -111,8 +111,8 @@ func TestSingleEnvelopeXfrTLS(t *testing.T) {
 }
 
 func TestMultiEnvelopeXfr(t *testing.T) {
-	HandleFunc("miek.nl.", MultipleEnvelopeXfrServer)
-	defer HandleRemove("miek.nl.")
+	HandleFunc(mustParseName("miek.nl."), MultipleEnvelopeXfrServer)
+	defer HandleRemove(mustParseName("miek.nl."))
 
 	s, addrstr, _, err := RunLocalTCPServer(":0", func(srv *Server) {
 		srv.TsigSecret = tsigSecret
@@ -128,7 +128,7 @@ func TestMultiEnvelopeXfr(t *testing.T) {
 func axfrTestingSuite(t *testing.T, addrstr string) {
 	tr := new(Transfer)
 	m := new(Msg)
-	m.SetAxfr("miek.nl.")
+	m.SetAxfr(mustParseName("miek.nl."))
 
 	c, err := tr.In(m, addrstr)
 	if err != nil {
@@ -157,7 +157,7 @@ func axfrTestingSuite(t *testing.T, addrstr string) {
 func axfrTestingSuiteTLS(t *testing.T, addrstr string) {
 	tr := new(Transfer)
 	m := new(Msg)
-	m.SetAxfr("miek.nl.")
+	m.SetAxfr(mustParseName("miek.nl."))
 
 	tr.TLS = &tls.Config{
 		InsecureSkipVerify: true,
@@ -195,8 +195,8 @@ func axfrTestingSuiteWithCustomTsig(t *testing.T, addrstr string, provider TsigP
 		t.Fatal("failed to dial", err)
 	}
 	tr.TsigProvider = provider
-	m.SetAxfr("miek.nl.")
-	m.SetTsig("axfr.", HmacSHA256, 300, time.Now().Unix())
+	m.SetAxfr(mustParseName("miek.nl."))
+	m.SetTsig(mustParseName("axfr."), HmacSHA256, 300, time.Now().Unix())
 
 	c, err := tr.In(m, addrstr)
 	if err != nil {
@@ -231,7 +231,7 @@ func axfrTestingSuiteWithMsgNotSigned(t *testing.T, addrstr string, provider Tsi
 		t.Fatal("failed to dial", err)
 	}
 	tr.TsigProvider = provider
-	m.SetAxfr("miek.nl.")
+	m.SetAxfr(mustParseName("miek.nl."))
 
 	c, err := tr.In(m, addrstr)
 	if err != nil {
@@ -246,8 +246,8 @@ func axfrTestingSuiteWithMsgNotSigned(t *testing.T, addrstr string, provider Tsi
 }
 
 func TestCustomTsigProvider(t *testing.T) {
-	HandleFunc("miek.nl.", SingleEnvelopeXfrServer)
-	defer HandleRemove("miek.nl.")
+	HandleFunc(mustParseName("miek.nl."), SingleEnvelopeXfrServer)
+	defer HandleRemove(mustParseName("miek.nl."))
 
 	s, addrstr, _, err := RunLocalTCPServer(":0", func(srv *Server) {
 		srv.TsigProvider = tsigSecretProvider(tsigSecret)
@@ -261,8 +261,8 @@ func TestCustomTsigProvider(t *testing.T) {
 }
 
 func TestTSIGNotSigned(t *testing.T) {
-	HandleFunc("miek.nl.", SingleEnvelopeXfrServer)
-	defer HandleRemove("miek.nl.")
+	HandleFunc(mustParseName("miek.nl."), SingleEnvelopeXfrServer)
+	defer HandleRemove(mustParseName("miek.nl."))
 
 	s, addrstr, _, err := RunLocalTCPServer(":0")
 	if err != nil {

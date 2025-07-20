@@ -266,7 +266,7 @@ func (rr *X25) Header() *RR_Header        { return &rr.Hdr }
 func (rr *ZONEMD) Header() *RR_Header     { return &rr.Hdr }
 
 // len() functions
-func (rr *A) len(off int, compression map[string]struct{}) int {
+func (rr *A) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	if rr.A.IsValid() {
 		l += net.IPv4len
@@ -274,7 +274,7 @@ func (rr *A) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *AAAA) len(off int, compression map[string]struct{}) int {
+func (rr *AAAA) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	if rr.AAAA.IsValid() {
 		l += net.IPv6len
@@ -282,14 +282,14 @@ func (rr *AAAA) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *AFSDB) len(off int, compression map[string]struct{}) int {
+func (rr *AFSDB) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // Subtype
 	l += domainNameLen(rr.Hostname, off+l, compression, false)
 	return l
 }
 
-func (rr *AMTRELAY) len(off int, compression map[string]struct{}) int {
+func (rr *AMTRELAY) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l++ // Precedence
 	l++ // GatewayType
@@ -304,12 +304,12 @@ func (rr *AMTRELAY) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *ANY) len(off int, compression map[string]struct{}) int {
+func (rr *ANY) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	return l
 }
 
-func (rr *APL) len(off int, compression map[string]struct{}) int {
+func (rr *APL) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	for _, x := range rr.Prefixes {
 		l += x.len()
@@ -317,7 +317,7 @@ func (rr *APL) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *AVC) len(off int, compression map[string]struct{}) int {
+func (rr *AVC) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	for _, x := range rr.Txt {
 		l += escapedNameLen(x) + 1
@@ -325,7 +325,7 @@ func (rr *AVC) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *CAA) len(off int, compression map[string]struct{}) int {
+func (rr *CAA) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l++ // Flag
 	l += escapedNameLen(rr.Tag) + 1
@@ -333,7 +333,7 @@ func (rr *CAA) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *CERT) len(off int, compression map[string]struct{}) int {
+func (rr *CERT) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // Type
 	l += 2 // KeyTag
@@ -342,25 +342,25 @@ func (rr *CERT) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *CNAME) len(off int, compression map[string]struct{}) int {
+func (rr *CNAME) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += domainNameLen(rr.Target, off+l, compression, true)
 	return l
 }
 
-func (rr *DHCID) len(off int, compression map[string]struct{}) int {
+func (rr *DHCID) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += base64StringDecodedLen(rr.Digest)
 	return l
 }
 
-func (rr *DNAME) len(off int, compression map[string]struct{}) int {
+func (rr *DNAME) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += domainNameLen(rr.Target, off+l, compression, false)
 	return l
 }
 
-func (rr *DNSKEY) len(off int, compression map[string]struct{}) int {
+func (rr *DNSKEY) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // Flags
 	l++    // Protocol
@@ -369,7 +369,7 @@ func (rr *DNSKEY) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *DS) len(off int, compression map[string]struct{}) int {
+func (rr *DS) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // KeyTag
 	l++    // Algorithm
@@ -378,31 +378,31 @@ func (rr *DS) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *EID) len(off int, compression map[string]struct{}) int {
+func (rr *EID) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += len(rr.Endpoint) / 2
 	return l
 }
 
-func (rr *EUI48) len(off int, compression map[string]struct{}) int {
+func (rr *EUI48) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 6 // Address
 	return l
 }
 
-func (rr *EUI64) len(off int, compression map[string]struct{}) int {
+func (rr *EUI64) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 8 // Address
 	return l
 }
 
-func (rr *GID) len(off int, compression map[string]struct{}) int {
+func (rr *GID) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 4 // Gid
 	return l
 }
 
-func (rr *GPOS) len(off int, compression map[string]struct{}) int {
+func (rr *GPOS) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += escapedNameLen(rr.Longitude) + 1
 	l += escapedNameLen(rr.Latitude) + 1
@@ -410,14 +410,14 @@ func (rr *GPOS) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *HINFO) len(off int, compression map[string]struct{}) int {
+func (rr *HINFO) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += escapedNameLen(rr.Cpu) + 1
 	l += escapedNameLen(rr.Os) + 1
 	return l
 }
 
-func (rr *HIP) len(off int, compression map[string]struct{}) int {
+func (rr *HIP) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l++    // HitLength
 	l++    // PublicKeyAlgorithm
@@ -430,7 +430,7 @@ func (rr *HIP) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *IPSECKEY) len(off int, compression map[string]struct{}) int {
+func (rr *IPSECKEY) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l++ // Precedence
 	l++ // GatewayType
@@ -447,21 +447,21 @@ func (rr *IPSECKEY) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *ISDN) len(off int, compression map[string]struct{}) int {
+func (rr *ISDN) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += escapedNameLen(rr.Address) + 1
 	l += escapedNameLen(rr.SubAddress) + 1
 	return l
 }
 
-func (rr *KX) len(off int, compression map[string]struct{}) int {
+func (rr *KX) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // Preference
 	l += domainNameLen(rr.Exchanger, off+l, compression, false)
 	return l
 }
 
-func (rr *L32) len(off int, compression map[string]struct{}) int {
+func (rr *L32) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // Preference
 	if rr.Locator32.IsValid() {
@@ -470,14 +470,14 @@ func (rr *L32) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *L64) len(off int, compression map[string]struct{}) int {
+func (rr *L64) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // Preference
 	l += 8 // Locator64
 	return l
 }
 
-func (rr *LOC) len(off int, compression map[string]struct{}) int {
+func (rr *LOC) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l++    // Version
 	l++    // Size
@@ -489,58 +489,58 @@ func (rr *LOC) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *LP) len(off int, compression map[string]struct{}) int {
+func (rr *LP) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // Preference
 	l += domainNameLen(rr.Fqdn, off+l, compression, false)
 	return l
 }
 
-func (rr *MB) len(off int, compression map[string]struct{}) int {
+func (rr *MB) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += domainNameLen(rr.Mb, off+l, compression, true)
 	return l
 }
 
-func (rr *MD) len(off int, compression map[string]struct{}) int {
+func (rr *MD) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += domainNameLen(rr.Md, off+l, compression, true)
 	return l
 }
 
-func (rr *MF) len(off int, compression map[string]struct{}) int {
+func (rr *MF) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += domainNameLen(rr.Mf, off+l, compression, true)
 	return l
 }
 
-func (rr *MG) len(off int, compression map[string]struct{}) int {
+func (rr *MG) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += domainNameLen(rr.Mg, off+l, compression, true)
 	return l
 }
 
-func (rr *MINFO) len(off int, compression map[string]struct{}) int {
+func (rr *MINFO) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += domainNameLen(rr.Rmail, off+l, compression, true)
 	l += domainNameLen(rr.Email, off+l, compression, true)
 	return l
 }
 
-func (rr *MR) len(off int, compression map[string]struct{}) int {
+func (rr *MR) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += domainNameLen(rr.Mr, off+l, compression, true)
 	return l
 }
 
-func (rr *MX) len(off int, compression map[string]struct{}) int {
+func (rr *MX) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // Preference
 	l += domainNameLen(rr.Mx, off+l, compression, true)
 	return l
 }
 
-func (rr *NAPTR) len(off int, compression map[string]struct{}) int {
+func (rr *NAPTR) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // Order
 	l += 2 // Preference
@@ -551,20 +551,20 @@ func (rr *NAPTR) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *NID) len(off int, compression map[string]struct{}) int {
+func (rr *NID) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // Preference
 	l += 8 // NodeID
 	return l
 }
 
-func (rr *NIMLOC) len(off int, compression map[string]struct{}) int {
+func (rr *NIMLOC) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += len(rr.Locator) / 2
 	return l
 }
 
-func (rr *NINFO) len(off int, compression map[string]struct{}) int {
+func (rr *NINFO) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	for _, x := range rr.ZSData {
 		l += escapedNameLen(x) + 1
@@ -572,19 +572,19 @@ func (rr *NINFO) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *NS) len(off int, compression map[string]struct{}) int {
+func (rr *NS) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += domainNameLen(rr.Ns, off+l, compression, true)
 	return l
 }
 
-func (rr *NSAPPTR) len(off int, compression map[string]struct{}) int {
+func (rr *NSAPPTR) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += domainNameLen(rr.Ptr, off+l, compression, false)
 	return l
 }
 
-func (rr *NSEC3PARAM) len(off int, compression map[string]struct{}) int {
+func (rr *NSEC3PARAM) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l++    // Hash
 	l++    // Flags
@@ -594,30 +594,30 @@ func (rr *NSEC3PARAM) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *NULL) len(off int, compression map[string]struct{}) int {
+func (rr *NULL) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += len(rr.Data)
 	return l
 }
 
-func (rr *NXNAME) len(off int, compression map[string]struct{}) int {
+func (rr *NXNAME) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	return l
 }
 
-func (rr *OPENPGPKEY) len(off int, compression map[string]struct{}) int {
+func (rr *OPENPGPKEY) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += base64StringDecodedLen(rr.PublicKey)
 	return l
 }
 
-func (rr *PTR) len(off int, compression map[string]struct{}) int {
+func (rr *PTR) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += domainNameLen(rr.Ptr, off+l, compression, true)
 	return l
 }
 
-func (rr *PX) len(off int, compression map[string]struct{}) int {
+func (rr *PX) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // Preference
 	l += domainNameLen(rr.Map822, off+l, compression, false)
@@ -625,7 +625,7 @@ func (rr *PX) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *RESINFO) len(off int, compression map[string]struct{}) int {
+func (rr *RESINFO) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	for _, x := range rr.Txt {
 		l += escapedNameLen(x) + 1
@@ -633,13 +633,13 @@ func (rr *RESINFO) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *RFC3597) len(off int, compression map[string]struct{}) int {
+func (rr *RFC3597) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += len(rr.Rdata) / 2
 	return l
 }
 
-func (rr *RKEY) len(off int, compression map[string]struct{}) int {
+func (rr *RKEY) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // Flags
 	l++    // Protocol
@@ -648,14 +648,14 @@ func (rr *RKEY) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *RP) len(off int, compression map[string]struct{}) int {
+func (rr *RP) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += domainNameLen(rr.Mbox, off+l, compression, false)
 	l += domainNameLen(rr.Txt, off+l, compression, false)
 	return l
 }
 
-func (rr *RRSIG) len(off int, compression map[string]struct{}) int {
+func (rr *RRSIG) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // TypeCovered
 	l++    // Algorithm
@@ -669,14 +669,14 @@ func (rr *RRSIG) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *RT) len(off int, compression map[string]struct{}) int {
+func (rr *RT) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // Preference
 	l += domainNameLen(rr.Host, off+l, compression, false)
 	return l
 }
 
-func (rr *SMIMEA) len(off int, compression map[string]struct{}) int {
+func (rr *SMIMEA) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l++ // Usage
 	l++ // Selector
@@ -685,7 +685,7 @@ func (rr *SMIMEA) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *SOA) len(off int, compression map[string]struct{}) int {
+func (rr *SOA) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += domainNameLen(rr.Ns, off+l, compression, true)
 	l += domainNameLen(rr.Mbox, off+l, compression, true)
@@ -697,7 +697,7 @@ func (rr *SOA) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *SPF) len(off int, compression map[string]struct{}) int {
+func (rr *SPF) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	for _, x := range rr.Txt {
 		l += escapedNameLen(x) + 1
@@ -705,7 +705,7 @@ func (rr *SPF) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *SRV) len(off int, compression map[string]struct{}) int {
+func (rr *SRV) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // Priority
 	l += 2 // Weight
@@ -714,7 +714,7 @@ func (rr *SRV) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *SSHFP) len(off int, compression map[string]struct{}) int {
+func (rr *SSHFP) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l++ // Algorithm
 	l++ // Type
@@ -722,7 +722,7 @@ func (rr *SSHFP) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *SVCB) len(off int, compression map[string]struct{}) int {
+func (rr *SVCB) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // Priority
 	l += domainNameLen(rr.Target, off+l, compression, false)
@@ -732,7 +732,7 @@ func (rr *SVCB) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *TA) len(off int, compression map[string]struct{}) int {
+func (rr *TA) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // KeyTag
 	l++    // Algorithm
@@ -741,14 +741,14 @@ func (rr *TA) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *TALINK) len(off int, compression map[string]struct{}) int {
+func (rr *TALINK) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += domainNameLen(rr.PreviousName, off+l, compression, false)
 	l += domainNameLen(rr.NextName, off+l, compression, false)
 	return l
 }
 
-func (rr *TKEY) len(off int, compression map[string]struct{}) int {
+func (rr *TKEY) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += domainNameLen(rr.Algorithm, off+l, compression, false)
 	l += 4 // Inception
@@ -762,7 +762,7 @@ func (rr *TKEY) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *TLSA) len(off int, compression map[string]struct{}) int {
+func (rr *TLSA) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l++ // Usage
 	l++ // Selector
@@ -771,7 +771,7 @@ func (rr *TLSA) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *TSIG) len(off int, compression map[string]struct{}) int {
+func (rr *TSIG) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += domainNameLen(rr.Algorithm, off+l, compression, false)
 	l += 6 // TimeSigned
@@ -785,7 +785,7 @@ func (rr *TSIG) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *TXT) len(off int, compression map[string]struct{}) int {
+func (rr *TXT) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	for _, x := range rr.Txt {
 		l += escapedNameLen(x) + 1
@@ -793,19 +793,19 @@ func (rr *TXT) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *UID) len(off int, compression map[string]struct{}) int {
+func (rr *UID) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 4 // Uid
 	return l
 }
 
-func (rr *UINFO) len(off int, compression map[string]struct{}) int {
+func (rr *UINFO) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += escapedNameLen(rr.Uinfo) + 1
 	return l
 }
 
-func (rr *URI) len(off int, compression map[string]struct{}) int {
+func (rr *URI) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // Priority
 	l += 2 // Weight
@@ -813,13 +813,13 @@ func (rr *URI) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (rr *X25) len(off int, compression map[string]struct{}) int {
+func (rr *X25) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += escapedNameLen(rr.PSDNAddress) + 1
 	return l
 }
 
-func (rr *ZONEMD) len(off int, compression map[string]struct{}) int {
+func (rr *ZONEMD) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 4 // Serial
 	l++    // Scheme

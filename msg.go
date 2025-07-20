@@ -11,6 +11,7 @@ package dns
 //go:generate go run msg_generate.go
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
@@ -71,6 +72,7 @@ var (
 	ErrSoa           error = &Error{err: "no SOA"}        // ErrSOA indicates that no SOA RR was seen when doing zone transfers.
 	ErrTime          error = &Error{err: "bad time"}      // ErrTime indicates a timing error in TSIG authentication.
 	ErrLen           error = &Error{err: "message too long"}
+	ErrName          error = &Error{err: "invalid name"}
 )
 
 // Id by default returns a 16-bit random number to be used as a message id. The
@@ -168,15 +170,15 @@ var RcodeToString = map[int]string{
 // In particular, map[string]uint16 uses 25% less per-entry memory
 // than does map[string]int.
 type compressionMap struct {
-	ext map[string]int    // external callers
-	int map[string]uint16 // internal callers
+	ext map[Name]int    // external callers
+	int map[Name]uint16 // internal callers
 }
 
 func (m compressionMap) valid() bool {
 	return !(m.int == nil && m.ext == nil)
 }
 
-func (m compressionMap) insert(s string, pos int) {
+func (m compressionMap) insert(s Name, pos int) {
 	if m.ext != nil {
 		m.ext[s] = pos
 	} else {
@@ -184,7 +186,7 @@ func (m compressionMap) insert(s string, pos int) {
 	}
 }
 
-func (m compressionMap) find(s string) (int, bool) {
+func (m compressionMap) find(s Name) (int, bool) {
 	if m.ext != nil {
 		pos, ok := m.ext[s]
 		return pos, ok
@@ -201,162 +203,163 @@ func (m compressionMap) find(s string) (int, bool) {
 // If compression is wanted compress must be true and the compression
 // map needs to hold a mapping between domain names and offsets
 // pointing into msg.
-func PackDomainName(s string, msg []byte, off int, compression map[string]int, compress bool) (off1 int, err error) {
+func PackDomainName(s Name, msg []byte, off int, compression map[Name]int, compress bool) (off1 int, err error) {
 	return packDomainName(s, msg, off, compressionMap{ext: compression}, compress)
 }
 
-func packDomainName(s string, msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
-	// XXX: A logical copy of this function exists in IsDomainName and
-	// should be kept in sync with this function.
-
-	ls := len(s)
-	if ls == 0 { // Ok, for instance when dealing with update RR without any rdata.
-		return off, nil
+// simplified for uncompressed names
+func packName(n Name, msg []byte, off int) (off1 int, err error) {
+	if len(msg[off:]) < len(n.encoded) {
+		return len(msg), ErrBuf
 	}
 
-	// If not fully qualified, error out.
-	if !IsFqdn(s) {
-		return len(msg), ErrFqdn
-	}
-
-	// Each dot ends a segment of the name.
-	// We trade each dot byte for a length byte.
-	// Except for escaped dots (\.), which are normal dots.
-	// There is also a trailing zero.
-
-	// Compression
-	pointer := -1
-
-	// Emit sequence of counted strings, chopping at dots.
-	var (
-		begin     int
-		compBegin int
-		compOff   int
-		bs        []byte
-		wasDot    bool
-	)
-loop:
-	for i := 0; i < ls; i++ {
-		var c byte
-		if bs == nil {
-			c = s[i]
-		} else {
-			c = bs[i]
-		}
-
-		switch c {
-		case '\\':
-			if off+1 > len(msg) {
-				return len(msg), ErrBuf
-			}
-
-			if bs == nil {
-				bs = []byte(s)
-			}
-
-			// check for \DDD
-			if isDDD(bs[i+1:]) {
-				bs[i] = dddToByte(bs[i+1:])
-				copy(bs[i+1:ls-3], bs[i+4:])
-				ls -= 3
-				compOff += 3
-			} else {
-				copy(bs[i:ls-1], bs[i+1:])
-				ls--
-				compOff++
-			}
-
-			wasDot = false
-		case '.':
-			if i == 0 && len(s) > 1 {
-				// leading dots are not legal except for the root zone
-				return len(msg), ErrRdata
-			}
-
-			if wasDot {
-				// two dots back to back is not legal
-				return len(msg), ErrRdata
-			}
-			wasDot = true
-
-			labelLen := i - begin
-			if labelLen >= 1<<6 { // top two bits of length must be clear
-				return len(msg), ErrRdata
-			}
-
-			// off can already (we're in a loop) be bigger than len(msg)
-			// this happens when a name isn't fully qualified
-			if off+1+labelLen > len(msg) {
-				return len(msg), ErrBuf
-			}
-
-			// Don't try to compress '.'
-			// We should only compress when compress is true, but we should also still pick
-			// up names that can be used for *future* compression(s).
-			if compression.valid() && !isRootLabel(s, bs, begin, ls) {
-				if p, ok := compression.find(s[compBegin:]); ok {
-					// The first hit is the longest matching dname
-					// keep the pointer offset we get back and store
-					// the offset of the current name, because that's
-					// where we need to insert the pointer later
-
-					// If compress is true, we're allowed to compress this dname
-					if compress {
-						pointer = p // Where to point to
-						break loop
-					}
-				} else if off < maxCompressionOffset {
-					// Only offsets smaller than maxCompressionOffset can be used.
-					compression.insert(s[compBegin:], off)
-				}
-			}
-
-			// The following is covered by the length check above.
-			msg[off] = byte(labelLen)
-
-			if bs == nil {
-				copy(msg[off+1:], s[begin:i])
-			} else {
-				copy(msg[off+1:], bs[begin:i])
-			}
-			off += 1 + labelLen
-
-			begin = i + 1
-			compBegin = begin + compOff
-		default:
-			wasDot = false
-		}
-	}
-
-	// Root label is special
-	if isRootLabel(s, bs, 0, ls) {
-		return off, nil
-	}
-
-	// If we did compression and we find something add the pointer here
-	if pointer != -1 {
-		// We have two bytes (14 bits) to put the pointer in
-		binary.BigEndian.PutUint16(msg[off:], uint16(pointer^0xC000))
-		return off + 2, nil
-	}
-
-	if off < len(msg) {
-		msg[off] = 0
-	}
-
-	return off + 1, nil
+	off += copy(msg[off:], []byte(n.encoded))
+	return off, nil
 }
 
-// isRootLabel returns whether s or bs, from off to end, is the root
-// label ".".
-//
-// If bs is nil, s will be checked, otherwise bs will be checked.
-func isRootLabel(s string, bs []byte, off, end int) bool {
-	if bs == nil {
-		return s[off:end] == "."
+func serializeName(s string) ([]byte, error) {
+	switch s {
+	case "":
+		// empty rdata?
+		return nil, nil
+	case ".":
+		// root zone
+		return []byte{0}, nil
 	}
 
-	return end-off == 1 && bs[off] == '.'
+	ls := len(s)
+	bs := []byte(s)
+	var label, ret bytes.Buffer
+
+	for i := 0; i < ls; {
+		if label.Len() >= 0x40 {
+			return nil, ErrName
+		}
+		c := bs[i]
+		switch c {
+		default: // normal character
+			label.WriteByte(c)
+			i++
+		case '\\': // escaped
+			if isDDD(bs[i+1:]) { // `\123` format escaped
+				escaped := dddToByte(bs[i+1:])
+				label.WriteByte(escaped)
+				i += 4 // len(`\234`)
+			} else { // `\.` format escaped
+				if len(bs[i:]) < 2 {
+					// dangling backslash?
+					return nil, ErrName
+				}
+				label.WriteByte(bs[i+1])
+				i += 2 // len(`\.`)
+			}
+		case '.': // label separator
+			if label.Len() == 0 {
+				return nil, ErrName
+			}
+			labelB := label.Bytes()
+			ret.WriteByte(byte(len(labelB)))
+			ret.Write(labelB)
+			// minus 1 so it doesn't have to be checked for the final null byte write
+			if ret.Len() > maxDomainNameWireOctets-1 {
+				return nil, ErrName
+			}
+			label.Reset()
+			i++
+		}
+	}
+
+	if label.Len() > 0 {
+		// no period at the end?
+		return nil, ErrName
+	}
+
+	// final null byte
+	ret.WriteByte(0)
+	return ret.Bytes(), nil
+}
+
+func deserializeName(buf []byte) (string, error) {
+	if len(buf) == 1 && buf[0] == 0 {
+		return ".", nil
+	}
+	var b strings.Builder
+
+	var off int
+
+	for {
+		if len(buf[off:]) < 1 {
+			return "", ErrBuf
+		}
+		labelLen := int(buf[off])
+		if labelLen == 0 {
+			break
+		}
+
+		off++
+		if len(buf[off:]) < labelLen {
+			return "", ErrBuf
+		}
+		label := buf[off : off+labelLen]
+		escaped := escapeLabel(label)
+		b.WriteString(escaped)
+		b.WriteByte('.')
+		off += labelLen
+	}
+
+	return b.String(), nil
+}
+
+func packDomainName(s Name, msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
+	if s.EncodedLen() == 0 { // Ok, for instance when dealing with update RR without any rdata.
+		return off, nil
+	}
+
+	// no compression or root zone
+	if !compression.valid() || s.encoded == "\x00" {
+		return packName(s, msg, off)
+	}
+
+	nameLen := s.EncodedLen()
+	for i, subname := range s.SubNames() {
+		thisLen := subname.EncodedLen()
+		calcOff := off + nameLen - thisLen
+		ptr, foundPtr := compression.find(subname)
+		if !foundPtr && calcOff < maxCompressionOffset {
+			compression.insert(subname, calcOff)
+		}
+
+		if !(foundPtr && compress) {
+			continue
+		}
+
+		if i > 0 {
+			// write prefix labels
+			prefix, err := NameFromLabels(s.SplitRaw()[:i])
+			if err != nil {
+				// input name expected to be valid
+				panic(err)
+			}
+			wire := prefix.ToWire()
+			// without null terminator
+			wire = wire[:len(wire)-1]
+			if len(msg[off:]) < len(wire) {
+				return len(msg), ErrBuf
+			}
+			off += copy(msg[off:], wire)
+		}
+
+		// write pointer
+		if len(msg[off:]) < 2 {
+			return len(msg), ErrBuf
+		}
+		binary.BigEndian.PutUint16(msg[off:], uint16(ptr|0xC000))
+		off += 2
+		return off, nil
+	}
+
+	// no compression requested/found
+	return packName(s, msg, off)
 }
 
 // Unpack a domain name.
@@ -378,43 +381,34 @@ func isRootLabel(s string, bs []byte, off, end int) bool {
 //
 // When an error is encountered, the unpacked name will be discarded
 // and len(msg) will be returned as the offset.
-func UnpackDomainName(msg []byte, off int) (string, int, error) {
-	s := make([]byte, 0, maxDomainNamePresentationLength)
-	off1 := 0
+func UnpackDomainName(msg []byte, off int) (ret Name, off1 int, err error) {
+	var buf bytes.Buffer
 	lenmsg := len(msg)
 	budget := maxDomainNameWireOctets
 	ptr := 0 // number of pointers followed
 Loop:
 	for {
 		if off >= lenmsg {
-			return "", lenmsg, ErrBuf
+			return ret, lenmsg, ErrBuf
 		}
 		c := int(msg[off])
 		off++
 		switch c & 0xC0 {
-		case 0x00:
+		case 0x00: // regular label
 			if c == 0x00 {
+				buf.WriteByte(0)
 				// end of name
 				break Loop
 			}
 			// literal string
-			if off+c > lenmsg {
-				return "", lenmsg, ErrBuf
+			if len(msg[off:]) < c {
+				return ret, lenmsg, ErrBuf
 			}
 			budget -= c + 1 // +1 for the label separator
 			if budget <= 0 {
-				return "", lenmsg, ErrLongDomain
+				return ret, lenmsg, ErrLongDomain
 			}
-			for _, b := range msg[off : off+c] {
-				if isDomainNameLabelSpecial(b) {
-					s = append(s, '\\', b)
-				} else if b < ' ' || b > '~' {
-					s = append(s, escapeByte(b)...)
-				} else {
-					s = append(s, b)
-				}
-			}
-			s = append(s, '.')
+			buf.Write(msg[off-1 : off+c])
 			off += c
 		case 0xC0:
 			// pointer to somewhere else in msg.
@@ -423,15 +417,16 @@ Loop:
 			// also, don't follow too many pointers --
 			// maybe there's a loop.
 			if off >= lenmsg {
-				return "", lenmsg, ErrBuf
+				return ret, lenmsg, ErrBuf
 			}
 			c1 := msg[off]
 			off++
 			if ptr == 0 {
 				off1 = off
 			}
-			if ptr++; ptr > maxCompressionPointers {
-				return "", lenmsg, &Error{err: "too many compression pointers"}
+			ptr++
+			if ptr > maxCompressionPointers {
+				return ret, lenmsg, &Error{err: "too many compression pointers"}
 			}
 			// pointer should guarantee that it advances and points forwards at least
 			// but the condition on previous three lines guarantees that it's
@@ -439,16 +434,21 @@ Loop:
 			off = (c^0xC0)<<8 | int(c1)
 		default:
 			// 0x80 and 0x40 are reserved
-			return "", lenmsg, ErrRdata
+			return ret, lenmsg, ErrRdata
 		}
 	}
 	if ptr == 0 {
 		off1 = off
 	}
-	if len(s) == 0 {
-		return ".", off1, nil
+	wire := buf.Bytes()
+	if len(wire) == 0 {
+		return ret, off1, nil
 	}
-	return string(s), off1, nil
+	ret, err = NameFromWire(wire)
+	if err != nil {
+		off1 = len(msg)
+	}
+	return ret, off1, err
 }
 
 func packTxt(txt []string, msg []byte, offset int) (int, error) {
@@ -551,7 +551,7 @@ func intToBytes(i *big.Int, length int) []byte {
 
 // PackRR packs a resource record rr into msg[off:].
 // See PackDomainName for documentation about the compression.
-func PackRR(rr RR, msg []byte, off int, compression map[string]int, compress bool) (off1 int, err error) {
+func PackRR(rr RR, msg []byte, off int, compression map[Name]int, compress bool) (off1 int, err error) {
 	headerEnd, off1, err := packRR(rr, msg, off, compressionMap{ext: compression}, compress)
 	if err == nil {
 		// packRR no longer sets the Rdlength field on the rr, but
@@ -636,7 +636,7 @@ func unpackRRslice(l int, msg []byte, off int) (dst1 []RR, off1 int, err error) 
 	var r RR
 	// Don't pre-allocate, l may be under attacker control
 	var dst []RR
-	for i := 0; i < l; i++ {
+	for range l {
 		off1 := off
 		r, off, err = UnpackRR(msg, off)
 		if err != nil {
@@ -715,7 +715,7 @@ func (dns *Msg) PackBuffer(buf []byte) (msg []byte, err error) {
 	// If this message can't be compressed, avoid filling the
 	// compression map and creating garbage.
 	if dns.Compress && dns.isCompressible() {
-		compression := make(map[string]uint16) // Compression pointer mappings.
+		compression := make(map[Name]uint16) // Compression pointer mappings.
 		return dns.packBufferWithCompressionMap(buf, compressionMap{int: compression}, true)
 	}
 
@@ -825,7 +825,7 @@ func (dns *Msg) unpack(dh Header, msg []byte, off int) (err error) {
 	// attacker controlled. This means we can't use them to pre-allocate
 	// slices.
 	dns.Question = nil
-	for i := 0; i < int(dh.Qdcount); i++ {
+	for i := range dh.Qdcount {
 		off1 := off
 		var q Question
 		q, off, err = unpackQuestion(msg, off)
@@ -833,7 +833,7 @@ func (dns *Msg) unpack(dh Header, msg []byte, off int) (err error) {
 			return err
 		}
 		if off1 == off { // Offset does not increase anymore, dh.Qdcount is a lie!
-			dh.Qdcount = uint16(i)
+			dh.Qdcount = i
 			break
 		}
 		dns.Question = append(dns.Question, q)
@@ -981,14 +981,14 @@ func (dns *Msg) Len() int {
 	// If this message can't be compressed, avoid filling the
 	// compression map and creating garbage.
 	if dns.Compress && dns.isCompressible() {
-		compression := make(map[string]struct{})
+		compression := make(map[Name]struct{})
 		return msgLenWithCompressionMap(dns, compression)
 	}
 
 	return msgLenWithCompressionMap(dns, nil)
 }
 
-func msgLenWithCompressionMap(dns *Msg, compression map[string]struct{}) int {
+func msgLenWithCompressionMap(dns *Msg, compression map[Name]struct{}) int {
 	l := headerSize
 
 	for _, r := range dns.Question {
@@ -1013,30 +1013,22 @@ func msgLenWithCompressionMap(dns *Msg, compression map[string]struct{}) int {
 	return l
 }
 
-func domainNameLen(s string, off int, compression map[string]struct{}, compress bool) int {
-	if s == "" || s == "." {
+func domainNameLen(s Name, off int, compression map[Name]struct{}, compress bool) int {
+	// empty rdata or root zone
+	if s.EncodedLen() == 0 || s.encoded == "\x00" {
 		return 1
 	}
-
-	escaped := strings.Contains(s, "\\")
 
 	if compression != nil && (compress || off < maxCompressionOffset) {
 		// compressionLenSearch will insert the entry into the compression
 		// map if it doesn't contain it.
 		if l, ok := compressionLenSearch(compression, s, off); ok && compress {
-			if escaped {
-				return escapedNameLen(s[:l]) + 2
-			}
 
 			return l + 2
 		}
 	}
 
-	if escaped {
-		return escapedNameLen(s) + 1
-	}
-
-	return len(s) + 1
+	return s.EncodedLen()
 }
 
 func escapedNameLen(s string) int {
@@ -1058,14 +1050,15 @@ func escapedNameLen(s string) int {
 	return nameLen
 }
 
-func compressionLenSearch(c map[string]struct{}, s string, msgOff int) (int, bool) {
-	for off, end := 0, false; !end; off, end = NextLabel(s, off) {
-		if _, ok := c[s[off:]]; ok {
+func compressionLenSearch(c map[Name]struct{}, s Name, msgOff int) (int, bool) {
+	for _, name := range s.SubNames() {
+		off := s.EncodedLen() - name.EncodedLen()
+		if _, ok := c[name]; ok {
 			return off, true
 		}
 
 		if msgOff+off < maxCompressionOffset {
-			c[s[off:]] = struct{}{}
+			c[name] = struct{}{}
 		}
 	}
 

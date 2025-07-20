@@ -118,8 +118,9 @@ func TestIsPacketConn(t *testing.T) {
 }
 
 func TestDialUDP(t *testing.T) {
-	HandleFunc("miek.nl.", HelloServer)
-	defer HandleRemove("miek.nl.")
+	name := mustParseName("miek.nl.")
+	HandleFunc(name, HelloServer)
+	defer HandleRemove(name)
 
 	s, addrstr, _, err := RunLocalUDPServer(":0")
 	if err != nil {
@@ -128,7 +129,7 @@ func TestDialUDP(t *testing.T) {
 	defer s.Shutdown()
 
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeSOA)
+	m.SetQuestion(name, TypeSOA)
 
 	c := new(Client)
 	conn, err := c.Dial(addrstr)
@@ -141,8 +142,9 @@ func TestDialUDP(t *testing.T) {
 }
 
 func TestClientSync(t *testing.T) {
-	HandleFunc("miek.nl.", HelloServer)
-	defer HandleRemove("miek.nl.")
+	name := mustParseName("miek.nl.")
+	HandleFunc(name, HelloServer)
+	defer HandleRemove(name)
 
 	s, addrstr, _, err := RunLocalUDPServer(":0")
 	if err != nil {
@@ -151,7 +153,7 @@ func TestClientSync(t *testing.T) {
 	defer s.Shutdown()
 
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeSOA)
+	m.SetQuestion(name, TypeSOA)
 
 	c := new(Client)
 	r, _, err := c.Exchange(m, addrstr)
@@ -175,8 +177,9 @@ func TestClientSync(t *testing.T) {
 }
 
 func TestClientLocalAddress(t *testing.T) {
-	HandleFunc("miek.nl.", HelloServerEchoAddrPort)
-	defer HandleRemove("miek.nl.")
+	name := mustParseName("miek.nl.")
+	HandleFunc(name, HelloServerEchoAddrPort)
+	defer HandleRemove(name)
 
 	s, addrstr, _, err := RunLocalUDPServer(":0")
 	if err != nil {
@@ -185,7 +188,7 @@ func TestClientLocalAddress(t *testing.T) {
 	defer s.Shutdown()
 
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeSOA)
+	m.SetQuestion(name, TypeSOA)
 
 	c := new(Client)
 	laddr := net.UDPAddr{IP: net.ParseIP("0.0.0.0"), Port: 12345, Zone: ""}
@@ -210,8 +213,9 @@ func TestClientLocalAddress(t *testing.T) {
 }
 
 func TestClientTLSSyncV4(t *testing.T) {
-	HandleFunc("miek.nl.", HelloServer)
-	defer HandleRemove("miek.nl.")
+	name := mustParseName("miek.nl.")
+	HandleFunc(name, HelloServer)
+	defer HandleRemove(name)
 
 	cert, err := tls.X509KeyPair(CertPEMBlock, KeyPEMBlock)
 	if err != nil {
@@ -229,7 +233,7 @@ func TestClientTLSSyncV4(t *testing.T) {
 	defer s.Shutdown()
 
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeSOA)
+	m.SetQuestion(name, TypeSOA)
 
 	c := new(Client)
 
@@ -275,8 +279,9 @@ func isNetworkTimeout(err error) bool {
 }
 
 func TestClientSyncBadID(t *testing.T) {
-	HandleFunc("miek.nl.", HelloServerBadID)
-	defer HandleRemove("miek.nl.")
+	name := mustParseName("miek.nl.")
+	HandleFunc(name, HelloServerBadID)
+	defer HandleRemove(name)
 
 	s, addrstr, _, err := RunLocalUDPServer(":0")
 	if err != nil {
@@ -285,7 +290,7 @@ func TestClientSyncBadID(t *testing.T) {
 	defer s.Shutdown()
 
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeSOA)
+	m.SetQuestion(name, TypeSOA)
 
 	// Test with client.Exchange, the plain Exchange function is just a wrapper, so
 	// we don't need to test that separately.
@@ -298,8 +303,9 @@ func TestClientSyncBadID(t *testing.T) {
 }
 
 func TestClientSyncBadThenGoodID(t *testing.T) {
-	HandleFunc("miek.nl.", HelloServerBadThenGoodID)
-	defer HandleRemove("miek.nl.")
+	name := mustParseName("miek.nl.")
+	HandleFunc(name, HelloServerBadThenGoodID)
+	defer HandleRemove(name)
 
 	s, addrstr, _, err := RunLocalUDPServer(":0")
 	if err != nil {
@@ -308,7 +314,7 @@ func TestClientSyncBadThenGoodID(t *testing.T) {
 	defer s.Shutdown()
 
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeSOA)
+	m.SetQuestion(name, TypeSOA)
 
 	c := new(Client)
 	r, _, err := c.Exchange(m, addrstr)
@@ -321,8 +327,9 @@ func TestClientSyncBadThenGoodID(t *testing.T) {
 }
 
 func TestClientSyncTCPBadID(t *testing.T) {
-	HandleFunc("miek.nl.", HelloServerBadID)
-	defer HandleRemove("miek.nl.")
+	name := mustParseName("miek.nl.")
+	HandleFunc(name, HelloServerBadID)
+	defer HandleRemove(name)
 
 	s, addrstr, _, err := RunLocalTCPServer(":0")
 	if err != nil {
@@ -331,7 +338,7 @@ func TestClientSyncTCPBadID(t *testing.T) {
 	defer s.Shutdown()
 
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeSOA)
+	m.SetQuestion(name, TypeSOA)
 
 	c := &Client{
 		Net: "tcp",
@@ -342,8 +349,9 @@ func TestClientSyncTCPBadID(t *testing.T) {
 }
 
 func TestClientEDNS0(t *testing.T) {
-	HandleFunc("miek.nl.", HelloServer)
-	defer HandleRemove("miek.nl.")
+	name := mustParseName("miek.nl.")
+	HandleFunc(name, HelloServer)
+	defer HandleRemove(name)
 
 	s, addrstr, _, err := RunLocalUDPServer(":0")
 	if err != nil {
@@ -352,7 +360,7 @@ func TestClientEDNS0(t *testing.T) {
 	defer s.Shutdown()
 
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeDNSKEY)
+	m.SetQuestion(name, TypeDNSKEY)
 
 	m.SetEdns0(2048, true)
 
@@ -388,9 +396,9 @@ func TestClientEDNS0Local(t *testing.T) {
 
 		w.WriteMsg(m)
 	}
-
-	HandleFunc("miek.nl.", handler)
-	defer HandleRemove("miek.nl.")
+	name := mustParseName("miek.nl.")
+	HandleFunc(name, handler)
+	defer HandleRemove(name)
 
 	s, addrstr, _, err := RunLocalUDPServer(":0")
 	if err != nil {
@@ -399,12 +407,12 @@ func TestClientEDNS0Local(t *testing.T) {
 	defer s.Shutdown()
 
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeTXT)
+	m.SetQuestion(name, TypeTXT)
 
 	// Add two local edns options to the query.
 	ec1 := &EDNS0_LOCAL{Code: 1979, Data: []byte{7, 7}}
 	ec2 := &EDNS0_LOCAL{Code: EDNS0LOCALSTART, Data: []byte{6, 1}}
-	o := &OPT{Hdr: RR_Header{Name: ".", Rrtype: TypeOPT}, Option: []EDNS0{ec1, ec2}}
+	o := &OPT{Hdr: RR_Header{Name: mustParseName("."), Rrtype: TypeOPT}, Option: []EDNS0{ec1, ec2}}
 	m.Extra = append(m.Extra, o)
 
 	c := new(Client)
@@ -438,8 +446,9 @@ func TestClientEDNS0Local(t *testing.T) {
 }
 
 func TestClientConn(t *testing.T) {
-	HandleFunc("miek.nl.", HelloServer)
-	defer HandleRemove("miek.nl.")
+	name := mustParseName("miek.nl.")
+	HandleFunc(name, HelloServer)
+	defer HandleRemove(name)
 
 	// This uses TCP just to make it slightly different than TestClientSync
 	s, addrstr, _, err := RunLocalTCPServer(":0")
@@ -449,7 +458,7 @@ func TestClientConn(t *testing.T) {
 	defer s.Shutdown()
 
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeSOA)
+	m.SetQuestion(name, TypeSOA)
 
 	cn, err := Dial("tcp", addrstr)
 	if err != nil {
@@ -497,7 +506,7 @@ func TestClientConnWriteSinglePacket(t *testing.T) {
 		Conn: c,
 	}
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeTXT)
+	m.SetQuestion(mustParseName("miek.nl."), TypeTXT)
 	err := conn.WriteMsg(m)
 	if err != nil {
 		t.Fatalf("failed to write: %v", err)
@@ -510,13 +519,13 @@ func TestClientConnWriteSinglePacket(t *testing.T) {
 
 func TestTruncatedMsg(t *testing.T) {
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeSRV)
+	m.SetQuestion(mustParseName("miek.nl."), TypeSRV)
 	cnt := 10
-	for i := 0; i < cnt; i++ {
+	for i := range cnt {
 		r := &SRV{
 			Hdr:    RR_Header{Name: m.Question[0].Name, Rrtype: TypeSRV, Class: ClassINET, Ttl: 0},
 			Port:   uint16(i + 8000),
-			Target: "target.miek.nl.",
+			Target: mustParseName("target.miek.nl."),
 		}
 		m.Answer = append(m.Answer, r)
 
@@ -567,8 +576,8 @@ func TestTruncatedMsg(t *testing.T) {
 	// of them
 	off := 0
 	buf1 := make([]byte, m.Len())
-	for i := 0; i < len(m.Extra); i++ {
-		off, err = PackRR(m.Extra[i], buf1, off, nil, m.Compress)
+	for _, v := range m.Extra {
+		off, err = PackRR(v, buf1, off, nil, m.Compress)
 		if err != nil {
 			t.Errorf("failed to pack extra: %v", err)
 		}
@@ -596,9 +605,9 @@ func TestTruncatedMsg(t *testing.T) {
 	// Now we want to remove almost all of the answer records too
 	buf1 = make([]byte, m.Len())
 	as := 0
-	for i := 0; i < len(m.Extra); i++ {
+	for _, v := range m.Extra {
 		off1 := off
-		off, err = PackRR(m.Extra[i], buf1, off, nil, m.Compress)
+		off, err = PackRR(v, buf1, off, nil, m.Compress)
 		as = off - off1
 		if err != nil {
 			t.Errorf("failed to pack extra: %v", err)
@@ -655,7 +664,7 @@ func TestTimeout(t *testing.T) {
 
 	// Message to send
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeTXT)
+	m.SetQuestion(mustParseName("miek.nl."), TypeTXT)
 
 	runTest := func(name string, exchange func(m *Msg, addr string, timeout time.Duration) (*Msg, time.Duration, error)) {
 		t.Run(name, func(t *testing.T) {
@@ -688,8 +697,9 @@ func TestTimeout(t *testing.T) {
 }
 
 func TestExchangeWithConn(t *testing.T) {
-	HandleFunc("miek.nl.", HelloServer)
-	defer HandleRemove("miek.nl.")
+	name := mustParseName("miek.nl.")
+	HandleFunc(name, HelloServer)
+	defer HandleRemove(name)
 
 	s, addrstr, _, err := RunLocalUDPServer(":0")
 	if err != nil {
@@ -698,7 +708,7 @@ func TestExchangeWithConn(t *testing.T) {
 	defer s.Shutdown()
 
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeSOA)
+	m.SetQuestion(name, TypeSOA)
 
 	c := new(Client)
 	conn, err := c.Dial(addrstr)

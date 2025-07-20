@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"io"
 	"os"
-	"slices"
 	"strconv"
 	"strings"
 )
@@ -12,7 +11,7 @@ import (
 // ClientConfig wraps the contents of the /etc/resolv.conf file.
 type ClientConfig struct {
 	Servers  []string // servers to use
-	Search   []string // suffixes to append to local name
+	Search   []Name   // suffixes to append to local name
 	Port     string   // what port to use
 	Ndots    int      // number of dots in name to trigger absolute lookup
 	Timeout  int      // seconds before giving up on packet
@@ -34,8 +33,6 @@ func ClientConfigFromFile(resolvconf string) (*ClientConfig, error) {
 func ClientConfigFromReader(resolvconf io.Reader) (*ClientConfig, error) {
 	c := new(ClientConfig)
 	scanner := bufio.NewScanner(resolvconf)
-	c.Servers = make([]string, 0)
-	c.Search = make([]string, 0)
 	c.Port = "53"
 	c.Ndots = 1
 	c.Timeout = 5
@@ -62,14 +59,22 @@ func ClientConfigFromReader(resolvconf io.Reader) (*ClientConfig, error) {
 
 		case "domain": // set search path to just this domain
 			if len(f) > 1 {
-				c.Search = make([]string, 1)
-				c.Search[0] = f[1]
-			} else {
-				c.Search = make([]string, 0)
+				domain, err := NameFromString(Fqdn(f[1]))
+				if err != nil {
+					return nil, err
+				}
+				c.Search = []Name{domain}
 			}
-
 		case "search": // set search path to given servers
-			c.Search = slices.Clone(f[1:])
+			names := make([]Name, len(f[1:]))
+			for i, v := range f[1:] {
+				var err error
+				names[i], err = NameFromString(Fqdn(v))
+				if err != nil {
+					return nil, err
+				}
+			}
+			c.Search = names
 
 		case "options": // magic options
 			for _, s := range f[1:] {
@@ -106,27 +111,38 @@ func ClientConfigFromReader(resolvconf io.Reader) (*ClientConfig, error) {
 // NameList returns all of the names that should be queried based on the
 // config. It is based off of go's net/dns name building, but it does not
 // check the length of the resulting names.
-func (c *ClientConfig) NameList(name string) []string {
+func (c *ClientConfig) NameList(nameS string) []Name {
 	// if this domain is already fully qualified, no append needed.
-	if IsFqdn(name) {
-		return []string{name}
+	if IsFqdn(nameS) {
+		var ret []Name
+		if name, err := NameFromString(nameS); err == nil {
+			ret = append(ret, name)
+		}
+		return ret
+	}
+
+	name, err := NameFromString(Fqdn(nameS))
+	if err != nil {
+		return nil
 	}
 
 	// Check to see if the name has more labels than Ndots. Do this before making
 	// the domain fully qualified.
-	hasNdots := CountLabel(name) > c.Ndots
+	hasNdots := name.CountLabel() > c.Ndots
 	// Make the domain fully qualified.
-	name = Fqdn(name)
 
 	// Make a list of names based off search.
-	names := []string{}
+	var names []Name
 
 	// If name has enough dots, try that first.
 	if hasNdots {
 		names = append(names, name)
 	}
 	for _, s := range c.Search {
-		names = append(names, Fqdn(name+s))
+		concated, err := name.Concat(s)
+		if err == nil {
+			names = append(names, concated)
+		}
 	}
 	// If we didn't have enough dots, try after suffixes.
 	if !hasNdots {

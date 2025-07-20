@@ -3,6 +3,7 @@ package dns
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -22,7 +23,7 @@ nameserver 11.28.10.1` // <- NOTE: NO newline.
 func testConfig(t *testing.T, data string) {
 	cc, err := ClientConfigFromReader(strings.NewReader(data))
 	if err != nil {
-		t.Errorf("error parsing resolv.conf: %v", err)
+		t.Fatalf("error parsing resolv.conf: %v", err)
 	}
 	if l := len(cc.Servers); l != 2 {
 		t.Errorf("incorrect number of nameservers detected: %d", l)
@@ -30,7 +31,7 @@ func testConfig(t *testing.T, data string) {
 	if l := len(cc.Search); l != 1 {
 		t.Errorf("domain directive not parsed correctly: %v", cc.Search)
 	} else {
-		if cc.Search[0] != "somedomain.com" {
+		if cc.Search[0].String() != "somedomain.com." {
 			t.Errorf("domain is unexpected: %v", cc.Search[0])
 		}
 	}
@@ -98,7 +99,7 @@ func TestReadFromFile(t *testing.T) {
 	}
 	cc, err := ClientConfigFromFile(path)
 	if err != nil {
-		t.Errorf("error parsing resolv.conf: %v", err)
+		t.Fatalf("error parsing resolv.conf: %v", err)
 	}
 	if l := len(cc.Servers); l != 2 {
 		t.Errorf("incorrect number of nameservers detected: %d", l)
@@ -106,7 +107,7 @@ func TestReadFromFile(t *testing.T) {
 	if l := len(cc.Search); l != 1 {
 		t.Errorf("domain directive not parsed correctly: %v", cc.Search)
 	} else {
-		if cc.Search[0] != "somedomain.com" {
+		if cc.Search[0].String() != "somedomain.com." {
 			t.Errorf("domain is unexpected: %v", cc.Search[0])
 		}
 	}
@@ -120,21 +121,16 @@ func TestNameListNdots1(t *testing.T) {
 	names := cfg.NameList("miek.nl.")
 	if len(names) != 1 {
 		t.Errorf("NameList returned != 1 names: %v", names)
-	} else if names[0] != "miek.nl." {
+	} else if names[0].String() != "miek.nl." {
 		t.Errorf("NameList didn't return sent fqdn domain: %v", names[0])
 	}
 
-	cfg.Search = []string{
-		"test",
-	}
+	cfg.Search = []Name{mustParseName("test.")}
 	// Sent domain has NDots and search
 	names = cfg.NameList("miek.nl")
-	if len(names) != 2 {
-		t.Errorf("NameList returned != 2 names: %v", names)
-	} else if names[0] != "miek.nl." {
-		t.Errorf("NameList didn't return sent domain first: %v", names[0])
-	} else if names[1] != "miek.nl.test." {
-		t.Errorf("NameList didn't return search last: %v", names[1])
+	expected := []Name{mustParseName("miek.nl."), mustParseName("miek.nl.test.")}
+	if !slices.Equal(names, expected) {
+		t.Errorf("Namelist returned %s, expected %s", names, expected)
 	}
 }
 
@@ -144,17 +140,11 @@ func TestNameListNdots2(t *testing.T) {
 	}
 
 	// Sent domain has less than NDots and search
-	cfg.Search = []string{
-		"test",
-	}
+	cfg.Search = []Name{mustParseName("test.")}
 	names := cfg.NameList("miek.nl")
-
-	if len(names) != 2 {
-		t.Errorf("NameList returned != 2 names: %v", names)
-	} else if names[0] != "miek.nl.test." {
-		t.Errorf("NameList didn't return search first: %v", names[0])
-	} else if names[1] != "miek.nl." {
-		t.Errorf("NameList didn't return sent domain last: %v", names[1])
+	expected := []Name{mustParseName("miek.nl.test."), mustParseName("miek.nl.")}
+	if !slices.Equal(names, expected) {
+		t.Errorf("Namelist returned %s, expected %s", names, expected)
 	}
 }
 
@@ -162,16 +152,11 @@ func TestNameListNdots0(t *testing.T) {
 	cfg := ClientConfig{
 		Ndots: 0,
 	}
-	cfg.Search = []string{
-		"test",
-	}
+	cfg.Search = []Name{mustParseName("test.")}
 	// Sent domain has less than NDots and search
 	names := cfg.NameList("miek")
-	if len(names) != 2 {
-		t.Errorf("NameList returned != 2 names: %v", names)
-	} else if names[0] != "miek." {
-		t.Errorf("NameList didn't return search first: %v", names[0])
-	} else if names[1] != "miek.test." {
-		t.Errorf("NameList didn't return sent domain last: %v", names[1])
+	expected := []Name{mustParseName("miek."), mustParseName("miek.test.")}
+	if !slices.Equal(names, expected) {
+		t.Errorf("Namelist returned %s, expected %s", names, expected)
 	}
 }

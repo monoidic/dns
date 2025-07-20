@@ -11,11 +11,11 @@ func TestSIG0(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 	}
 	m := new(Msg)
-	m.SetQuestion("example.org.", TypeSOA)
+	m.SetQuestion(mustParseName("example.org."), TypeSOA)
 	for _, alg := range []uint8{ECDSAP256SHA256, ECDSAP384SHA384, RSASHA1, RSASHA256, RSASHA512, ED25519} {
 		algstr := AlgorithmToString[alg]
 		keyrr := new(KEY)
-		keyrr.Hdr.Name = algstr + "."
+		keyrr.Hdr.Name = mustParseName(algstr + ".")
 		keyrr.Hdr.Rrtype = TypeKEY
 		keyrr.Hdr.Class = ClassINET
 		keyrr.Algorithm = alg
@@ -35,7 +35,7 @@ func TestSIG0(t *testing.T) {
 		}
 		now := uint32(time.Now().Unix())
 		sigrr := new(SIG)
-		sigrr.Hdr.Name = "."
+		sigrr.Hdr.Name = mustParseName(".")
 		sigrr.Hdr.Rrtype = TypeSIG
 		sigrr.Hdr.Class = ClassANY
 		sigrr.Algorithm = alg

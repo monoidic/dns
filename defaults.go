@@ -1,7 +1,6 @@
 package dns
 
 import (
-	"errors"
 	"net"
 	"net/netip"
 	"strconv"
@@ -31,7 +30,7 @@ func (dns *Msg) SetReply(request *Msg) *Msg {
 // SetQuestion creates a question message, it sets the Question
 // section, generates an Id and sets the RecursionDesired (RD)
 // bit to true.
-func (dns *Msg) SetQuestion(z string, t uint16) *Msg {
+func (dns *Msg) SetQuestion(z Name, t uint16) *Msg {
 	dns.Id = Id()
 	dns.RecursionDesired = true
 	dns.Question = make([]Question, 1)
@@ -42,7 +41,7 @@ func (dns *Msg) SetQuestion(z string, t uint16) *Msg {
 // SetNotify creates a notify message, it sets the Question
 // section, generates an Id and sets the Authoritative (AA)
 // bit to true.
-func (dns *Msg) SetNotify(z string) *Msg {
+func (dns *Msg) SetNotify(z Name) *Msg {
 	dns.Opcode = OpcodeNotify
 	dns.Authoritative = true
 	dns.Id = Id()
@@ -70,7 +69,7 @@ func (dns *Msg) SetRcodeFormatError(request *Msg) *Msg {
 
 // SetUpdate makes the message a dynamic update message. It
 // sets the ZONE section to: z, TypeSOA, ClassINET.
-func (dns *Msg) SetUpdate(z string) *Msg {
+func (dns *Msg) SetUpdate(z Name) *Msg {
 	dns.Id = Id()
 	dns.Response = false
 	dns.Opcode = OpcodeUpdate
@@ -81,7 +80,7 @@ func (dns *Msg) SetUpdate(z string) *Msg {
 }
 
 // SetIxfr creates message for requesting an IXFR.
-func (dns *Msg) SetIxfr(z string, serial uint32, ns, mbox string) *Msg {
+func (dns *Msg) SetIxfr(z Name, serial uint32, ns, mbox Name) *Msg {
 	dns.Id = Id()
 	dns.Question = make([]Question, 1)
 	dns.Ns = make([]RR, 1)
@@ -96,7 +95,7 @@ func (dns *Msg) SetIxfr(z string, serial uint32, ns, mbox string) *Msg {
 }
 
 // SetAxfr creates message for requesting an AXFR.
-func (dns *Msg) SetAxfr(z string) *Msg {
+func (dns *Msg) SetAxfr(z Name) *Msg {
 	dns.Id = Id()
 	dns.Question = make([]Question, 1)
 	dns.Question[0] = Question{z, TypeAXFR, ClassINET}
@@ -106,7 +105,7 @@ func (dns *Msg) SetAxfr(z string) *Msg {
 // SetTsig appends a TSIG RR to the message.
 // This is only a skeleton TSIG RR that is added as the last RR in the
 // additional section. The TSIG is calculated when the message is being send.
-func (dns *Msg) SetTsig(z, algo string, fudge uint16, timesigned int64) *Msg {
+func (dns *Msg) SetTsig(z, algo Name, fudge uint16, timesigned int64) *Msg {
 	t := new(TSIG)
 	t.Hdr = RR_Header{z, TypeTSIG, ClassANY, 0, 0}
 	t.Algorithm = algo
@@ -121,7 +120,7 @@ func (dns *Msg) SetTsig(z, algo string, fudge uint16, timesigned int64) *Msg {
 // TSIG should always the last RR in a message.
 func (dns *Msg) SetEdns0(udpsize uint16, do bool) *Msg {
 	e := new(OPT)
-	e.Hdr.Name = "."
+	e.Hdr.Name = mustParseName(".")
 	e.Hdr.Rrtype = TypeOPT
 	e.SetUDPSize(udpsize)
 	if do {
@@ -181,99 +180,24 @@ func (dns *Msg) popEdns0() *OPT {
 // label fits in 63 characters and that the entire name will fit into the 255
 // octet wire format limit.
 func IsDomainName(s string) (labels int, ok bool) {
-	// XXX: The logic in this function was copied from packDomainName and
-	// should be kept in sync with that function.
-
-	const lenmsg = 256
-
-	if len(s) == 0 { // Ok, for instance when dealing with update RR without any rdata.
+	if s == "." {
+		// TODO(monoidic)
+		// why pretend there's a label here and then not produce it with SplitDomainName?
+		return 1, true
+	}
+	name, err := NameFromString(Fqdn(s))
+	if err != nil {
 		return 0, false
 	}
-
-	s = Fqdn(s)
-
-	// Each dot ends a segment of the name. Except for escaped dots (\.), which
-	// are normal dots.
-
-	var (
-		off    int
-		begin  int
-		wasDot bool
-		escape bool
-	)
-	for i := 0; i < len(s); i++ {
-		switch s[i] {
-		case '\\':
-			escape = !escape
-			if off+1 > lenmsg {
-				return labels, false
-			}
-
-			// check for \DDD
-			if isDDD(s[i+1:]) {
-				i += 3
-				begin += 3
-			} else {
-				i++
-				begin++
-			}
-
-			wasDot = false
-		case '.':
-			escape = false
-			if i == 0 && len(s) > 1 {
-				// leading dots are not legal except for the root zone
-				return labels, false
-			}
-
-			if wasDot {
-				// two dots back to back is not legal
-				return labels, false
-			}
-			wasDot = true
-
-			labelLen := i - begin
-			if labelLen >= 1<<6 { // top two bits of length must be clear
-				return labels, false
-			}
-
-			// off can already (we're in a loop) be bigger than lenmsg
-			// this happens when a name isn't fully qualified
-			off += 1 + labelLen
-			if off > lenmsg {
-				return labels, false
-			}
-
-			labels++
-			begin = i + 1
-		default:
-			escape = false
-			wasDot = false
-		}
-	}
-	if escape {
-		return labels, false
-	}
+	labels = len(name.SplitRaw())
 	return labels, true
 }
 
 // IsSubDomain checks if child is indeed a child of the parent. If child and parent
 // are the same domain true is returned as well.
-func IsSubDomain(parent, child string) bool {
+func IsSubDomain(parent, child Name) bool {
 	// Entire child is contained in parent
-	return CompareDomainName(parent, child) == CountLabel(parent)
-}
-
-// IsMsg sanity checks buf and returns an error if it isn't a valid DNS packet.
-// The checking is performed on the binary payload.
-func IsMsg(buf []byte) error {
-	// Header
-	if len(buf) < headerSize {
-		return errors.New("dns: bad message header")
-	}
-	// Header: Opcode
-	// TODO(miek): more checks here, e.g. check all header bits.
-	return nil
+	return CompareDomainName(parent, child) == parent.CountLabel()
 }
 
 // IsFqdn checks if a domain name is fully qualified.
@@ -282,20 +206,9 @@ func IsFqdn(s string) bool {
 	if s == "" || s[len(s)-1] != '.' {
 		return false
 	}
-	s = s[:len(s)-1]
 
-	// If we don't have an escape sequence before the final dot, we know it's
-	// fully qualified and can return here.
-	if s == "" || s[len(s)-1] != '\\' {
-		return true
-	}
-
-	// Otherwise we have to check if the dot is escaped or not by checking if
-	// there are an odd or even number of escape sequences before the dot.
-	i := strings.LastIndexFunc(s, func(r rune) bool {
-		return r != '\\'
-	})
-	return (len(s)-i)%2 != 0
+	_, err := NameFromString(s)
+	return err == nil
 }
 
 // IsRRset reports whether a set of RRs is a valid RRset as defined by RFC 2181.
@@ -390,9 +303,4 @@ func (c Class) String() string {
 		}
 	}
 	return "CLASS" + strconv.Itoa(int(c))
-}
-
-// String returns the string representation for the name n.
-func (n Name) String() string {
-	return sprintName(string(n))
 }

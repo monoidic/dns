@@ -84,16 +84,17 @@ func TestPackDataOpt(t *testing.T) {
 // which was attributed to the fact that NSEC RR length computation was different (and smaller)
 // then when within packDataNsec.
 func TestCrashNSEC(t *testing.T) {
-	compression := make(map[string]struct{})
+	compression := make(map[Name]struct{})
+	root := mustParseName(".")
 	nsec := &NSEC{
 		Hdr: RR_Header{
-			Name:     ".",
+			Name:     root,
 			Rrtype:   0x2f,
 			Class:    0x3030,
 			Ttl:      0x30303030,
 			Rdlength: 0xb,
 		},
-		NextDomain: ".",
+		NextDomain: root,
 		TypeBitMap: []uint16{
 			0x2302, 0x2303, 0x230a, 0x230b,
 			0x2312, 0x2313, 0x231a, 0x231b,
@@ -118,10 +119,10 @@ func TestCrashNSEC(t *testing.T) {
 // different (and smaller) then within NSEC3.pack (which relies on
 // packDataNsec).
 func TestCrashNSEC3(t *testing.T) {
-	compression := make(map[string]struct{})
+	compression := make(map[Name]struct{})
 	nsec3 := &NSEC3{
 		Hdr: RR_Header{
-			Name:     ".",
+			Name:     mustParseName("."),
 			Rrtype:   0x32,
 			Class:    0x3030,
 			Ttl:      0x30303030,

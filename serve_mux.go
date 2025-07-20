@@ -16,7 +16,7 @@ import (
 //
 // The zero ServeMux is empty and ready for use.
 type ServeMux struct {
-	z map[string]Handler
+	z map[Name]Handler
 	m sync.RWMutex
 }
 
@@ -28,18 +28,16 @@ func NewServeMux() *ServeMux {
 // DefaultServeMux is the default ServeMux used by Serve.
 var DefaultServeMux = NewServeMux()
 
-func (mux *ServeMux) match(q string, t uint16) Handler {
+func (mux *ServeMux) match(q Name, t uint16) Handler {
 	mux.m.RLock()
 	defer mux.m.RUnlock()
 	if mux.z == nil {
 		return nil
 	}
 
-	q = CanonicalName(q)
-
 	var handler Handler
-	for off, end := 0, false; !end; off, end = NextLabel(q, off) {
-		if h, ok := mux.z[q[off:]]; ok {
+	for _, name := range q.Canonical().SubNames() {
+		if h, ok := mux.z[name]; ok {
 			if t != TypeDS {
 				return h
 			}
@@ -49,7 +47,7 @@ func (mux *ServeMux) match(q string, t uint16) Handler {
 	}
 
 	// Wildcard match, if we have found nothing try the root zone as a last resort.
-	if h, ok := mux.z["."]; ok {
+	if h, ok := mux.z[mustParseName(".")]; ok {
 		return h
 	}
 
@@ -57,30 +55,30 @@ func (mux *ServeMux) match(q string, t uint16) Handler {
 }
 
 // Handle adds a handler to the ServeMux for pattern.
-func (mux *ServeMux) Handle(pattern string, handler Handler) {
-	if pattern == "" {
-		panic("dns: invalid pattern " + pattern)
+func (mux *ServeMux) Handle(pattern Name, handler Handler) {
+	if pattern.String() == "" {
+		panic("dns: invalid pattern")
 	}
 	mux.m.Lock()
 	if mux.z == nil {
-		mux.z = make(map[string]Handler)
+		mux.z = make(map[Name]Handler)
 	}
-	mux.z[CanonicalName(pattern)] = handler
+	mux.z[pattern.Canonical()] = handler
 	mux.m.Unlock()
 }
 
 // HandleFunc adds a handler function to the ServeMux for pattern.
-func (mux *ServeMux) HandleFunc(pattern string, handler func(ResponseWriter, *Msg)) {
+func (mux *ServeMux) HandleFunc(pattern Name, handler func(ResponseWriter, *Msg)) {
 	mux.Handle(pattern, HandlerFunc(handler))
 }
 
 // HandleRemove deregisters the handler specific for pattern from the ServeMux.
-func (mux *ServeMux) HandleRemove(pattern string) {
-	if pattern == "" {
-		panic("dns: invalid pattern " + pattern)
+func (mux *ServeMux) HandleRemove(pattern Name) {
+	if pattern.String() == "" {
+		panic("dns: invalid pattern")
 	}
 	mux.m.Lock()
-	delete(mux.z, CanonicalName(pattern))
+	delete(mux.z, pattern.Canonical())
 	mux.m.Unlock()
 }
 
@@ -109,14 +107,14 @@ func (mux *ServeMux) ServeDNS(w ResponseWriter, req *Msg) {
 // Handle registers the handler with the given pattern
 // in the DefaultServeMux. The documentation for
 // ServeMux explains how patterns are matched.
-func Handle(pattern string, handler Handler) { DefaultServeMux.Handle(pattern, handler) }
+func Handle(pattern Name, handler Handler) { DefaultServeMux.Handle(pattern, handler) }
 
 // HandleRemove deregisters the handle with the given pattern
 // in the DefaultServeMux.
-func HandleRemove(pattern string) { DefaultServeMux.HandleRemove(pattern) }
+func HandleRemove(pattern Name) { DefaultServeMux.HandleRemove(pattern) }
 
 // HandleFunc registers the handler function with the given pattern
 // in the DefaultServeMux.
-func HandleFunc(pattern string, handler func(ResponseWriter, *Msg)) {
+func HandleFunc(pattern Name, handler func(ResponseWriter, *Msg)) {
 	DefaultServeMux.HandleFunc(pattern, handler)
 }

@@ -13,9 +13,9 @@ import (
 
 func getSoa() *SOA {
 	soa := new(SOA)
-	soa.Hdr = RR_Header{"miek.nl.", TypeSOA, ClassINET, 14400, 0}
-	soa.Ns = "open.nlnetlabs.nl."
-	soa.Mbox = "miekg.atoom.net."
+	soa.Hdr = RR_Header{mustParseName("miek.nl."), TypeSOA, ClassINET, 14400, 0}
+	soa.Ns = mustParseName("open.nlnetlabs.nl.")
+	soa.Mbox = mustParseName("miekg.atoom.net.")
 	soa.Serial = 1293945905
 	soa.Refresh = 14400
 	soa.Retry = 3600
@@ -28,7 +28,7 @@ func TestSecure(t *testing.T) {
 	soa := getSoa()
 
 	sig := new(RRSIG)
-	sig.Hdr = RR_Header{"miek.nl.", TypeRRSIG, ClassINET, 14400, 0}
+	sig.Hdr = RR_Header{mustParseName("miek.nl."), TypeRRSIG, ClassINET, 14400, 0}
 	sig.TypeCovered = TypeSOA
 	sig.Algorithm = RSASHA256
 	sig.Labels = 2
@@ -36,11 +36,11 @@ func TestSecure(t *testing.T) {
 	sig.Inception = 1293942305  // date -u '+%s' -d"2011-01-02 04:25:05"
 	sig.OrigTtl = 14400
 	sig.KeyTag = 12051
-	sig.SignerName = "miek.nl."
+	sig.SignerName = sig.Hdr.Name
 	sig.Signature = "oMCbslaAVIp/8kVtLSms3tDABpcPRUgHLrOR48OOplkYo+8TeEGWwkSwaz/MRo2fB4FxW0qj/hTlIjUGuACSd+b1wKdH5GvzRJc2pFmxtCbm55ygAh4EUL0F6U5cKtGJGSXxxg6UFCQ0doJCmiGFa78LolaUOXImJrk6AFrGa0M="
 
 	key := new(DNSKEY)
-	key.Hdr.Name = "miek.nl."
+	key.Hdr.Name = sig.Hdr.Name
 	key.Hdr.Class = ClassINET
 	key.Hdr.Ttl = 14400
 	key.Flags = 256
@@ -56,7 +56,7 @@ func TestSecure(t *testing.T) {
 
 func TestSignature(t *testing.T) {
 	sig := new(RRSIG)
-	sig.Hdr.Name = "miek.nl."
+	sig.Hdr.Name = mustParseName("miek.nl.")
 	sig.Hdr.Class = ClassINET
 	sig.Hdr.Ttl = 3600
 	sig.TypeCovered = TypeDNSKEY
@@ -66,7 +66,7 @@ func TestSignature(t *testing.T) {
 	sig.Expiration = 1000 // Thu Jan  1 02:06:40 CET 1970
 	sig.Inception = 800   // Thu Jan  1 01:13:20 CET 1970
 	sig.KeyTag = 34641
-	sig.SignerName = "miek.nl."
+	sig.SignerName = sig.Hdr.Name
 	sig.Signature = "AwEAAaHIwpx3w4VHKi6i1LHnTaWeHCL154Jug0Rtc9ji5qwPXpBo6A5sRv7cSsPQKPIwxLpyCrbJ4mr2L0EPOdvP6z6YfljK2ZmTbogU9aSU2fiq/4wjxbdkLyoDVgtO+JsxNN4bjr4WcWhsmk1Hg93FV9ZpkWb0Tbad8DFqNDzr//kZ"
 
 	// Should not be valid
@@ -84,9 +84,9 @@ func TestSignature(t *testing.T) {
 func TestSignVerify(t *testing.T) {
 	// The record we want to sign
 	soa := new(SOA)
-	soa.Hdr = RR_Header{"miek.nl.", TypeSOA, ClassINET, 14400, 0}
-	soa.Ns = "open.nlnetlabs.nl."
-	soa.Mbox = "miekg.atoom.net."
+	soa.Hdr = RR_Header{mustParseName("miek.nl."), TypeSOA, ClassINET, 14400, 0}
+	soa.Ns = mustParseName("open.nlnetlabs.nl.")
+	soa.Mbox = mustParseName("miekg.atoom.net.")
 	soa.Serial = 1293945905
 	soa.Refresh = 14400
 	soa.Retry = 3600
@@ -94,9 +94,9 @@ func TestSignVerify(t *testing.T) {
 	soa.Minttl = 86400
 
 	soa1 := new(SOA)
-	soa1.Hdr = RR_Header{"*.miek.nl.", TypeSOA, ClassINET, 14400, 0}
-	soa1.Ns = "open.nlnetlabs.nl."
-	soa1.Mbox = "miekg.atoom.net."
+	soa1.Hdr = RR_Header{mustParseName("*.miek.nl."), TypeSOA, ClassINET, 14400, 0}
+	soa1.Ns = mustParseName("open.nlnetlabs.nl.")
+	soa1.Mbox = mustParseName("miekg.atoom.net.")
 	soa1.Serial = 1293945905
 	soa1.Refresh = 14400
 	soa1.Retry = 3600
@@ -104,14 +104,14 @@ func TestSignVerify(t *testing.T) {
 	soa1.Minttl = 86400
 
 	srv := new(SRV)
-	srv.Hdr = RR_Header{"srv.miek.nl.", TypeSRV, ClassINET, 14400, 0}
+	srv.Hdr = RR_Header{mustParseName("srv.miek.nl."), TypeSRV, ClassINET, 14400, 0}
 	srv.Port = 1000
 	srv.Weight = 800
-	srv.Target = "web1.miek.nl."
+	srv.Target = mustParseName("web1.miek.nl.")
 
 	hinfo := &HINFO{
 		Hdr: RR_Header{
-			Name:   "miek.nl.",
+			Name:   mustParseName("miek.nl."),
 			Rrtype: TypeHINFO,
 			Class:  ClassINET,
 			Ttl:    3789,
@@ -123,7 +123,7 @@ func TestSignVerify(t *testing.T) {
 	// With this key
 	key := new(DNSKEY)
 	key.Hdr.Rrtype = TypeDNSKEY
-	key.Hdr.Name = "miek.nl."
+	key.Hdr.Name = hinfo.Hdr.Name
 	key.Hdr.Class = ClassINET
 	key.Hdr.Ttl = 14400
 	key.Flags = 256
@@ -133,9 +133,9 @@ func TestSignVerify(t *testing.T) {
 
 	// Fill in the values of the Sig, before signing
 	sig := new(RRSIG)
-	sig.Hdr = RR_Header{"miek.nl.", TypeRRSIG, ClassINET, 14400, 0}
+	sig.Hdr = RR_Header{key.Hdr.Name, TypeRRSIG, ClassINET, 14400, 0}
 	sig.TypeCovered = soa.Hdr.Rrtype
-	sig.Labels = uint8(CountLabel(soa.Hdr.Name)) // works for all 3
+	sig.Labels = uint8(soa.Hdr.Name.CountLabel()) // works for all 3
 	sig.OrigTtl = soa.Hdr.Ttl
 	sig.Expiration = 1296534305 // date -u '+%s' -d"2011-02-01 04:25:05"
 	sig.Inception = 1293942305  // date -u '+%s' -d"2011-01-02 04:25:05"
@@ -159,7 +159,7 @@ func TestSignVerify(t *testing.T) {
 func TestShouldNotVerifyInvalidSig(t *testing.T) {
 	// The RRSIG RR and the RRset MUST have the same owner name
 	rrNameMismatch := getSoa()
-	rrNameMismatch.Hdr.Name = "example.com."
+	rrNameMismatch.Hdr.Name = mustParseName("example.com.")
 
 	// ... and the same class
 	rrClassMismatch := getSoa()
@@ -172,14 +172,14 @@ func TestShouldNotVerifyInvalidSig(t *testing.T) {
 	// The number of labels in the RRset owner name MUST be greater than
 	// or equal to the value in the RRSIG RR's Labels field.
 	rrLabelLessThan := getSoa()
-	rrLabelLessThan.Hdr.Name = "nl."
+	rrLabelLessThan.Hdr.Name = mustParseName("nl.")
 
 	// Time checks are done in ValidityPeriod
 
 	// With this key
 	key := new(DNSKEY)
 	key.Hdr.Rrtype = TypeDNSKEY
-	key.Hdr.Name = "miek.nl."
+	key.Hdr.Name = mustParseName("miek.nl.")
 	key.Hdr.Class = ClassINET
 	key.Hdr.Ttl = 14400
 	key.Flags = 256
@@ -191,9 +191,9 @@ func TestShouldNotVerifyInvalidSig(t *testing.T) {
 
 	// Fill in the normal values of the Sig, before signing
 	sig := new(RRSIG)
-	sig.Hdr = RR_Header{"miek.nl.", TypeRRSIG, ClassINET, 14400, 0}
+	sig.Hdr = RR_Header{key.Hdr.Name, TypeRRSIG, ClassINET, 14400, 0}
 	sig.TypeCovered = TypeSOA
-	sig.Labels = uint8(CountLabel(normalSoa.Hdr.Name))
+	sig.Labels = uint8(normalSoa.Hdr.Name.CountLabel())
 	sig.OrigTtl = normalSoa.Hdr.Ttl
 	sig.Expiration = 1296534305 // date -u '+%s' -d"2011-02-01 04:25:05"
 	sig.Inception = 1293942305  // date -u '+%s' -d"2011-01-02 04:25:05"
@@ -219,7 +219,7 @@ func TestShouldNotVerifyInvalidSig(t *testing.T) {
 			t.Error("should not validate: ", rr)
 			continue
 		} else {
-			t.Logf("expected failure: %v for RR name %s, class %d, type %d, rrsig labels %d", err, rr.Header().Name, rr.Header().Class, rr.Header().Rrtype, CountLabel(rr.Header().Name))
+			t.Logf("expected failure: %v for RR name %s, class %d, type %d, rrsig labels %d", err, rr.Header().Name, rr.Header().Class, rr.Header().Rrtype, rr.Header().Name.CountLabel())
 		}
 	}
 
@@ -227,11 +227,11 @@ func TestShouldNotVerifyInvalidSig(t *testing.T) {
 	// The RRSIG RR's Signer's Name, Algorithm, and Key Tag fields MUST match the owner name,
 	// algorithm, and key tag for some DNSKEY RR in the zone's apex DNSKEY RRset.
 	sigMismatchName := sig.copy().(*RRSIG)
-	sigMismatchName.SignerName = "example.com."
+	sigMismatchName.SignerName = mustParseName("example.com.")
 	soaMismatchName := getSoa()
-	soaMismatchName.Hdr.Name = "example.com."
+	soaMismatchName.Hdr.Name = sigMismatchName.SignerName
 	keyMismatchName := key.copy().(*DNSKEY)
-	keyMismatchName.Hdr.Name = "example.com."
+	keyMismatchName.Hdr.Name = sigMismatchName.SignerName
 	if err := sigMismatchName.signAsIs(privkey.(*rsa.PrivateKey), []RR{soaMismatchName}); err != nil {
 		t.Error("failure to sign the record:", err)
 	} else if err := sigMismatchName.Verify(keyMismatchName, []RR{soaMismatchName}); err == nil {
@@ -268,10 +268,10 @@ func TestShouldNotVerifyInvalidSig(t *testing.T) {
 
 func Test65534(t *testing.T) {
 	t6 := new(RFC3597)
-	t6.Hdr = RR_Header{"miek.nl.", 65534, ClassINET, 14400, 0}
+	t6.Hdr = RR_Header{mustParseName("miek.nl."), 65534, ClassINET, 14400, 0}
 	t6.Rdata = "505D870001"
 	key := new(DNSKEY)
-	key.Hdr.Name = "miek.nl."
+	key.Hdr.Name = t6.Hdr.Name
 	key.Hdr.Rrtype = TypeDNSKEY
 	key.Hdr.Class = ClassINET
 	key.Hdr.Ttl = 14400
@@ -281,9 +281,9 @@ func Test65534(t *testing.T) {
 	privkey, _ := key.Generate(512)
 
 	sig := new(RRSIG)
-	sig.Hdr = RR_Header{"miek.nl.", TypeRRSIG, ClassINET, 14400, 0}
+	sig.Hdr = RR_Header{t6.Hdr.Name, TypeRRSIG, ClassINET, 14400, 0}
 	sig.TypeCovered = t6.Hdr.Rrtype
-	sig.Labels = uint8(CountLabel(t6.Hdr.Name))
+	sig.Labels = uint8(t6.Hdr.Name.CountLabel())
 	sig.OrigTtl = t6.Hdr.Ttl
 	sig.Expiration = 1296534305 // date -u '+%s' -d"2011-02-01 04:25:05"
 	sig.Inception = 1293942305  // date -u '+%s' -d"2011-01-02 04:25:05"
@@ -334,7 +334,7 @@ Coefficient: UuRoNqe7YHnKmQzE6iDWKTMIWTuoqqrFAmXPmKQnC+Y+BQzOVEHUo9bXdDnoI9hzXP1
 
 func TestTag(t *testing.T) {
 	key := new(DNSKEY)
-	key.Hdr.Name = "miek.nl."
+	key.Hdr.Name = mustParseName("miek.nl.")
 	key.Hdr.Rrtype = TypeDNSKEY
 	key.Hdr.Class = ClassINET
 	key.Hdr.Ttl = 3600
@@ -354,7 +354,7 @@ func TestKeyRSA(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 	}
 	key := new(DNSKEY)
-	key.Hdr.Name = "miek.nl."
+	key.Hdr.Name = mustParseName("miek.nl.")
 	key.Hdr.Rrtype = TypeDNSKEY
 	key.Hdr.Class = ClassINET
 	key.Hdr.Ttl = 3600
@@ -364,9 +364,9 @@ func TestKeyRSA(t *testing.T) {
 	priv, _ := key.Generate(512)
 
 	soa := new(SOA)
-	soa.Hdr = RR_Header{"miek.nl.", TypeSOA, ClassINET, 14400, 0}
-	soa.Ns = "open.nlnetlabs.nl."
-	soa.Mbox = "miekg.atoom.net."
+	soa.Hdr = RR_Header{mustParseName("miek.nl."), TypeSOA, ClassINET, 14400, 0}
+	soa.Ns = mustParseName("open.nlnetlabs.nl.")
+	soa.Mbox = mustParseName("miekg.atoom.net.")
 	soa.Serial = 1293945905
 	soa.Refresh = 14400
 	soa.Retry = 3600
@@ -374,7 +374,7 @@ func TestKeyRSA(t *testing.T) {
 	soa.Minttl = 86400
 
 	sig := new(RRSIG)
-	sig.Hdr = RR_Header{"miek.nl.", TypeRRSIG, ClassINET, 14400, 0}
+	sig.Hdr = RR_Header{soa.Hdr.Name, TypeRRSIG, ClassINET, 14400, 0}
 	sig.TypeCovered = TypeSOA
 	sig.Algorithm = RSASHA256
 	sig.Labels = 2
@@ -395,7 +395,7 @@ func TestKeyRSA(t *testing.T) {
 
 func TestKeyToDS(t *testing.T) {
 	key := new(DNSKEY)
-	key.Hdr.Name = "miek.nl."
+	key.Hdr.Name = mustParseName("miek.nl.")
 	key.Hdr.Rrtype = TypeDNSKEY
 	key.Hdr.Class = ClassINET
 	key.Hdr.Ttl = 3600
@@ -446,9 +446,9 @@ Activate: 20110302104537`
 	}
 
 	soa := new(SOA)
-	soa.Hdr = RR_Header{"miek.nl.", TypeSOA, ClassINET, 14400, 0}
-	soa.Ns = "open.nlnetlabs.nl."
-	soa.Mbox = "miekg.atoom.net."
+	soa.Hdr = RR_Header{mustParseName("miek.nl."), TypeSOA, ClassINET, 14400, 0}
+	soa.Ns, _ = NameFromString("open.nlnetlabs.nl.")
+	soa.Mbox, _ = NameFromString("miekg.atoom.net.")
 	soa.Serial = 1293945905
 	soa.Refresh = 14400
 	soa.Retry = 3600
@@ -456,7 +456,7 @@ Activate: 20110302104537`
 	soa.Minttl = 86400
 
 	sig := new(RRSIG)
-	sig.Hdr = RR_Header{"miek.nl.", TypeRRSIG, ClassINET, 14400, 0}
+	sig.Hdr = RR_Header{soa.Hdr.Name, TypeRRSIG, ClassINET, 14400, 0}
 	sig.Expiration = 1296534305 // date -u '+%s' -d"2011-02-01 04:25:05"
 	sig.Inception = 1293942305  // date -u '+%s' -d"2011-01-02 04:25:05"
 	sig.KeyTag = k.KeyTag()
@@ -493,7 +493,7 @@ PrivateKey: WURgWHCcYIYUPWgeLmiPY2DJJk02vgrmTfitxgqcL4vwW7BOrbawVmVe0d9V94SR`
 	}
 	a := testRR("www.example.net. 3600 IN A 192.0.2.1")
 	sig := new(RRSIG)
-	sig.Hdr = RR_Header{"example.net.", TypeRRSIG, ClassINET, 14400, 0}
+	sig.Hdr = RR_Header{mustParseName("example.net."), TypeRRSIG, ClassINET, 14400, 0}
 	sig.Expiration, _ = StringToTime("20100909102025")
 	sig.Inception, _ = StringToTime("20100812102025")
 	sig.KeyTag = eckey.(*DNSKEY).KeyTag()
@@ -522,7 +522,7 @@ func TestSignVerifyECDSA2(t *testing.T) {
 	// With this key
 	key := new(DNSKEY)
 	key.Hdr.Rrtype = TypeDNSKEY
-	key.Hdr.Name = "miek.nl."
+	key.Hdr.Name = mustParseName("miek.nl.")
 	key.Hdr.Class = ClassINET
 	key.Hdr.Ttl = 14400
 	key.Flags = 256
@@ -535,9 +535,9 @@ func TestSignVerifyECDSA2(t *testing.T) {
 
 	// Fill in the values of the Sig, before signing
 	sig := new(RRSIG)
-	sig.Hdr = RR_Header{"miek.nl.", TypeRRSIG, ClassINET, 14400, 0}
+	sig.Hdr = RR_Header{mustParseName("miek.nl."), TypeRRSIG, ClassINET, 14400, 0}
 	sig.TypeCovered = srv.Hdr.Rrtype
-	sig.Labels = uint8(CountLabel(srv.Hdr.Name)) // works for all 3
+	sig.Labels = uint8(srv.Hdr.Name.CountLabel()) // works for all 3
 	sig.OrigTtl = srv.Hdr.Ttl
 	sig.Expiration = 1296534305 // date -u '+%s' -d"2011-02-01 04:25:05"
 	sig.Inception = 1293942305  // date -u '+%s' -d"2011-01-02 04:25:05"
@@ -571,7 +571,7 @@ func TestSignVerifyEd25519(t *testing.T) {
 	// With this key
 	key := new(DNSKEY)
 	key.Hdr.Rrtype = TypeDNSKEY
-	key.Hdr.Name = "miek.nl."
+	key.Hdr.Name, _ = NameFromString("miek.nl.")
 	key.Hdr.Class = ClassINET
 	key.Hdr.Ttl = 14400
 	key.Flags = 256
@@ -584,9 +584,10 @@ func TestSignVerifyEd25519(t *testing.T) {
 
 	// Fill in the values of the Sig, before signing
 	sig := new(RRSIG)
-	sig.Hdr = RR_Header{"miek.nl.", TypeRRSIG, ClassINET, 14400, 0}
+	name, _ := NameFromString("miek.nl.")
+	sig.Hdr = RR_Header{name, TypeRRSIG, ClassINET, 14400, 0}
 	sig.TypeCovered = srv.Hdr.Rrtype
-	sig.Labels = uint8(CountLabel(srv.Hdr.Name)) // works for all 3
+	sig.Labels = uint8(srv.Hdr.Name.CountLabel()) // works for all 3
 	sig.OrigTtl = srv.Hdr.Ttl
 	sig.Expiration = 1296534305 // date -u '+%s' -d"2011-02-01 04:25:05"
 	sig.Inception = 1293942305  // date -u '+%s' -d"2011-01-02 04:25:05"
@@ -879,11 +880,12 @@ PrivateKey: DSSF3o0s0f+ElWzj9E/Osxw8hLpk55chkmx0LYN5WiY=`
 
 func TestInvalidRRSet(t *testing.T) {
 	goodRecords := make([]RR, 2)
-	goodRecords[0] = &TXT{Hdr: RR_Header{Name: "name.cloudflare.com.", Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"Hello world"}}
-	goodRecords[1] = &TXT{Hdr: RR_Header{Name: "name.cloudflare.com.", Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"_o/"}}
+	name, _ := NameFromString("name.cloudflare.com.")
+	goodRecords[0] = &TXT{Hdr: RR_Header{Name: name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"Hello world"}}
+	goodRecords[1] = &TXT{Hdr: RR_Header{Name: name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"_o/"}}
 
 	// Generate key
-	keyname := "cloudflare.com."
+	keyname, _ := NameFromString("cloudflare.com.")
 	key := &DNSKEY{
 		Hdr:       RR_Header{Name: keyname, Rrtype: TypeDNSKEY, Class: ClassINET, Ttl: 0},
 		Algorithm: ECDSAP256SHA256,
@@ -907,22 +909,24 @@ func TestInvalidRRSet(t *testing.T) {
 
 	// Inconsistent name between records
 	badRecords := make([]RR, 2)
-	badRecords[0] = &TXT{Hdr: RR_Header{Name: "name.cloudflare.com.", Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"Hello world"}}
-	badRecords[1] = &TXT{Hdr: RR_Header{Name: "nama.cloudflare.com.", Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"_o/"}}
+	name, _ = NameFromString("name.cloudflare.com.")
+	nama, _ := NameFromString("nama.cloudflare.com.")
+	badRecords[0] = &TXT{Hdr: RR_Header{Name: name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"Hello world"}}
+	badRecords[1] = &TXT{Hdr: RR_Header{Name: nama, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"_o/"}}
 
 	if IsRRset(badRecords) {
 		t.Fatal("Record set with inconsistent names considered valid")
 	}
 
-	badRecords[0] = &TXT{Hdr: RR_Header{Name: "name.cloudflare.com.", Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"Hello world"}}
-	badRecords[1] = &A{Hdr: RR_Header{Name: "name.cloudflare.com.", Rrtype: TypeA, Class: ClassINET, Ttl: 0}}
+	badRecords[0] = &TXT{Hdr: RR_Header{Name: name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"Hello world"}}
+	badRecords[1] = &A{Hdr: RR_Header{Name: name, Rrtype: TypeA, Class: ClassINET, Ttl: 0}}
 
 	if IsRRset(badRecords) {
 		t.Fatal("Record set with inconsistent record types considered valid")
 	}
 
-	badRecords[0] = &TXT{Hdr: RR_Header{Name: "name.cloudflare.com.", Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"Hello world"}}
-	badRecords[1] = &TXT{Hdr: RR_Header{Name: "name.cloudflare.com.", Rrtype: TypeTXT, Class: ClassCHAOS, Ttl: 0}, Txt: []string{"_o/"}}
+	badRecords[0] = &TXT{Hdr: RR_Header{Name: name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"Hello world"}}
+	badRecords[1] = &TXT{Hdr: RR_Header{Name: name, Rrtype: TypeTXT, Class: ClassCHAOS, Ttl: 0}, Txt: []string{"_o/"}}
 
 	if IsRRset(badRecords) {
 		t.Fatal("Record set with inconsistent record class considered valid")

@@ -167,7 +167,7 @@ func main() {
 		if isEmbedded {
 			continue
 		}
-		fmt.Fprintf(b, "func (rr *%s) len(off int, compression map[string]struct{}) int {\n", name)
+		fmt.Fprintf(b, "func (rr *%s) len(off int, compression map[Name]struct{}) int {\n", name)
 		fmt.Fprintf(b, "l := rr.Hdr.len(off, compression)\n")
 		for i := 1; i < st.NumFields(); i++ {
 			o := func(s string) { fmt.Fprintf(b, s, st.Field(i).Name()) }

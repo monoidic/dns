@@ -10,10 +10,10 @@ import (
 	"time"
 )
 
-func newTsig(algo string) *Msg {
+func newTsig(algo Name) *Msg {
 	m := new(Msg)
-	m.SetQuestion("example.org.", TypeA)
-	m.SetTsig("example.", algo, 300, time.Now().Unix())
+	m.SetQuestion(mustParseName("example.org."), TypeA)
+	m.SetTsig(mustParseName("example."), algo, 300, time.Now().Unix())
 	return m
 }
 
@@ -44,7 +44,7 @@ func TestTsig(t *testing.T) {
 }
 
 func TestTsigCase(t *testing.T) {
-	m := newTsig(strings.ToUpper(HmacSHA256))
+	m := newTsig(mustParseName(strings.ToUpper(HmacSHA256.String())))
 	buf, _, err := TsigGenerate(m, "pRZgBrBvI4NAHZYhxmhs/Q==", "", false)
 	if err != nil {
 		t.Fatal(err)
@@ -57,7 +57,7 @@ func TestTsigCase(t *testing.T) {
 
 func TestTsigErrorResponse(t *testing.T) {
 	for _, rcode := range []uint16{RcodeBadSig, RcodeBadKey} {
-		m := newTsig(strings.ToUpper(HmacSHA256))
+		m := newTsig(mustParseName(strings.ToUpper(HmacSHA256.String())))
 		m.IsTsig().Error = rcode
 		buf, _, err := TsigGenerate(m, "pRZgBrBvI4NAHZYhxmhs/Q==", "", false)
 		if err != nil {
@@ -84,7 +84,7 @@ func TestTsigErrorResponse(t *testing.T) {
 
 func TestTsigBadTimeResponse(t *testing.T) {
 	clientTime := uint64(time.Now().Unix()) - 3600
-	m := newTsig(strings.ToUpper(HmacSHA256))
+	m := newTsig(mustParseName(strings.ToUpper(HmacSHA256.String())))
 	m.IsTsig().Error = RcodeBadTime
 	m.IsTsig().TimeSigned = clientTime
 
@@ -187,7 +187,7 @@ func TestTsigErrors(t *testing.T) {
 func TestTsigGenerate(t *testing.T) {
 	// This is a template TSIG to be used for signing.
 	tsig := TSIG{
-		Hdr:        RR_Header{Name: "testkey.", Rrtype: TypeTSIG, Class: ClassANY, Ttl: 0},
+		Hdr:        RR_Header{Name: mustParseName("testkey."), Rrtype: TypeTSIG, Class: ClassANY, Ttl: 0},
 		Algorithm:  HmacSHA256,
 		TimeSigned: timeSigned,
 		Fudge:      300,
@@ -223,7 +223,7 @@ func TestTsigGenerate(t *testing.T) {
 			testTSIG.OtherData = tc.otherData
 			req := &Msg{
 				MsgHdr:   MsgHdr{Opcode: OpcodeUpdate},
-				Question: []Question{{Name: "example.com.", Qtype: TypeSOA, Qclass: ClassINET}},
+				Question: []Question{{Name: mustParseName("example.com."), Qtype: TypeSOA, Qclass: ClassINET}},
 				Extra:    []RR{&testTSIG},
 			}
 
@@ -258,7 +258,7 @@ func TestTsigGenerate(t *testing.T) {
 
 func TestTSIGHMAC224And384(t *testing.T) {
 	tests := []struct {
-		algorithm   string // TSIG algorithm, also used as test description
+		algorithm   Name   // TSIG algorithm, also used as test description
 		secret      string // (arbitrarily chosen) secret suitable for the algorithm in base64 format
 		expectedMAC string // pre-computed expected (correct) MAC in hex form
 	}{
@@ -273,10 +273,10 @@ func TestTSIGHMAC224And384(t *testing.T) {
 	}
 	for _, tc := range tests {
 		tc := tc
-		t.Run(tc.algorithm, func(t *testing.T) {
+		t.Run(tc.algorithm.String(), func(t *testing.T) {
 			// Build a DNS message with TSIG for the test scenario
 			tsig := TSIG{
-				Hdr:        RR_Header{Name: "testkey.", Rrtype: TypeTSIG, Class: ClassANY, Ttl: 0},
+				Hdr:        RR_Header{Name: mustParseName("testkey."), Rrtype: TypeTSIG, Class: ClassANY, Ttl: 0},
 				Algorithm:  tc.algorithm,
 				TimeSigned: timeSigned,
 				Fudge:      300,
@@ -284,7 +284,7 @@ func TestTSIGHMAC224And384(t *testing.T) {
 			}
 			req := &Msg{
 				MsgHdr:   MsgHdr{Opcode: OpcodeUpdate},
-				Question: []Question{{Name: "example.com.", Qtype: TypeSOA, Qclass: ClassINET}},
+				Question: []Question{{Name: mustParseName("example.com."), Qtype: TypeSOA, Qclass: ClassINET}},
 				Extra:    []RR{&tsig},
 			}
 
@@ -303,7 +303,7 @@ func TestTSIGHMAC224And384(t *testing.T) {
 	}
 }
 
-const testGoodKeyName = "goodkey."
+var testGoodKeyName = mustParseName("goodkey.")
 
 var (
 	errBadKey   = errors.New("this is an intentional error")
@@ -331,7 +331,7 @@ func (*testProvider) Verify(_ []byte, t *TSIG) error {
 
 func TestTsigGenerateProvider(t *testing.T) {
 	tables := []struct {
-		keyname string
+		keyname Name
 		mac     []byte
 		err     error
 	}{
@@ -341,14 +341,14 @@ func TestTsigGenerateProvider(t *testing.T) {
 			nil,
 		},
 		{
-			"badkey.",
+			mustParseName("badkey."),
 			nil,
 			errBadKey,
 		},
 	}
 
 	for _, table := range tables {
-		t.Run(table.keyname, func(t *testing.T) {
+		t.Run(table.keyname.String(), func(t *testing.T) {
 			tsig := TSIG{
 				Hdr:        RR_Header{Name: table.keyname, Rrtype: TypeTSIG, Class: ClassANY, Ttl: 0},
 				Algorithm:  HmacSHA1,
@@ -358,7 +358,7 @@ func TestTsigGenerateProvider(t *testing.T) {
 			}
 			req := &Msg{
 				MsgHdr:   MsgHdr{Opcode: OpcodeUpdate},
-				Question: []Question{{Name: "example.com.", Qtype: TypeSOA, Qclass: ClassINET}},
+				Question: []Question{{Name: mustParseName("example.com."), Qtype: TypeSOA, Qclass: ClassINET}},
 				Extra:    []RR{&tsig},
 			}
 
@@ -376,7 +376,7 @@ func TestTsigGenerateProvider(t *testing.T) {
 
 func TestTsigVerifyProvider(t *testing.T) {
 	tables := []struct {
-		keyname string
+		keyname Name
 		err     error
 	}{
 		{
@@ -384,13 +384,13 @@ func TestTsigVerifyProvider(t *testing.T) {
 			nil,
 		},
 		{
-			"badkey.",
+			mustParseName("badkey."),
 			errBadKey,
 		},
 	}
 
 	for _, table := range tables {
-		t.Run(table.keyname, func(t *testing.T) {
+		t.Run(table.keyname.String(), func(t *testing.T) {
 			tsig := TSIG{
 				Hdr:        RR_Header{Name: table.keyname, Rrtype: TypeTSIG, Class: ClassANY, Ttl: 0},
 				Algorithm:  HmacSHA1,
@@ -400,7 +400,7 @@ func TestTsigVerifyProvider(t *testing.T) {
 			}
 			req := &Msg{
 				MsgHdr:   MsgHdr{Opcode: OpcodeUpdate},
-				Question: []Question{{Name: "example.com.", Qtype: TypeSOA, Qclass: ClassINET}},
+				Question: []Question{{Name: mustParseName("example.com."), Qtype: TypeSOA, Qclass: ClassINET}},
 				Extra:    []RR{&tsig},
 			}
 

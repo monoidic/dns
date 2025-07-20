@@ -35,7 +35,7 @@ func (r *PrivateRR) Header() *RR_Header { return &r.Hdr }
 func (r *PrivateRR) String() string { return r.Hdr.String() + r.Data.String() }
 
 // Private len and copy parts to satisfy RR interface.
-func (r *PrivateRR) len(off int, compression map[string]struct{}) int {
+func (r *PrivateRR) len(off int, compression map[Name]struct{}) int {
 	l := r.Hdr.len(off, compression)
 	l += r.Data.Len()
 	return l

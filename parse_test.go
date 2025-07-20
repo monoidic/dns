@@ -9,6 +9,7 @@ import (
 	"net"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -17,7 +18,7 @@ import (
 
 func TestDotInName(t *testing.T) {
 	buf := make([]byte, 20)
-	PackDomainName("aa\\.bb.nl.", buf, 0, nil, false)
+	PackDomainName(mustParseName(`aa\.bb.nl.`), buf, 0, nil, false)
 	// index 3 must be a real dot
 	if buf[3] != '.' {
 		t.Error("dot should be a real dot")
@@ -28,13 +29,13 @@ func TestDotInName(t *testing.T) {
 	}
 	dom, _, _ := UnpackDomainName(buf, 0)
 	// printing it should yield the backspace again
-	if dom != "aa\\.bb.nl." {
+	if dom.String() != `aa\.bb.nl.` {
 		t.Error("dot should have been escaped: ", dom)
 	}
 }
 
 func TestDotLastInLabel(t *testing.T) {
-	sample := "aa\\..au."
+	sample := mustParseName(`aa\..au.`)
 	buf := make([]byte, 20)
 	_, err := PackDomainName(sample, buf, 0, nil, false)
 	if err != nil {
@@ -66,7 +67,8 @@ func TestDomainName(t *testing.T) {
 	}
 	dbuff := make([]byte, 40)
 
-	for _, ts := range tests {
+	for _, tss := range tests {
+		ts := mustParseName(tss)
 		if _, err := PackDomainName(ts, dbuff, 0, nil, false); err != nil {
 			t.Error("not a valid domain name")
 			continue
@@ -640,15 +642,11 @@ b1slImA8YVJyuIDsj7kwzG7jnERNqnWxZ48AWkskmdHaVDP4BcelrTI3rMXdXF5D
 	if len(msg.Answer) != 2 {
 		t.Fatalf("2 answers expected: %v", msg)
 	}
-	for i, rr := range msg.Answer {
+	for _, rr := range msg.Answer {
 		rr := rr.(*HIP)
-		if l := len(rr.RendezvousServers); l != 2 {
-			t.Fatalf("2 servers expected, only %d in record %d:\n%v", l, i, msg)
-		}
-		for j, s := range []string{"rvs1.example.com.", "rvs2.example.com."} {
-			if rr.RendezvousServers[j] != s {
-				t.Fatalf("expected server %d of record %d to be %s:\n%v", j, i, s, msg)
-			}
+		expected := []Name{mustParseName("rvs1.example.com."), mustParseName("rvs2.example.com.")}
+		if !slices.Equal(rr.RendezvousServers, expected) {
+			t.Fatalf("expected rendezvous servers to be %s, got %s", expected, rr.RendezvousServers)
 		}
 	}
 }
@@ -775,7 +773,7 @@ func TestSRVPacking(t *testing.T) {
 
 		rr := &SRV{
 			Hdr: RR_Header{
-				Name:   "somename.",
+				Name:   mustParseName("somename."),
 				Rrtype: TypeSRV,
 				Class:  ClassINET,
 				Ttl:    5,
@@ -783,7 +781,7 @@ func TestSRVPacking(t *testing.T) {
 			Priority: uint16(i),
 			Weight:   5,
 			Port:     uint16(port),
-			Target:   h + ".",
+			Target:   mustParseName(h + "."),
 		}
 
 		msg.Answer = append(msg.Answer, rr)
@@ -1208,7 +1206,7 @@ func TestParseRRSIGTimestamp(t *testing.T) {
 
 func TestTxtEqual(t *testing.T) {
 	rr1 := new(TXT)
-	rr1.Hdr = RR_Header{Name: ".", Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}
+	rr1.Hdr = RR_Header{Name: mustParseName("."), Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}
 	rr1.Txt = []string{"a\"a", "\"", "b"}
 	rr2, _ := NewRR(rr1.String())
 	if rr1.String() != rr2.String() {
@@ -1219,11 +1217,11 @@ func TestTxtEqual(t *testing.T) {
 
 func TestTxtLong(t *testing.T) {
 	rr1 := new(TXT)
-	rr1.Hdr = RR_Header{Name: ".", Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}
+	rr1.Hdr = RR_Header{Name: mustParseName("."), Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}
 	// Make a long txt record, this breaks when sending the packet,
 	// but not earlier.
 	rr1.Txt = []string{"start-"}
-	for i := 0; i < 200; i++ {
+	for range 200 {
 		rr1.Txt[0] += "start-"
 	}
 	str := rr1.String()
@@ -1266,7 +1264,7 @@ func TestNewPrivateKey(t *testing.T) {
 	for _, algo := range algorithms {
 		key := new(DNSKEY)
 		key.Hdr.Rrtype = TypeDNSKEY
-		key.Hdr.Name = "miek.nl."
+		key.Hdr.Name = mustParseName("miek.nl.")
 		key.Hdr.Class = ClassINET
 		key.Hdr.Ttl = 14400
 		key.Flags = 256
@@ -1360,37 +1358,36 @@ func TestNewRRSpecial(t *testing.T) {
 
 func TestPrintfVerbsRdata(t *testing.T) {
 	x, _ := NewRR("www.miek.nl. IN MX 20 mx.miek.nl.")
-	if Field(x, 1) != "20" {
+	mx := x.(*MX)
+	if mx.Preference != 20 {
 		t.Errorf("should be 20")
 	}
-	if Field(x, 2) != "mx.miek.nl." {
+	if mx.Mx.String() != "mx.miek.nl." {
 		t.Errorf("should be mx.miek.nl.")
 	}
 
 	x, _ = NewRR("www.miek.nl. IN A 127.0.0.1")
-	if Field(x, 1) != "127.0.0.1" {
+	a := x.(*A)
+	if a.A.String() != "127.0.0.1" {
 		t.Errorf("should be 127.0.0.1")
 	}
 
 	x, _ = NewRR("www.miek.nl. IN AAAA ::1")
-	if Field(x, 1) != "::1" {
+	aaaa := x.(*AAAA)
+	if aaaa.AAAA.String() != "::1" {
 		t.Errorf("should be ::1")
 	}
 
 	x, _ = NewRR("www.miek.nl. IN NSEC a.miek.nl. A NS SOA MX AAAA")
-	if Field(x, 1) != "a.miek.nl." {
+	nsec := x.(*NSEC)
+	if nsec.NextDomain.String() != "a.miek.nl." {
 		t.Errorf("should be a.miek.nl.")
-	}
-	if Field(x, 2) != "A NS SOA MX AAAA" {
-		t.Errorf("should be A NS SOA MX AAAA")
 	}
 
 	x, _ = NewRR("www.miek.nl. IN TXT \"first\" \"second\"")
-	if Field(x, 1) != "first second" {
+	txt := x.(*TXT)
+	if !slices.Equal(txt.Txt, []string{"first", "second"}) {
 		t.Errorf("should be first second")
-	}
-	if Field(x, 0) != "" {
-		t.Errorf("should be empty")
 	}
 }
 
@@ -1521,7 +1518,7 @@ func TestParseCAA(t *testing.T) {
 func TestPackCAA(t *testing.T) {
 	m := new(Msg)
 	record := new(CAA)
-	record.Hdr = RR_Header{Name: "example.com.", Rrtype: TypeCAA, Class: ClassINET, Ttl: 0}
+	record.Hdr = RR_Header{Name: mustParseName("example.com."), Rrtype: TypeCAA, Class: ClassINET, Ttl: 0}
 	record.Tag = "issue"
 	record.Value = "symantec.com"
 	record.Flag = 1

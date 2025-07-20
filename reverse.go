@@ -12,11 +12,6 @@ var StringToOpcode = reverseMap(OpcodeToString)
 // StringToRcode is a map of rcodes to strings.
 var StringToRcode = reverseMap(RcodeToString)
 
-func init() {
-	// Preserve previous NOTIMP typo, see github.com/miekg/dns/issues/733.
-	StringToRcode["NOTIMPL"] = RcodeNotImplemented
-}
-
 // StringToAlgorithm is the reverse of AlgorithmToString.
 var StringToAlgorithm = reverseMap(AlgorithmToString)
 

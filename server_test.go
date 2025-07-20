@@ -187,10 +187,10 @@ func TestServing(t *testing.T) {
 		{"PacketConn", "udp", RunLocalPacketConnServer},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			HandleFunc("miek.nl.", HelloServer)
-			HandleFunc("example.com.", AnotherHelloServer)
-			defer HandleRemove("miek.nl.")
-			defer HandleRemove("example.com.")
+			HandleFunc(mustParseName("miek.nl."), HelloServer)
+			HandleFunc(mustParseName("example.com."), AnotherHelloServer)
+			defer HandleRemove(mustParseName("miek.nl."))
+			defer HandleRemove(mustParseName("example.com."))
 
 			s, addrstr, _, err := tc.runServer(":0")
 			if err != nil {
@@ -202,7 +202,7 @@ func TestServing(t *testing.T) {
 				Net: tc.network,
 			}
 			m := new(Msg)
-			m.SetQuestion("miek.nl.", TypeTXT)
+			m.SetQuestion(mustParseName("miek.nl."), TypeTXT)
 			r, _, err := c.Exchange(m, addrstr)
 			if err != nil || len(r.Extra) == 0 {
 				t.Fatal("failed to exchange miek.nl", err)
@@ -212,7 +212,7 @@ func TestServing(t *testing.T) {
 				t.Error("unexpected result for miek.nl", txt, "!= Hello world")
 			}
 
-			m.SetQuestion("example.com.", TypeTXT)
+			m.SetQuestion(mustParseName("example.com."), TypeTXT)
 			r, _, err = c.Exchange(m, addrstr)
 			if err != nil {
 				t.Fatal("failed to exchange example.com", err)
@@ -223,12 +223,19 @@ func TestServing(t *testing.T) {
 			}
 
 			// Test Mixes cased as noticed by Ask.
-			m.SetQuestion("eXaMplE.cOm.", TypeTXT)
+			m.SetQuestion(mustParseName("eXaMplE.cOm."), TypeTXT)
 			r, _, err = c.Exchange(m, addrstr)
 			if err != nil {
 				t.Error("failed to exchange eXaMplE.cOm", err)
 			}
-			txt = r.Extra[0].(*TXT).Txt[0]
+			if len(r.Extra) == 0 {
+				t.Fatalf("no txt record in %s", r)
+			}
+			txtRR := r.Extra[0].(*TXT)
+			if len(txtRR.Txt) == 0 {
+				t.Fatalf("no txt data in %s", txtRR)
+			}
+			txt = txtRR.Txt[0]
 			if txt != "Hello example" {
 				t.Error("unexpected result for example.com", txt, "!= Hello example")
 			}
@@ -238,7 +245,7 @@ func TestServing(t *testing.T) {
 
 // Verify that the server responds to a query with Z flag on, ignoring the flag, and does not echoes it back
 func TestServeIgnoresZFlag(t *testing.T) {
-	HandleFunc("example.com.", AnotherHelloServer)
+	HandleFunc(mustParseName("example.com."), AnotherHelloServer)
 
 	s, addrstr, _, err := RunLocalUDPServer(":0")
 	if err != nil {
@@ -250,7 +257,7 @@ func TestServeIgnoresZFlag(t *testing.T) {
 	m := new(Msg)
 
 	// Test the Z flag is not echoed
-	m.SetQuestion("example.com.", TypeTXT)
+	m.SetQuestion(mustParseName("example.com."), TypeTXT)
 	m.Zero = true
 	r, _, err := c.Exchange(m, addrstr)
 	if err != nil {
@@ -266,7 +273,7 @@ func TestServeIgnoresZFlag(t *testing.T) {
 
 // Verify that the server responds to a query with unsupported Opcode with a NotImplemented error and that Opcode is unchanged.
 func TestServeNotImplemented(t *testing.T) {
-	HandleFunc("example.com.", AnotherHelloServer)
+	HandleFunc(mustParseName("example.com."), AnotherHelloServer)
 	opcode := 15
 
 	s, addrstr, _, err := RunLocalUDPServer(":0")
@@ -279,7 +286,7 @@ func TestServeNotImplemented(t *testing.T) {
 	m := new(Msg)
 
 	// Test that Opcode is like the unchanged from request Opcode and that Rcode is set to NotImplemented
-	m.SetQuestion("example.com.", TypeTXT)
+	m.SetQuestion(mustParseName("example.com."), TypeTXT)
 	m.Opcode = opcode
 	r, _, err := c.Exchange(m, addrstr)
 	if err != nil {
@@ -294,10 +301,10 @@ func TestServeNotImplemented(t *testing.T) {
 }
 
 func TestServingTLS(t *testing.T) {
-	HandleFunc("miek.nl.", HelloServer)
-	HandleFunc("example.com.", AnotherHelloServer)
-	defer HandleRemove("miek.nl.")
-	defer HandleRemove("example.com.")
+	HandleFunc(mustParseName("miek.nl."), HelloServer)
+	HandleFunc(mustParseName("example.com."), AnotherHelloServer)
+	defer HandleRemove(mustParseName("miek.nl."))
+	defer HandleRemove(mustParseName("example.com."))
 
 	cert, err := tls.X509KeyPair(CertPEMBlock, KeyPEMBlock)
 	if err != nil {
@@ -321,7 +328,7 @@ func TestServingTLS(t *testing.T) {
 	}
 
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeTXT)
+	m.SetQuestion(mustParseName("miek.nl."), TypeTXT)
 	r, _, err := c.Exchange(m, addrstr)
 	if err != nil || len(r.Extra) == 0 {
 		t.Fatal("failed to exchange miek.nl", err)
@@ -331,7 +338,7 @@ func TestServingTLS(t *testing.T) {
 		t.Error("unexpected result for miek.nl", txt, "!= Hello world")
 	}
 
-	m.SetQuestion("example.com.", TypeTXT)
+	m.SetQuestion(mustParseName("example.com."), TypeTXT)
 	r, _, err = c.Exchange(m, addrstr)
 	if err != nil {
 		t.Fatal("failed to exchange example.com", err)
@@ -342,12 +349,19 @@ func TestServingTLS(t *testing.T) {
 	}
 
 	// Test Mixes cased as noticed by Ask.
-	m.SetQuestion("eXaMplE.cOm.", TypeTXT)
+	m.SetQuestion(mustParseName("eXaMplE.cOm."), TypeTXT)
 	r, _, err = c.Exchange(m, addrstr)
 	if err != nil {
 		t.Error("failed to exchange eXaMplE.cOm", err)
 	}
-	txt = r.Extra[0].(*TXT).Txt[0]
+	if len(r.Extra) == 0 {
+		t.Fatalf("no txt in %s", r)
+	}
+	txtRR := r.Extra[0].(*TXT)
+	if len(txtRR.Txt) == 0 {
+		t.Fatalf("no data in txt RR %s", txtRR)
+	}
+	txt = txtRR.Txt[0]
 	if txt != "Hello example" {
 		t.Error("unexpected result for example.com", txt, "!= Hello example")
 	}
@@ -381,10 +395,10 @@ func TestServingTLSConnectionState(t *testing.T) {
 
 	// Question used in tests
 	m := new(Msg)
-	m.SetQuestion("tlsstate.example.net.", TypeTXT)
+	m.SetQuestion(mustParseName("tlsstate.example.net."), TypeTXT)
 
 	// TLS DNS server
-	HandleFunc(".", tlsHandlerTLS(true))
+	HandleFunc(mustParseName("."), tlsHandlerTLS(true))
 	cert, err := tls.X509KeyPair(CertPEMBlock, KeyPEMBlock)
 	if err != nil {
 		t.Fatalf("unable to build certificate: %v", err)
@@ -413,10 +427,10 @@ func TestServingTLSConnectionState(t *testing.T) {
 		t.Error("failed to exchange tlsstate.example.net", err)
 	}
 
-	HandleRemove(".")
+	HandleRemove(mustParseName("."))
 	// UDP DNS Server
-	HandleFunc(".", tlsHandlerTLS(false))
-	defer HandleRemove(".")
+	HandleFunc(mustParseName("."), tlsHandlerTLS(false))
+	defer HandleRemove(mustParseName("."))
 	s, addrstr, _, err = RunLocalUDPServer(":0")
 	if err != nil {
 		t.Fatalf("unable to run test server: %v", err)
@@ -446,8 +460,8 @@ func TestServingTLSConnectionState(t *testing.T) {
 }
 
 func TestServingListenAndServe(t *testing.T) {
-	HandleFunc("example.com.", AnotherHelloServer)
-	defer HandleRemove("example.com.")
+	HandleFunc(mustParseName("example.com."), AnotherHelloServer)
+	defer HandleRemove(mustParseName("example.com."))
 
 	waitLock := sync.Mutex{}
 	server := &Server{Addr: ":0", Net: "udp", ReadTimeout: time.Hour, WriteTimeout: time.Hour, NotifyStartedFunc: waitLock.Unlock}
@@ -459,7 +473,7 @@ func TestServingListenAndServe(t *testing.T) {
 	waitLock.Lock()
 
 	c, m := new(Client), new(Msg)
-	m.SetQuestion("example.com.", TypeTXT)
+	m.SetQuestion(mustParseName("example.com."), TypeTXT)
 	addr := server.PacketConn.LocalAddr().String() // Get address via the PacketConn that gets set.
 	r, _, err := c.Exchange(m, addr)
 	if err != nil {
@@ -473,8 +487,8 @@ func TestServingListenAndServe(t *testing.T) {
 }
 
 func TestServingListenAndServeTLS(t *testing.T) {
-	HandleFunc("example.com.", AnotherHelloServer)
-	defer HandleRemove("example.com.")
+	HandleFunc(mustParseName("example.com."), AnotherHelloServer)
+	defer HandleRemove(mustParseName("example.com."))
 
 	cert, err := tls.X509KeyPair(CertPEMBlock, KeyPEMBlock)
 	if err != nil {
@@ -496,7 +510,7 @@ func TestServingListenAndServeTLS(t *testing.T) {
 
 	c, m := new(Client), new(Msg)
 	c.Net = "tcp"
-	m.SetQuestion("example.com.", TypeTXT)
+	m.SetQuestion(mustParseName("example.com."), TypeTXT)
 	addr := server.Listener.Addr().String() // Get address via the Listener that gets set.
 	r, _, err := c.Exchange(m, addr)
 	if err != nil {
@@ -511,8 +525,8 @@ func TestServingListenAndServeTLS(t *testing.T) {
 
 func BenchmarkServe(b *testing.B) {
 	b.StopTimer()
-	HandleFunc("miek.nl.", HelloServer)
-	defer HandleRemove("miek.nl.")
+	HandleFunc(mustParseName("miek.nl."), HelloServer)
+	defer HandleRemove(mustParseName("miek.nl."))
 	a := runtime.GOMAXPROCS(4)
 
 	s, addrstr, _, err := RunLocalUDPServer(":0")
@@ -523,7 +537,7 @@ func BenchmarkServe(b *testing.B) {
 
 	c := new(Client)
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeSOA)
+	m.SetQuestion(mustParseName("miek.nl."), TypeSOA)
 
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
@@ -537,8 +551,8 @@ func BenchmarkServe(b *testing.B) {
 
 func BenchmarkServe6(b *testing.B) {
 	b.StopTimer()
-	HandleFunc("miek.nl.", HelloServer)
-	defer HandleRemove("miek.nl.")
+	HandleFunc(mustParseName("miek.nl."), HelloServer)
+	defer HandleRemove(mustParseName("miek.nl."))
 	a := runtime.GOMAXPROCS(4)
 	s, addrstr, _, err := RunLocalUDPServer("[::1]:0")
 	if err != nil {
@@ -551,7 +565,7 @@ func BenchmarkServe6(b *testing.B) {
 
 	c := new(Client)
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeSOA)
+	m.SetQuestion(mustParseName("miek.nl."), TypeSOA)
 
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
@@ -574,8 +588,8 @@ func HelloServerCompress(w ResponseWriter, req *Msg) {
 
 func BenchmarkServeCompress(b *testing.B) {
 	b.StopTimer()
-	HandleFunc("miek.nl.", HelloServerCompress)
-	defer HandleRemove("miek.nl.")
+	HandleFunc(mustParseName("miek.nl."), HelloServerCompress)
+	defer HandleRemove(mustParseName("miek.nl."))
 	a := runtime.GOMAXPROCS(4)
 	s, addrstr, _, err := RunLocalUDPServer(":0")
 	if err != nil {
@@ -585,7 +599,7 @@ func BenchmarkServeCompress(b *testing.B) {
 
 	c := new(Client)
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeSOA)
+	m.SetQuestion(mustParseName("miek.nl."), TypeSOA)
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		_, _, err := c.Exchange(m, addrstr)
@@ -611,7 +625,7 @@ func HelloServerLargeResponse(resp ResponseWriter, req *Msg) {
 	M.RLock()
 	m1 = M.max
 	M.RUnlock()
-	for i := 0; i < m1; i++ {
+	for i := range m1 {
 		aRec := &A{
 			Hdr: RR_Header{
 				Name:   req.Question[0].Name,
@@ -627,8 +641,8 @@ func HelloServerLargeResponse(resp ResponseWriter, req *Msg) {
 }
 
 func TestServingLargeResponses(t *testing.T) {
-	HandleFunc("example.", HelloServerLargeResponse)
-	defer HandleRemove("example.")
+	HandleFunc(mustParseName("example."), HelloServerLargeResponse)
+	defer HandleRemove(mustParseName("example."))
 
 	s, addrstr, _, err := RunLocalUDPServer(":0")
 	if err != nil {
@@ -638,7 +652,7 @@ func TestServingLargeResponses(t *testing.T) {
 
 	// Create request
 	m := new(Msg)
-	m.SetQuestion("web.service.example.", TypeANY)
+	m.SetQuestion(mustParseName("web.service.example."), TypeANY)
 
 	c := new(Client)
 	c.Net = "udp"
@@ -669,7 +683,7 @@ func TestServingResponse(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
-	HandleFunc("miek.nl.", HelloServer)
+	HandleFunc(mustParseName("miek.nl."), HelloServer)
 	s, addrstr, _, err := RunLocalUDPServer(":0")
 	if err != nil {
 		t.Fatalf("unable to run test server: %v", err)
@@ -678,7 +692,7 @@ func TestServingResponse(t *testing.T) {
 
 	c := new(Client)
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeTXT)
+	m.SetQuestion(mustParseName("miek.nl."), TypeTXT)
 	m.Response = false
 	_, _, err = c.Exchange(m, addrstr)
 	if err != nil {
@@ -727,7 +741,7 @@ func checkInProgressQueriesAtShutdownServer(t *testing.T, srv *Server, addr stri
 	defer errOnce.Do(func() {})
 
 	toHandle := int32(requests)
-	HandleFunc("example.com.", func(w ResponseWriter, req *Msg) {
+	HandleFunc(mustParseName("example.com."), func(w ResponseWriter, req *Msg) {
 		defer atomic.AddInt32(&toHandle, -1)
 
 		// Wait until ShutdownContext is called before replying.
@@ -746,7 +760,7 @@ func checkInProgressQueriesAtShutdownServer(t *testing.T, srv *Server, addr stri
 			})
 		}
 	})
-	defer HandleRemove("example.com.")
+	defer HandleRemove(mustParseName("example.com."))
 
 	client.Timeout = 1 * time.Second
 
@@ -767,7 +781,7 @@ func checkInProgressQueriesAtShutdownServer(t *testing.T, srv *Server, addr stri
 	}
 
 	m := new(Msg)
-	m.SetQuestion("example.com.", TypeTXT)
+	m.SetQuestion(mustParseName("example.com."), TypeTXT)
 	eg = new(errgroup.Group)
 
 	for _, conn := range conns {
@@ -886,7 +900,7 @@ func TestHandlerCloseTCP(t *testing.T) {
 
 	server := &Server{Addr: addr, Net: "tcp", Listener: ln}
 
-	hname := "testhandlerclosetcp."
+	hname := mustParseName("testhandlerclosetcp.")
 	triggered := make(chan struct{})
 	HandleFunc(hname, func(w ResponseWriter, r *Msg) {
 		close(triggered)
@@ -981,7 +995,7 @@ func TestInProgressQueriesAtShutdownPacketConn(t *testing.T) {
 
 func TestServerStartStopRace(t *testing.T) {
 	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		wg.Add(1)
 		s, _, _, err := RunLocalUDPServer(":0")
 		if err != nil {
@@ -1324,7 +1338,7 @@ func TestServerRoundtripTsig(t *testing.T) {
 	defer s.Shutdown()
 
 	handlerFired := make(chan struct{})
-	HandleFunc("example.com.", func(w ResponseWriter, r *Msg) {
+	HandleFunc(mustParseName("example.com."), func(w ResponseWriter, r *Msg) {
 		close(handlerFired)
 
 		m := new(Msg)
@@ -1333,7 +1347,7 @@ func TestServerRoundtripTsig(t *testing.T) {
 			status := w.TsigStatus()
 			if status == nil {
 				// *Msg r has an TSIG record and it was validated
-				m.SetTsig("test.", HmacSHA256, 300, time.Now().Unix())
+				m.SetTsig(mustParseName("test."), HmacSHA256, 300, time.Now().Unix())
 			} else {
 				// *Msg r has an TSIG records and it was not validated
 				t.Errorf("invalid TSIG: %v", status)
@@ -1349,18 +1363,19 @@ func TestServerRoundtripTsig(t *testing.T) {
 	c := new(Client)
 	m := new(Msg)
 	m.Opcode = OpcodeUpdate
-	m.SetQuestion("example.com.", TypeSOA)
+	m.SetQuestion(mustParseName("example.com."), TypeSOA)
+	target, _ := NameFromString("bar.example.com.")
 	m.Ns = []RR{&CNAME{
 		Hdr: RR_Header{
-			Name:   "foo.example.com.",
+			Name:   mustParseName("foo.example.com."),
 			Rrtype: TypeCNAME,
 			Class:  ClassINET,
 			Ttl:    300,
 		},
-		Target: "bar.example.com.",
+		Target: target,
 	}}
 	c.TsigSecret = secret
-	m.SetTsig("test.", HmacSHA256, 300, time.Now().Unix())
+	m.SetTsig(mustParseName("test."), HmacSHA256, 300, time.Now().Unix())
 	_, _, err = c.Exchange(m, addrstr)
 	if err != nil {
 		t.Fatal("failed to exchange", err)
@@ -1422,7 +1437,7 @@ func TestResponseWriteSinglePacket(t *testing.T) {
 	rw.writer = rw
 
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeTXT)
+	m.SetQuestion(mustParseName("miek.nl."), TypeTXT)
 	m.Response = true
 	err := rw.WriteMsg(m)
 	if err != nil {
@@ -1473,11 +1488,11 @@ func ExampleDecorateWriter() {
 
 	waitLock.Lock()
 
-	HandleFunc("miek.nl.", HelloServer)
+	HandleFunc(mustParseName("miek.nl."), HelloServer)
 
 	c := new(Client)
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeTXT)
+	m.SetQuestion(mustParseName("miek.nl."), TypeTXT)
 	_, _, err = c.Exchange(m, pc.LocalAddr().String())
 	if err != nil {
 		fmt.Println("failed to exchange", err.Error())

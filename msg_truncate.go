@@ -60,7 +60,7 @@ func (dns *Msg) Truncate(size int) {
 		size -= Len(edns0)
 	}
 
-	compression := make(map[string]struct{})
+	compression := make(map[Name]struct{})
 
 	l = headerSize
 	for _, r := range dns.Question {
@@ -96,7 +96,7 @@ func (dns *Msg) Truncate(size int) {
 	}
 }
 
-func truncateLoop(rrs []RR, size, l int, compression map[string]struct{}) (int, int) {
+func truncateLoop(rrs []RR, size, l int, compression map[Name]struct{}) (int, int) {
 	for i, r := range rrs {
 		if r == nil {
 			continue

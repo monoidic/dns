@@ -17,11 +17,11 @@ func (rr *SIG) Sign(k crypto.Signer, m *Msg) ([]byte, error) {
 	if k == nil {
 		return nil, ErrPrivKey
 	}
-	if rr.KeyTag == 0 || rr.SignerName == "" || rr.Algorithm == 0 {
+	if rr.KeyTag == 0 || rr.SignerName.EncodedLen() == 0 || rr.Algorithm == 0 {
 		return nil, ErrKey
 	}
 
-	rr.Hdr = RR_Header{Name: ".", Rrtype: TypeSIG, Class: ClassANY, Ttl: 0}
+	rr.Hdr = RR_Header{Name: mustParseName("."), Rrtype: TypeSIG, Class: ClassANY, Ttl: 0}
 	rr.OrigTtl, rr.TypeCovered, rr.Labels = 0, 0, 0
 
 	buf := make([]byte, m.Len()+Len(rr))
@@ -77,7 +77,7 @@ func (rr *SIG) Verify(k *KEY, buf []byte) error {
 	if k == nil {
 		return ErrKey
 	}
-	if rr.KeyTag == 0 || rr.SignerName == "" || rr.Algorithm == 0 {
+	if rr.KeyTag == 0 || rr.SignerName.EncodedLen() == 0 || rr.Algorithm == 0 {
 		return ErrKey
 	}
 
@@ -143,14 +143,14 @@ func (rr *SIG) Verify(k *KEY, buf []byte) error {
 	}
 	// Skip key tag
 	offset += 2
-	var signername string
+	var signername Name
 	signername, offset, err = UnpackDomainName(buf, offset)
 	if err != nil {
 		return err
 	}
 	// If key has come from the DNS name compression might
 	// have mangled the case of the name
-	if !equal(signername, k.Header().Name) {
+	if !isDuplicateName(signername, k.Header().Name) {
 		return &Error{err: "signer name doesn't match key name"}
 	}
 	sigend := offset

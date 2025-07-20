@@ -561,14 +561,15 @@ func unpackDataSVCB(msg []byte, off int) ([]SVCBKeyValue, int, error) {
 	var xs []SVCBKeyValue
 	var code uint16
 	var length uint16
-	var err error
 	for off < len(msg) {
-		code, off, err = unpackUint16(msg, off)
-		if err != nil {
+		if len(msg[off:]) < 4 {
 			return nil, len(msg), &Error{err: "overflow unpacking SVCB"}
 		}
-		length, off, err = unpackUint16(msg, off)
-		if err != nil || off+int(length) > len(msg) {
+		code = binary.BigEndian.Uint16(msg[off+0:])
+		length = binary.BigEndian.Uint16(msg[off+2:])
+		off += 4
+
+		if len(msg[off:]) < int(length) {
 			return nil, len(msg), &Error{err: "overflow unpacking SVCB"}
 		}
 		e := makeSVCBKeyValue(SVCBKey(code))
@@ -578,7 +579,7 @@ func unpackDataSVCB(msg []byte, off int) ([]SVCBKeyValue, int, error) {
 		if err := e.unpack(msg[off : off+int(length)]); err != nil {
 			return nil, len(msg), err
 		}
-		if len(xs) > 0 && e.Key() <= xs[len(xs)-1].Key() {
+		if !(len(xs) == 0 || xs[len(xs)-1].Key() < e.Key()) {
 			return nil, len(msg), &Error{err: "SVCB keys not in strictly increasing order"}
 		}
 		xs = append(xs, e)
@@ -602,24 +603,22 @@ func packDataSVCB(pairs []SVCBKeyValue, msg []byte, off int) (int, error) {
 		if err != nil {
 			return len(msg), err
 		}
-		off, err = packUint16(uint16(el.Key()), msg, off)
-		if err != nil {
+		if len(msg[off:]) < 4+len(packed) {
 			return len(msg), &Error{err: "overflow packing SVCB"}
 		}
-		off, err = packUint16(uint16(len(packed)), msg, off)
-		if err != nil || off+len(packed) > len(msg) {
-			return len(msg), &Error{err: "overflow packing SVCB"}
-		}
+		binary.BigEndian.PutUint16(msg[off+0:], uint16(el.Key()))
+		binary.BigEndian.PutUint16(msg[off+2:], uint16(len(packed)))
+		off += 4
 		copy(msg[off:off+len(packed)], packed)
 		off += len(packed)
 	}
 	return off, nil
 }
 
-func unpackDataDomainNames(msg []byte, off, end int) ([]string, int, error) {
+func unpackDataDomainNames(msg []byte, off, end int) ([]Name, int, error) {
 	var (
-		servers []string
-		s       string
+		servers []Name
+		s       Name
 		err     error
 	)
 	if end > len(msg) {
@@ -635,7 +634,7 @@ func unpackDataDomainNames(msg []byte, off, end int) ([]string, int, error) {
 	return servers, off, nil
 }
 
-func packDataDomainNames(names []string, msg []byte, off int, compression compressionMap, compress bool) (int, error) {
+func packDataDomainNames(names []Name, msg []byte, off int, compression compressionMap, compress bool) (int, error) {
 	var err error
 	for _, name := range names {
 		off, err = packDomainName(name, msg, off, compression, compress)
@@ -760,9 +759,9 @@ func unpackDataAplPrefix(msg []byte, off int) (APLPrefix, int, error) {
 	}, off, nil
 }
 
-func unpackIPSECGateway(msg []byte, off int, gatewayType uint8) (netip.Addr, string, int, error) {
+func unpackIPSECGateway(msg []byte, off int, gatewayType uint8) (netip.Addr, Name, int, error) {
 	var retAddr netip.Addr
-	var retString string
+	var retName Name
 	var err error
 
 	switch gatewayType {
@@ -772,13 +771,13 @@ func unpackIPSECGateway(msg []byte, off int, gatewayType uint8) (netip.Addr, str
 	case IPSECGatewayIPv6:
 		retAddr, off, err = unpackDataAAAA(msg, off)
 	case IPSECGatewayHost:
-		retString, off, err = UnpackDomainName(msg, off)
+		retName, off, err = UnpackDomainName(msg, off)
 	}
 
-	return retAddr, retString, off, err
+	return retAddr, retName, off, err
 }
 
-func packIPSECGateway(gatewayAddr netip.Addr, gatewayString string, msg []byte, off int, gatewayType uint8, compression compressionMap, compress bool) (int, error) {
+func packIPSECGateway(gatewayAddr netip.Addr, gatewayString Name, msg []byte, off int, gatewayType uint8, compression compressionMap, compress bool) (int, error) {
 	var err error
 
 	switch gatewayType {

@@ -11,7 +11,7 @@ import (
 func TestGenerateRangeGuard(t *testing.T) {
 	tmpdir := t.TempDir()
 
-	for i := 0; i <= 1; i++ {
+	for i := range 2 {
 		path := filepath.Join(tmpdir, fmt.Sprintf("%04d.conf", i))
 		data := []byte(fmt.Sprintf("dhcp-%04d A 10.0.0.%d", i, i))
 

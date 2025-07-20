@@ -14,14 +14,15 @@ import (
 )
 
 // HMAC hashing codes. These are transmitted as domain names.
-const (
-	HmacSHA1   = "hmac-sha1."
-	HmacSHA224 = "hmac-sha224."
-	HmacSHA256 = "hmac-sha256."
-	HmacSHA384 = "hmac-sha384."
-	HmacSHA512 = "hmac-sha512."
+// Manually encoded to avoid a init() function.
+var (
+	HmacSHA1   = Name{encoded: "\x09hmac-sha1\x00"}
+	HmacSHA224 = Name{encoded: "\x0bhmac-sha224\x00"}
+	HmacSHA256 = Name{encoded: "\x0bhmac-sha256\x00"}
+	HmacSHA384 = Name{encoded: "\x0bhmac-sha384\x00"}
+	HmacSHA512 = Name{encoded: "\x0bhmac-sha512\x00"}
 
-	HmacMD5 = "hmac-md5.sig-alg.reg.int." // Deprecated: HmacMD5 is no longer supported.
+	HmacMD5 = Name{encoded: "\x08hmac-md5\x07sig-alg\x03reg\x03int\x00"} // Deprecated: HmacMD5 is no longer supported.
 )
 
 // TsigProvider provides the API to plug-in a custom TSIG implementation.
@@ -41,7 +42,7 @@ func (key tsigHMACProvider) Generate(msg []byte, t *TSIG) ([]byte, error) {
 		return nil, err
 	}
 	var h hash.Hash
-	switch CanonicalName(t.Algorithm) {
+	switch t.Algorithm.Canonical() {
 	case HmacSHA1:
 		h = hmac.New(sha1.New, rawsecret)
 	case HmacSHA224:
@@ -77,7 +78,7 @@ func (key tsigHMACProvider) Verify(msg []byte, t *TSIG) error {
 type tsigSecretProvider map[string]string
 
 func (ts tsigSecretProvider) Generate(msg []byte, t *TSIG) ([]byte, error) {
-	key, ok := ts[t.Hdr.Name]
+	key, ok := ts[t.Hdr.Name.String()]
 	if !ok {
 		return nil, ErrSecret
 	}
@@ -85,7 +86,7 @@ func (ts tsigSecretProvider) Generate(msg []byte, t *TSIG) ([]byte, error) {
 }
 
 func (ts tsigSecretProvider) Verify(msg []byte, t *TSIG) error {
-	key, ok := ts[t.Hdr.Name]
+	key, ok := ts[t.Hdr.Name.String()]
 	if !ok {
 		return ErrSecret
 	}
@@ -96,7 +97,7 @@ func (ts tsigSecretProvider) Verify(msg []byte, t *TSIG) error {
 // See RFC 2845 and RFC 4635.
 type TSIG struct {
 	Hdr        RR_Header
-	Algorithm  string `dns:"domain-name"`
+	Algorithm  Name   `dns:"domain-name"`
 	TimeSigned uint64 `dns:"uint48"`
 	Fudge      uint16
 	MACSize    uint16
@@ -112,7 +113,7 @@ type TSIG struct {
 func (rr *TSIG) String() string {
 	s := "\n;; TSIG PSEUDOSECTION:\n; " // add another semi-colon to signify TSIG does not have a presentation format
 	s += rr.Hdr.String() +
-		" " + rr.Algorithm +
+		" " + rr.Algorithm.String() +
 		" " + tsigTimeToString(rr.TimeSigned) +
 		" " + strconv.Itoa(int(rr.Fudge)) +
 		" " + strconv.Itoa(int(rr.MACSize)) +
@@ -132,11 +133,11 @@ func (*TSIG) parse(c *zlexer, origin string) *ParseError {
 // RFC 2845, section 3.4.2. TSIG Variables.
 type tsigWireFmt struct {
 	// From RR_Header
-	Name  string `dns:"domain-name"`
+	Name  Name `dns:"domain-name"`
 	Class uint16
 	Ttl   uint32
 	// Rdata of the TSIG
-	Algorithm  string `dns:"domain-name"`
+	Algorithm  Name   `dns:"domain-name"`
 	TimeSigned uint64 `dns:"uint48"`
 	Fudge      uint16
 	// MACSize, MAC and OrigId excluded
@@ -185,9 +186,8 @@ func TsigGenerateWithProvider(m *Msg, provider TsigProvider, requestMAC string, 
 		return nil, "", err
 	}
 
-	t := new(TSIG)
 	// Copy all TSIG fields except MAC, its size, and time signed which are filled when signing.
-	*t = *rr
+	t := rr.copy().(*TSIG)
 	t.TimeSigned = 0
 	t.MAC = ""
 	t.MACSize = 0
@@ -200,7 +200,7 @@ func TsigGenerateWithProvider(m *Msg, provider TsigProvider, requestMAC string, 
 		}
 		t.TimeSigned = rr.TimeSigned
 		t.MAC = hex.EncodeToString(mac)
-		t.MACSize = uint16(len(t.MAC) / 2) // Size is half!
+		t.MACSize = uint16(hex.DecodedLen(len(t.MAC)))
 	}
 
 	tbuf := make([]byte, Len(t))
@@ -274,7 +274,7 @@ func tsigBuffer(msgbuf []byte, rr *TSIG, requestMAC string, timersOnly bool) ([]
 
 	if requestMAC != "" {
 		m := new(macWireFmt)
-		m.MACSize = uint16(len(requestMAC) / 2)
+		m.MACSize = uint16(hex.DecodedLen(len(requestMAC)))
 		m.MAC = requestMAC
 		buf = make([]byte, len(requestMAC)) // long enough
 		n, err := packMacWire(m, buf)
@@ -296,10 +296,10 @@ func tsigBuffer(msgbuf []byte, rr *TSIG, requestMAC string, timersOnly bool) ([]
 		tsigvar = tsigvar[:n]
 	} else {
 		tsig := new(tsigWireFmt)
-		tsig.Name = CanonicalName(rr.Hdr.Name)
+		tsig.Name = rr.Hdr.Name.Canonical()
 		tsig.Class = ClassANY
 		tsig.Ttl = rr.Hdr.Ttl
-		tsig.Algorithm = CanonicalName(rr.Algorithm)
+		tsig.Algorithm = rr.Algorithm.Canonical()
 		tsig.TimeSigned = rr.TimeSigned
 		tsig.Fudge = rr.Fudge
 		tsig.Error = rr.Error
@@ -394,36 +394,31 @@ func packTsigWire(tw *tsigWireFmt, msg []byte) (int, error) {
 	if err != nil {
 		return off, err
 	}
-	off, err = packUint16(tw.Class, msg, off)
-	if err != nil {
-		return off, err
+
+	if len(msg[off:]) < 6 {
+		return off, ErrBuf
 	}
-	off, err = packUint32(tw.Ttl, msg, off)
-	if err != nil {
-		return off, err
-	}
+	binary.BigEndian.PutUint16(msg[off+0:], tw.Class)
+	binary.BigEndian.PutUint32(msg[off+2:], tw.Ttl)
+	off += 6
 
 	off, err = PackDomainName(tw.Algorithm, msg, off, nil, false)
 	if err != nil {
 		return off, err
 	}
-	off, err = packUint48(tw.TimeSigned, msg, off)
-	if err != nil {
-		return off, err
-	}
-	off, err = packUint16(tw.Fudge, msg, off)
-	if err != nil {
-		return off, err
+
+	if len(msg[off:]) < 12 {
+		return off, ErrBuf
 	}
 
-	off, err = packUint16(tw.Error, msg, off)
-	if err != nil {
-		return off, err
-	}
-	off, err = packUint16(tw.OtherLen, msg, off)
-	if err != nil {
-		return off, err
-	}
+	binary.BigEndian.PutUint32(msg[off+0:], uint32(tw.TimeSigned>>16))
+	binary.BigEndian.PutUint16(msg[off+4:], uint16(tw.TimeSigned))
+
+	binary.BigEndian.PutUint16(msg[off+6:], tw.Fudge)
+	binary.BigEndian.PutUint16(msg[off+8:], tw.Error)
+	binary.BigEndian.PutUint16(msg[off+10:], tw.OtherLen)
+	off += 12
+
 	off, err = packStringHex(tw.OtherData, msg, off)
 	if err != nil {
 		return off, err

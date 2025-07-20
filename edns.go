@@ -142,7 +142,7 @@ func (rr *OPT) String() string {
 	return s.String()
 }
 
-func (rr *OPT) len(off int, compression map[string]struct{}) int {
+func (rr *OPT) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	for _, o := range rr.Option {
 		l += 4 // Account for 2-byte option code and 2-byte option length.

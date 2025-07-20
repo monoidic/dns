@@ -10,12 +10,20 @@ import (
 	"github.com/monoidic/dns"
 )
 
+func mustParseName(s string) dns.Name {
+	ret, err := dns.NameFromString(s)
+	if err != nil {
+		panic(err)
+	}
+	return ret
+}
+
 // Retrieve the MX records for miek.nl.
 func ExampleMX() {
 	config, _ := dns.ClientConfigFromFile("/etc/resolv.conf")
 	c := new(dns.Client)
 	m := new(dns.Msg)
-	m.SetQuestion("miek.nl.", dns.TypeMX)
+	m.SetQuestion(mustParseName("miek.nl."), dns.TypeMX)
 	m.RecursionDesired = true
 	r, _, err := c.Exchange(m, net.JoinHostPort(config.Servers[0], config.Port))
 	if err != nil {
@@ -38,7 +46,7 @@ func ExampleDS() {
 	c := new(dns.Client)
 	m := new(dns.Msg)
 	zone := "miek.nl"
-	m.SetQuestion(dns.Fqdn(zone), dns.TypeDNSKEY)
+	m.SetQuestion(mustParseName(dns.Fqdn(zone)), dns.TypeDNSKEY)
 	m.SetEdns0(4096, true)
 	r, _, err := c.Exchange(m, net.JoinHostPort(config.Servers[0], config.Port))
 	if err != nil {
@@ -130,7 +138,7 @@ func ExamplePrivateHandle() {
 	fmt.Println(rr) // see first line of Output below
 
 	m := new(dns.Msg)
-	m.SetQuestion("miek.nl.", TypeAPAIR)
+	m.SetQuestion(mustParseName("miek.nl."), TypeAPAIR)
 	m.Answer = append(m.Answer, rr)
 
 	fmt.Println(m)

@@ -34,4 +34,8 @@ func (r1 *RR_Header) isDuplicate(_r2 RR) bool {
 }
 
 // isDuplicateName checks if the domain names s1 and s2 are equal.
-func isDuplicateName(s1, s2 string) bool { return equal(s1, s2) }
+func isDuplicateName(s1, s2 Name) bool {
+	// funnily enough, the maximum label length is 0x3f, before 0x41 (A)
+	// the only places where A-Z could occur would be within labels, so this will just work™
+	return equal(s1.encoded, s2.encoded)
+}

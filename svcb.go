@@ -2,12 +2,12 @@ package dns
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"net/netip"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -42,15 +42,7 @@ var svcbKeyToStringMap = map[SVCBKey]string{
 	SVCB_OHTTP:           "ohttp",
 }
 
-var svcbStringToKeyMap = reverseSVCBKeyMap(svcbKeyToStringMap)
-
-func reverseSVCBKeyMap(m map[SVCBKey]string) map[string]SVCBKey {
-	n := make(map[string]SVCBKey, len(m))
-	for u, s := range m {
-		n[s] = u
-	}
-	return n
-}
+var svcbStringToKeyMap = reverseMap(svcbKeyToStringMap)
 
 // String takes the numerical code of an SVCB key and returns its name.
 // Returns an empty string for reserved keys.
@@ -69,19 +61,19 @@ func (key SVCBKey) String() string {
 // Returns svcb_RESERVED for reserved/invalid keys.
 // Accepts unassigned keys as well as experimental/private keys.
 func svcbStringToKey(s string) SVCBKey {
-	if strings.HasPrefix(s, "key") {
-		a, err := strconv.ParseUint(s[3:], 10, 16)
-		// no leading zeros
-		// key shouldn't be registered
-		if err != nil || a == 65535 || s[3] == '0' || svcbKeyToStringMap[SVCBKey(a)] != "" {
-			return svcb_RESERVED
-		}
-		return SVCBKey(a)
-	}
 	if key, ok := svcbStringToKeyMap[s]; ok {
 		return key
 	}
-	return svcb_RESERVED
+	if !strings.HasPrefix(s, "key") {
+		return svcb_RESERVED
+	}
+	a, err := strconv.ParseUint(s[3:], 10, 16)
+	// no leading zeros
+	// key shouldn't be registered
+	if err != nil || a == 65535 || s[3] == '0' || svcbKeyToStringMap[SVCBKey(a)] != "" {
+		return svcb_RESERVED
+	}
+	return SVCBKey(a)
 }
 
 func (rr *SVCB) parse(c *zlexer, o string) *ParseError {
@@ -94,7 +86,6 @@ func (rr *SVCB) parse(c *zlexer, o string) *ParseError {
 
 	c.Next()        // zBlank
 	l, _ = c.Next() // zString
-	rr.Target = l.token
 
 	name, nameOk := toAbsoluteName(l.token, o)
 	if l.err || !nameOk {
@@ -219,7 +210,7 @@ func makeSVCBKeyValue(key SVCBKey) SVCBKeyValue {
 type SVCB struct {
 	Hdr      RR_Header
 	Priority uint16         // If zero, Value must be empty or discarded by the user of this library
-	Target   string         `dns:"domain-name"`
+	Target   Name           `dns:"domain-name"`
 	Value    []SVCBKeyValue `dns:"pairs"`
 }
 
@@ -287,9 +278,7 @@ func (s *SVCBMandatory) String() string {
 
 func (s *SVCBMandatory) pack() ([]byte, error) {
 	codes := slices.Clone(s.Code)
-	sort.Slice(codes, func(i, j int) bool {
-		return codes[i] < codes[j]
-	})
+	slices.Sort(codes)
 	b := make([]byte, 2*len(codes))
 	for i, e := range codes {
 		binary.BigEndian.PutUint16(b[2*i:], uint16(e))
@@ -472,9 +461,9 @@ func (s *SVCBAlpn) parse(b string) error {
 }
 
 func (s *SVCBAlpn) len() int {
-	var l int
+	l := len(s.Alpn)
 	for _, e := range s.Alpn {
-		l += 1 + len(e)
+		l += len(e)
 	}
 	return l
 }
@@ -591,11 +580,10 @@ func (s *SVCBIPv4Hint) unpack(b []byte) error {
 	if len(b) == 0 || len(b)%4 != 0 {
 		return errors.New("bad svcbipv4hint: ipv4 address byte array length is not a multiple of 4")
 	}
-	b = slices.Clone(b)
-	x := make([]netip.Addr, 0, len(b)/4)
-	for i := 0; i < len(b); i += 4 {
-		addr, _ := netip.AddrFromSlice(b[i : i+4])
-		x = append(x, addr)
+	x := make([]netip.Addr, len(b)/4)
+	for i := range x {
+		addr, _ := netip.AddrFromSlice(b[i*4 : (i+1)*4])
+		x[i] = addr
 	}
 	s.Hint = x
 	return nil
@@ -710,13 +698,13 @@ func (s *SVCBIPv6Hint) unpack(b []byte) error {
 		return errors.New("bas svcbipv6hint: ipv6 address byte array length not a multiple of 16")
 	}
 	b = slices.Clone(b)
-	x := make([]netip.Addr, 0, len(b)/16)
-	for i := 0; i < len(b); i += 16 {
-		ip, ok := netip.AddrFromSlice(b[i : i+16])
-		if !(ok && ip.Unmap().Is6()) {
+	x := make([]netip.Addr, len(b)/16)
+	for i := range len(x) {
+		ip, ok := netip.AddrFromSlice(b[i*16 : (i+1)*16])
+		if !ok || ip.Is4In6() {
 			return errors.New("bad svcbipv6hint: expected ipv6, got ipv4")
 		}
-		x = append(x, ip)
+		x[i] = ip
 	}
 	s.Hint = x
 	return nil
@@ -886,7 +874,7 @@ func (s *SVCBLocal) copy() SVCBKeyValue {
 func (rr *SVCB) String() string {
 	s := rr.Hdr.String() +
 		strconv.Itoa(int(rr.Priority)) + " " +
-		sprintName(rr.Target)
+		rr.Target.String()
 	for _, e := range rr.Value {
 		s += " " + e.Key().String() + "=\"" + e.String() + "\""
 	}
@@ -898,8 +886,8 @@ func (rr *SVCB) String() string {
 func areSVCBPairArraysEqual(a []SVCBKeyValue, b []SVCBKeyValue) bool {
 	a = slices.Clone(a)
 	b = slices.Clone(b)
-	sort.Slice(a, func(i, j int) bool { return a[i].Key() < a[j].Key() })
-	sort.Slice(b, func(i, j int) bool { return b[i].Key() < b[j].Key() })
+	slices.SortFunc(a, func(l, r SVCBKeyValue) int { return cmp.Compare(l.Key(), r.Key()) })
+	slices.SortFunc(b, func(l, r SVCBKeyValue) int { return cmp.Compare(l.Key(), r.Key()) })
 	for i, e := range a {
 		if e.Key() != b[i].Key() {
 			return false
@@ -922,10 +910,8 @@ func svcbParamToStr(s []byte) string {
 			switch e {
 			case '"', ';', ' ', '\\':
 				str.WriteByte('\\')
-				str.WriteByte(e)
-			default:
-				str.WriteByte(e)
 			}
+			str.WriteByte(e)
 		} else {
 			str.WriteString(escapeByte(e))
 		}

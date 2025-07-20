@@ -1,5 +1,11 @@
 package dns
 
+import (
+	"bytes"
+	"cmp"
+	"slices"
+)
+
 // Holds a bunch of helper functions for dealing with labels.
 
 // SplitDomainName splits a name string into it's labels.
@@ -9,32 +15,29 @@ package dns
 // strings.Split(s) will work in most cases, but does not handle
 // escaped dots (\.) for instance.
 // s must be a syntactically valid domain name, see IsDomainName.
-func SplitDomainName(s string) (labels []string) {
-	if s == "" {
+func (n Name) SplitRaw() [][]byte {
+	if n.String() == "" {
 		return nil
 	}
-	fqdnEnd := 0 // offset of the final '.' or the length of the name
-	idx := Split(s)
-	begin := 0
-	if IsFqdn(s) {
-		fqdnEnd = len(s) - 1
-	} else {
-		fqdnEnd = len(s)
-	}
+	var labels [][]byte
 
-	switch len(idx) {
-	case 0:
-		return nil
-	case 1:
-		// no-op
-	default:
-		for _, end := range idx[1:] {
-			labels = append(labels, s[begin:end-1])
-			begin = end
-		}
+	var off int
+	for off+1 < len(n.encoded) {
+		labelLen := int(n.encoded[off])
+		off++
+		labels = append(labels, []byte(n.encoded[off:off+labelLen]))
+		off += labelLen
 	}
+	return labels
+}
 
-	return append(labels, s[begin:fqdnEnd])
+func (n Name) Split() []string {
+	labels := n.SplitRaw()
+	ret := make([]string, len(labels))
+	for i, v := range labels {
+		ret[i] = escapeLabel(v)
+	}
+	return ret
 }
 
 // CompareDomainName compares the names s1 and s2 and
@@ -46,55 +49,41 @@ func SplitDomainName(s string) (labels []string) {
 // www.miek.nl. and www.bla.nl. have one label in common: nl
 //
 // s1 and s2 must be syntactically valid domain names.
-func CompareDomainName(s1, s2 string) (n int) {
+func CompareDomainName(s1, s2 Name) (n int) {
 	// the first check: root label
-	if s1 == "." || s2 == "." {
+	if s1.String() == "." || s2.String() == "." {
 		return 0
 	}
 
-	l1 := Split(s1)
-	l2 := Split(s2)
-
-	j1 := len(l1) - 1 // end
-	i1 := len(l1) - 2 // start
-	j2 := len(l2) - 1
-	i2 := len(l2) - 2
-	// the second check can be done here: last/only label
-	// before we fall through into the for-loop below
-	if !equal(s1[l1[j1]:], s2[l2[j2]:]) {
-		return
-	}
-	n++
-	for {
-		if i1 < 0 || i2 < 0 {
-			break
-		}
-		if !equal(s1[l1[i1]:l1[j1]], s2[l2[i2]:l2[j2]]) {
+	s1Labels := s1.Split()
+	s2Labels := s2.Split()
+	slices.Reverse(s1Labels)
+	slices.Reverse(s2Labels)
+	for i := range min(len(s1Labels), len(s2Labels)) {
+		if !equal(s1Labels[i], s2Labels[i]) {
 			break
 		}
 		n++
-		j1--
-		i1--
-		j2--
-		i2--
 	}
 	return
 }
 
 // CountLabel counts the number of labels in the string s.
 // s must be a syntactically valid domain name.
-func CountLabel(s string) (labels int) {
-	if s == "." {
-		return
+func (n Name) CountLabel() int {
+	switch n.encoded {
+	case "": // empty
+		return 0
 	}
-	off := 0
-	end := false
+
+	var off, labels int
 	for {
-		off, end = NextLabel(s, off)
-		labels++
-		if end {
-			return
+		labelLen := int(n.encoded[off])
+		off += labelLen + 1
+		if off == len(n.encoded) {
+			return labels
 		}
+		labels++
 	}
 }
 
@@ -102,8 +91,8 @@ func CountLabel(s string) (labels int) {
 // www.miek.nl. returns []int{0, 4, 9}, www.miek.nl also returns []int{0, 4, 9}.
 // The root name (.) returns nil. Also see SplitDomainName.
 // s must be a syntactically valid domain name.
-func Split(s string) []int {
-	if s == "." {
+func Split(s Name) []int {
+	if s.encoded == "\x00" { // root
 		return nil
 	}
 	idx := make([]int, 1, 3)
@@ -123,104 +112,40 @@ func Split(s string) []int {
 // string s starting at offset.
 // The bool end is true when the end of the string has been reached.
 // Also see PrevLabel.
-func NextLabel(s string, offset int) (i int, end bool) {
-	if s == "" {
+func NextLabel(s Name, offset int) (i int, end bool) {
+	if s.encoded == "" {
 		return 0, true
 	}
-	for i = offset; i < len(s)-1; i++ {
-		if s[i] != '.' {
-			continue
-		}
-		j := i - 1
-		for j >= 0 && s[j] == '\\' {
-			j--
-		}
-
-		if (j-i)%2 == 0 {
-			continue
-		}
-
-		return i + 1, false
+	if offset >= len(s.encoded) {
+		return s.EncodedLen(), true
 	}
-	return i + 1, true
-}
-
-// PrevLabel returns the index of the label when starting from the right and
-// jumping n labels to the left.
-// The bool start is true when the start of the string has been overshot.
-// Also see NextLabel.
-func PrevLabel(s string, n int) (i int, start bool) {
-	if s == "" {
-		return 0, true
+	labelLen := s.encoded[offset]
+	i = offset + 1 + int(labelLen)
+	if len(s.encoded) < i {
+		return len(s.encoded), true
 	}
-	if n == 0 {
-		return len(s), false
-	}
-
-	l := len(s) - 1
-	if s[l] == '.' {
-		l--
-	}
-
-	for ; l >= 0 && n > 0; l-- {
-		if s[l] != '.' {
-			continue
-		}
-		j := l - 1
-		for j >= 0 && s[j] == '\\' {
-			j--
-		}
-
-		if (j-l)%2 == 0 {
-			continue
-		}
-
-		n--
-		if n == 0 {
-			return l + 1, false
-		}
-	}
-
-	return 0, n > 1
+	return i, i == len(s.encoded)-1
 }
 
 // Compare compares domains according to the canonical ordering specified in RFC4034
 // returns an integer value similar to strcmp
 // (0 for equal values, -1 if s1 < s2, 1 if s1 > s2)
-func Compare(s1, s2 string) int {
-	s1b := doDDD([]byte(s1))
-	s2b := doDDD([]byte(s2))
+func Compare(s1, s2 Name) int {
+	s1Labels := s1.Canonical().SplitRaw()
+	s2Labels := s2.Canonical().SplitRaw()
 
-	s1 = string(s1b)
-	s2 = string(s2b)
+	slices.Reverse(s1Labels)
+	slices.Reverse(s2Labels)
 
-	s1lend := len(s1)
-	s2lend := len(s2)
-
-	for i := 0; ; i++ {
-		s1lstart, end1 := PrevLabel(s1, i)
-		s2lstart, end2 := PrevLabel(s2, i)
-
-		if end1 && end2 {
-			return 0
-		}
-
-		s1l := string(s1b[s1lstart:s1lend])
-		s2l := string(s2b[s2lstart:s2lend])
-
-		if cmp := labelCompare(s1l, s2l); cmp != 0 {
+	for i := range min(len(s1Labels), len(s2Labels)) {
+		s1l := s1Labels[i]
+		s2l := s2Labels[i]
+		if cmp := bytes.Compare(s1l, s2l); cmp != 0 {
 			return cmp
 		}
-
-		s1lend = s1lstart - 1
-		s2lend = s2lstart - 1
-		if s1lend == -1 {
-			s1lend = 0
-		}
-		if s2lend == -1 {
-			s2lend = 0
-		}
 	}
+
+	return cmp.Compare(len(s1Labels), len(s2Labels))
 }
 
 // essentially strcasecmp
@@ -228,8 +153,7 @@ func Compare(s1, s2 string) int {
 func labelCompare(a, b string) int {
 	la := len(a)
 	lb := len(b)
-	minLen := min(la, lb)
-	for i := 0; i < minLen; i++ {
+	for i := range min(la, lb) {
 		ai := a[i]
 		bi := b[i]
 		if ai >= 'A' && ai <= 'Z' {
@@ -263,18 +187,4 @@ func equal(a, b string) bool {
 	}
 
 	return labelCompare(a, b) == 0
-}
-
-func doDDD(b []byte) []byte {
-	lb := len(b)
-	for i := 0; i < lb; i++ {
-		if i+3 < lb && b[i] == '\\' && isDigit(b[i+1]) && isDigit(b[i+2]) && isDigit(b[i+3]) {
-			b[i] = dddToByte(b[i+1 : i+4])
-			for j := i + 1; j < lb-3; j++ {
-				b[j] = b[j+3]
-			}
-			lb -= 3
-		}
-	}
-	return b[:lb]
 }

@@ -417,7 +417,7 @@ func (zp *ZoneParser) Next() (RR, bool) {
 						return zp.setParseError("bad origin name", l)
 					}
 
-					neworigin = name
+					neworigin = name.String()
 				}
 			case zNewline, zEOF:
 				// Ok
@@ -516,7 +516,7 @@ func (zp *ZoneParser) Next() (RR, bool) {
 				return zp.setParseError("bad origin name", l)
 			}
 
-			zp.origin = name
+			zp.origin = name.String()
 
 			st = zExpectOwnerDir
 		case zExpectDirGenerateBl:
@@ -1308,39 +1308,43 @@ func stringToCm(token string) (e, m uint8, ok bool) {
 	return e, uint8(val), true
 }
 
-func toAbsoluteName(name, origin string) (absolute string, ok bool) {
+func toAbsoluteName(name, origin string) (absolute Name, ok bool) {
 	// check for an explicit origin reference
 	if name == "@" {
 		// require a nonempty origin
 		if origin == "" {
-			return "", false
+			return absolute, false
 		}
-		return origin, true
+		absolute, err := NameFromString(origin)
+		return absolute, err == nil
 	}
 
 	// this can happen when we have a comment after a RR that has a domain, '...   MX 20 ; this is wrong'.
 	// technically a newline can be in a domain name, but this is clearly an error and the newline only shows
 	// because of the scanning and the comment.
 	if name == "\n" {
-		return "", false
+		return absolute, false
 	}
 
 	// require a valid domain name
 	_, ok = IsDomainName(name)
 	if !ok || name == "" {
-		return "", false
+		return absolute, false
 	}
 
 	// check if name is already absolute
 	if IsFqdn(name) {
-		return name, true
+		absolute, err := NameFromString(name)
+		return absolute, err == nil
 	}
 
 	// require a nonempty origin
 	if origin == "" {
-		return "", false
+		return absolute, false
 	}
-	return appendOrigin(name, origin), true
+	name = appendOrigin(name, origin)
+	absolute, err := NameFromString(name)
+	return absolute, err == nil
 }
 
 func appendOrigin(name, origin string) string {

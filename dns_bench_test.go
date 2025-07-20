@@ -10,7 +10,7 @@ func BenchmarkMsgLength(b *testing.B) {
 	b.StopTimer()
 	makeMsg := func(question string, ans, ns, e []RR) *Msg {
 		msg := new(Msg)
-		msg.SetQuestion(Fqdn(question), TypeANY)
+		msg.SetQuestion(mustParseName(Fqdn(question)), TypeANY)
 		msg.Answer = append(msg.Answer, ans...)
 		msg.Ns = append(msg.Ns, ns...)
 		msg.Extra = append(msg.Extra, e...)
@@ -30,7 +30,7 @@ func BenchmarkMsgLengthNoCompression(b *testing.B) {
 	b.StopTimer()
 	makeMsg := func(question string, ans, ns, e []RR) *Msg {
 		msg := new(Msg)
-		msg.SetQuestion(Fqdn(question), TypeANY)
+		msg.SetQuestion(mustParseName(Fqdn(question)), TypeANY)
 		msg.Answer = append(msg.Answer, ans...)
 		msg.Ns = append(msg.Ns, ns...)
 		msg.Extra = append(msg.Extra, e...)
@@ -48,7 +48,7 @@ func BenchmarkMsgLengthNoCompression(b *testing.B) {
 func BenchmarkMsgLengthPack(b *testing.B) {
 	makeMsg := func(question string, ans, ns, e []RR) *Msg {
 		msg := new(Msg)
-		msg.SetQuestion(Fqdn(question), TypeANY)
+		msg.SetQuestion(mustParseName(Fqdn(question)), TypeANY)
 		msg.Answer = append(msg.Answer, ans...)
 		msg.Ns = append(msg.Ns, ns...)
 		msg.Extra = append(msg.Extra, e...)
@@ -67,7 +67,7 @@ func BenchmarkMsgLengthPack(b *testing.B) {
 func BenchmarkMsgLengthMassive(b *testing.B) {
 	makeMsg := func(question string, ans, ns, e []RR) *Msg {
 		msg := new(Msg)
-		msg.SetQuestion(Fqdn(question), TypeANY)
+		msg.SetQuestion(mustParseName(Fqdn(question)), TypeANY)
 		msg.Answer = append(msg.Answer, ans...)
 		msg.Ns = append(msg.Ns, ns...)
 		msg.Extra = append(msg.Extra, e...)
@@ -77,7 +77,7 @@ func BenchmarkMsgLengthMassive(b *testing.B) {
 	const name1 = "12345678901234567890123456789012345.12345678.123."
 	rrMx := testRR(name1 + " 3600 IN MX 10 " + name1)
 	answer := []RR{rrMx, rrMx}
-	for i := 0; i < 128; i++ {
+	for i := range 128 {
 		rrA := testRR(fmt.Sprintf("example%03d.something%03delse.org. 2311 IN A 127.0.0.1", i/32, i%32))
 		answer = append(answer, rrA)
 	}
@@ -91,7 +91,7 @@ func BenchmarkMsgLengthMassive(b *testing.B) {
 
 func BenchmarkMsgLengthOnlyQuestion(b *testing.B) {
 	msg := new(Msg)
-	msg.SetQuestion(Fqdn("12345678901234567890123456789012345.12345678.123."), TypeANY)
+	msg.SetQuestion(mustParseName(Fqdn("12345678901234567890123456789012345.12345678.123.")), TypeANY)
 	msg.Compress = true
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -101,7 +101,7 @@ func BenchmarkMsgLengthOnlyQuestion(b *testing.B) {
 
 func BenchmarkMsgLengthEscapedName(b *testing.B) {
 	msg := new(Msg)
-	msg.SetQuestion(`\1\2\3\4\5\6\7\8\9\0\1\2\3\4\5\6\7\8\9\0\1\2\3\4\5\6\7\8\9\0\1\2\3\4\5.\1\2\3\4\5\6\7\8.\1\2\3.`, TypeANY)
+	msg.SetQuestion(mustParseName(Fqdn(`\1\2\3\4\5\6\7\8\9\0\1\2\3\4\5\6\7\8\9\0\1\2\3\4\5\6\7\8\9\0\1\2\3\4\5.\1\2\3\4\5\6\7\8.\1\2\3.`)), TypeANY)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		msg.Len()
@@ -109,8 +109,8 @@ func BenchmarkMsgLengthEscapedName(b *testing.B) {
 }
 
 func BenchmarkPackDomainName(b *testing.B) {
-	name1 := "12345678901234567890123456789012345.12345678.123."
-	buf := make([]byte, len(name1)+1)
+	name1 := mustParseName("12345678901234567890123456789012345.12345678.123.")
+	buf := make([]byte, name1.EncodedLen())
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = PackDomainName(name1, buf, 0, nil, false)
@@ -118,8 +118,8 @@ func BenchmarkPackDomainName(b *testing.B) {
 }
 
 func BenchmarkUnpackDomainName(b *testing.B) {
-	name1 := "12345678901234567890123456789012345.12345678.123."
-	buf := make([]byte, len(name1)+1)
+	name1 := mustParseName("12345678901234567890123456789012345.12345678.123.")
+	buf := make([]byte, name1.EncodedLen())
 	_, _ = PackDomainName(name1, buf, 0, nil, false)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -128,8 +128,8 @@ func BenchmarkUnpackDomainName(b *testing.B) {
 }
 
 func BenchmarkUnpackDomainNameUnprintable(b *testing.B) {
-	name1 := "\x02\x02\x02\x025\x02\x02\x02\x02.12345678.123."
-	buf := make([]byte, len(name1)+1)
+	name1 := mustParseName("\x02\x02\x02\x025\x02\x02\x02\x02.12345678.123.")
+	buf := make([]byte, name1.EncodedLen())
 	_, _ = PackDomainName(name1, buf, 0, nil, false)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -139,7 +139,7 @@ func BenchmarkUnpackDomainNameUnprintable(b *testing.B) {
 
 func BenchmarkUnpackDomainNameLongest(b *testing.B) {
 	buf := make([]byte, len(longestDomain)+1)
-	n, err := PackDomainName(longestDomain, buf, 0, nil, false)
+	n, err := PackDomainName(mustParseName(longestDomain), buf, 0, nil, false)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -154,7 +154,7 @@ func BenchmarkUnpackDomainNameLongest(b *testing.B) {
 
 func BenchmarkUnpackDomainNameLongestUnprintable(b *testing.B) {
 	buf := make([]byte, len(longestUnprintableDomain)+1)
-	n, err := PackDomainName(longestUnprintableDomain, buf, 0, nil, false)
+	n, err := PackDomainName(mustParseName(longestUnprintableDomain), buf, 0, nil, false)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -170,7 +170,7 @@ func BenchmarkUnpackDomainNameLongestUnprintable(b *testing.B) {
 func BenchmarkCopy(b *testing.B) {
 	b.ReportAllocs()
 	m := new(Msg)
-	m.SetQuestion("miek.nl.", TypeA)
+	m.SetQuestion(mustParseName("miek.nl."), TypeA)
 	rr := testRR("miek.nl. 2311 IN A 127.0.0.1")
 	m.Answer = []RR{rr}
 	rr = testRR("miek.nl. 2311 IN NS 127.0.0.1")
@@ -185,7 +185,7 @@ func BenchmarkCopy(b *testing.B) {
 }
 
 func BenchmarkPackA(b *testing.B) {
-	a := &A{Hdr: RR_Header{Name: ".", Rrtype: TypeA, Class: ClassANY}, A: netip.AddrFrom4([4]byte{127, 0, 0, 1})}
+	a := &A{Hdr: RR_Header{Name: mustParseName(","), Rrtype: TypeA, Class: ClassANY}, A: netip.AddrFrom4([4]byte{127, 0, 0, 1})}
 
 	buf := make([]byte, Len(a))
 	b.ReportAllocs()
@@ -196,7 +196,7 @@ func BenchmarkPackA(b *testing.B) {
 }
 
 func BenchmarkUnpackA(b *testing.B) {
-	a := &A{Hdr: RR_Header{Name: ".", Rrtype: TypeA, Class: ClassANY}, A: netip.AddrFrom4([4]byte{127, 0, 0, 1})}
+	a := &A{Hdr: RR_Header{Name: mustParseName(","), Rrtype: TypeA, Class: ClassANY}, A: netip.AddrFrom4([4]byte{127, 0, 0, 1})}
 
 	buf := make([]byte, Len(a))
 	PackRR(a, buf, 0, nil, false)
@@ -209,7 +209,7 @@ func BenchmarkUnpackA(b *testing.B) {
 }
 
 func BenchmarkPackMX(b *testing.B) {
-	m := &MX{Hdr: RR_Header{Name: ".", Rrtype: TypeA, Class: ClassANY}, Mx: "mx.miek.nl."}
+	m := &MX{Hdr: RR_Header{Name: mustParseName(","), Rrtype: TypeA, Class: ClassANY}, Mx: mustParseName("mx.miek.nl.")}
 
 	buf := make([]byte, Len(m))
 	b.ReportAllocs()
@@ -220,7 +220,7 @@ func BenchmarkPackMX(b *testing.B) {
 }
 
 func BenchmarkUnpackMX(b *testing.B) {
-	m := &MX{Hdr: RR_Header{Name: ".", Rrtype: TypeA, Class: ClassANY}, Mx: "mx.miek.nl."}
+	m := &MX{Hdr: RR_Header{Name: mustParseName("."), Rrtype: TypeA, Class: ClassANY}, Mx: mustParseName("mx.miek.nl.")}
 
 	buf := make([]byte, Len(m))
 	PackRR(m, buf, 0, nil, false)
@@ -259,7 +259,7 @@ func BenchmarkUnpackAAAA(b *testing.B) {
 func BenchmarkPackMsg(b *testing.B) {
 	makeMsg := func(question string, ans, ns, e []RR) *Msg {
 		msg := new(Msg)
-		msg.SetQuestion(Fqdn(question), TypeANY)
+		msg.SetQuestion(mustParseName(Fqdn(question)), TypeANY)
 		msg.Answer = append(msg.Answer, ans...)
 		msg.Ns = append(msg.Ns, ns...)
 		msg.Extra = append(msg.Extra, e...)
@@ -280,7 +280,7 @@ func BenchmarkPackMsg(b *testing.B) {
 func BenchmarkPackMsgMassive(b *testing.B) {
 	makeMsg := func(question string, ans, ns, e []RR) *Msg {
 		msg := new(Msg)
-		msg.SetQuestion(Fqdn(question), TypeANY)
+		msg.SetQuestion(mustParseName(Fqdn(question)), TypeANY)
 		msg.Answer = append(msg.Answer, ans...)
 		msg.Ns = append(msg.Ns, ns...)
 		msg.Extra = append(msg.Extra, e...)
@@ -290,7 +290,7 @@ func BenchmarkPackMsgMassive(b *testing.B) {
 	const name1 = "12345678901234567890123456789012345.12345678.123."
 	rrMx := testRR(name1 + " 3600 IN MX 10 " + name1)
 	answer := []RR{rrMx, rrMx}
-	for i := 0; i < 128; i++ {
+	for i := range 128 {
 		rrA := testRR(fmt.Sprintf("example%03d.something%03delse.org. 2311 IN A 127.0.0.1", i/32, i%32))
 		answer = append(answer, rrA)
 	}
@@ -306,7 +306,7 @@ func BenchmarkPackMsgMassive(b *testing.B) {
 
 func BenchmarkPackMsgOnlyQuestion(b *testing.B) {
 	msg := new(Msg)
-	msg.SetQuestion(Fqdn("12345678901234567890123456789012345.12345678.123."), TypeANY)
+	msg.SetQuestion(mustParseName(Fqdn("12345678901234567890123456789012345.12345678.123.")), TypeANY)
 	msg.Compress = true
 	buf := make([]byte, 512)
 	b.ReportAllocs()
@@ -319,7 +319,7 @@ func BenchmarkPackMsgOnlyQuestion(b *testing.B) {
 func BenchmarkUnpackMsg(b *testing.B) {
 	makeMsg := func(question string, ans, ns, e []RR) *Msg {
 		msg := new(Msg)
-		msg.SetQuestion(Fqdn(question), TypeANY)
+		msg.SetQuestion(mustParseName(Fqdn(question)), TypeANY)
 		msg.Answer = append(msg.Answer, ans...)
 		msg.Ns = append(msg.Ns, ns...)
 		msg.Extra = append(msg.Extra, e...)

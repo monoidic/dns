@@ -1,7 +1,9 @@
 package dns
 
 import (
+	"encoding/hex"
 	"fmt"
+	"log"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -13,8 +15,6 @@ type (
 	Type uint16
 	// Class is a DNS class.
 	Class uint16
-	// Name is a DNS domain name.
-	Name string
 )
 
 // Packet formats
@@ -23,43 +23,48 @@ type (
 const (
 	// valid RR_Header.Rrtype and Question.qtype
 
-	TypeNone       uint16 = 0
-	TypeA          uint16 = 1
-	TypeNS         uint16 = 2
-	TypeMD         uint16 = 3
-	TypeMF         uint16 = 4
-	TypeCNAME      uint16 = 5
-	TypeSOA        uint16 = 6
-	TypeMB         uint16 = 7
-	TypeMG         uint16 = 8
-	TypeMR         uint16 = 9
-	TypeNULL       uint16 = 10
-	TypePTR        uint16 = 12
-	TypeHINFO      uint16 = 13
-	TypeMINFO      uint16 = 14
-	TypeMX         uint16 = 15
-	TypeTXT        uint16 = 16
-	TypeRP         uint16 = 17
-	TypeAFSDB      uint16 = 18
-	TypeX25        uint16 = 19
-	TypeISDN       uint16 = 20
-	TypeRT         uint16 = 21
-	TypeNSAPPTR    uint16 = 23
-	TypeSIG        uint16 = 24
-	TypeKEY        uint16 = 25
-	TypePX         uint16 = 26
-	TypeGPOS       uint16 = 27
-	TypeAAAA       uint16 = 28
-	TypeLOC        uint16 = 29
-	TypeNXT        uint16 = 30
-	TypeEID        uint16 = 31
-	TypeNIMLOC     uint16 = 32
-	TypeSRV        uint16 = 33
-	TypeATMA       uint16 = 34
-	TypeNAPTR      uint16 = 35
-	TypeKX         uint16 = 36
-	TypeCERT       uint16 = 37
-	TypeDNAME      uint16 = 39
+	TypeNone  uint16 = 0
+	TypeA     uint16 = 1
+	TypeNS    uint16 = 2
+	TypeMD    uint16 = 3
+	TypeMF    uint16 = 4
+	TypeCNAME uint16 = 5
+	TypeSOA   uint16 = 6
+	TypeMB    uint16 = 7
+	TypeMG    uint16 = 8
+	TypeMR    uint16 = 9
+	TypeNULL  uint16 = 10
+	// TypeWKS  uint16 = 11
+	TypePTR     uint16 = 12
+	TypeHINFO   uint16 = 13
+	TypeMINFO   uint16 = 14
+	TypeMX      uint16 = 15
+	TypeTXT     uint16 = 16
+	TypeRP      uint16 = 17
+	TypeAFSDB   uint16 = 18
+	TypeX25     uint16 = 19
+	TypeISDN    uint16 = 20
+	TypeRT      uint16 = 21
+	TypeNSAPPTR uint16 = 23
+	// TypeNSAP    uint16 = 22
+	// TypeNSAPPTR uint16 = 23
+	TypeSIG    uint16 = 24
+	TypeKEY    uint16 = 25
+	TypePX     uint16 = 26
+	TypeGPOS   uint16 = 27
+	TypeAAAA   uint16 = 28
+	TypeLOC    uint16 = 29
+	TypeNXT    uint16 = 30
+	TypeEID    uint16 = 31
+	TypeNIMLOC uint16 = 32
+	TypeSRV    uint16 = 33
+	TypeATMA   uint16 = 34
+	TypeNAPTR  uint16 = 35
+	TypeKX     uint16 = 36
+	TypeCERT   uint16 = 37
+	// TypeA6 uint16 = 38
+	TypeDNAME uint16 = 39
+	// TypeSINK uint16 = 40
 	TypeOPT        uint16 = 41 // EDNS
 	TypeAPL        uint16 = 42
 	TypeDS         uint16 = 43
@@ -73,6 +78,7 @@ const (
 	TypeNSEC3PARAM uint16 = 51
 	TypeTLSA       uint16 = 52
 	TypeSMIMEA     uint16 = 53
+	// unassigned 54
 	TypeHIP        uint16 = 55
 	TypeNINFO      uint16 = 56
 	TypeRKEY       uint16 = 57
@@ -84,23 +90,34 @@ const (
 	TypeZONEMD     uint16 = 63
 	TypeSVCB       uint16 = 64
 	TypeHTTPS      uint16 = 65
-	TypeSPF        uint16 = 99
-	TypeUINFO      uint16 = 100
-	TypeUID        uint16 = 101
-	TypeGID        uint16 = 102
-	TypeUNSPEC     uint16 = 103
-	TypeNID        uint16 = 104
-	TypeL32        uint16 = 105
-	TypeL64        uint16 = 106
-	TypeLP         uint16 = 107
-	TypeEUI48      uint16 = 108
-	TypeEUI64      uint16 = 109
-	TypeNXNAME     uint16 = 128
-	TypeURI        uint16 = 256
-	TypeCAA        uint16 = 257
-	TypeAVC        uint16 = 258
-	TypeAMTRELAY   uint16 = 260
-	TypeRESINFO    uint16 = 261
+	// TypeDSYNC uint16 = 66
+	// TypeHHIT  uint16 = 67
+	// TypeBRID  uint16 = 68
+	// unassigned 69-98
+	TypeSPF    uint16 = 99
+	TypeUINFO  uint16 = 100
+	TypeUID    uint16 = 101
+	TypeGID    uint16 = 102
+	TypeUNSPEC uint16 = 103
+	TypeNID    uint16 = 104
+	TypeL32    uint16 = 105
+	TypeL64    uint16 = 106
+	TypeLP     uint16 = 107
+	TypeEUI48  uint16 = 108
+	TypeEUI64  uint16 = 109
+	// unassigned 110-127
+	TypeNXNAME uint16 = 128
+	// unassigned 129-248
+	// 249-255 defined below
+	TypeURI uint16 = 256
+	TypeCAA uint16 = 257
+	TypeAVC uint16 = 258
+	// TypeDOA uint16 = 259
+	TypeAMTRELAY uint16 = 260
+	TypeRESINFO  uint16 = 261
+	// TypeWALLET uint16 = 262
+	// TypeCLA uint16 = 263
+	// TypeIPN uint16 = 264
 
 	TypeTKEY uint16 = 249
 	TypeTSIG uint16 = 250
@@ -260,12 +277,12 @@ var CertTypeToString = map[uint16]string{
 // questions as an error, it is recommended to only have one question per
 // message.
 type Question struct {
-	Name   string `dns:"cdomain-name"` // "cdomain-name" specifies encoding (and may be compressed)
+	Name   Name `dns:"cdomain-name"` // "cdomain-name" specifies encoding (and may be compressed)
 	Qtype  uint16
 	Qclass uint16
 }
 
-func (q *Question) len(off int, compression map[string]struct{}) int {
+func (q *Question) len(off int, compression map[Name]struct{}) int {
 	l := domainNameLen(q.Name, off, compression, true)
 	l += 2 + 2
 	return l
@@ -273,7 +290,7 @@ func (q *Question) len(off int, compression map[string]struct{}) int {
 
 func (q *Question) String() (s string) {
 	// prefix with ; (as in dig)
-	s = ";" + sprintName(q.Name) + "\t"
+	s = ";" + q.Name.String() + "\t"
 	s += Class(q.Qclass).String() + "\t"
 	s += " " + Type(q.Qtype).String()
 	return s
@@ -332,10 +349,10 @@ func (*NXNAME) parse(c *zlexer, origin string) *ParseError {
 // CNAME RR. See RFC 1034.
 type CNAME struct {
 	Hdr    RR_Header
-	Target string `dns:"cdomain-name"`
+	Target Name `dns:"cdomain-name"`
 }
 
-func (rr *CNAME) String() string { return rr.Hdr.String() + sprintName(rr.Target) }
+func (rr *CNAME) String() string { return rr.Hdr.String() + rr.Target.String() }
 
 // HINFO RR. See RFC 1034.
 type HINFO struct {
@@ -351,80 +368,80 @@ func (rr *HINFO) String() string {
 // MB RR. See RFC 1035.
 type MB struct {
 	Hdr RR_Header
-	Mb  string `dns:"cdomain-name"`
+	Mb  Name `dns:"cdomain-name"`
 }
 
-func (rr *MB) String() string { return rr.Hdr.String() + sprintName(rr.Mb) }
+func (rr *MB) String() string { return rr.Hdr.String() + rr.Mb.String() }
 
 // MG RR. See RFC 1035.
 type MG struct {
 	Hdr RR_Header
-	Mg  string `dns:"cdomain-name"`
+	Mg  Name `dns:"cdomain-name"`
 }
 
-func (rr *MG) String() string { return rr.Hdr.String() + sprintName(rr.Mg) }
+func (rr *MG) String() string { return rr.Hdr.String() + rr.Mg.String() }
 
 // MINFO RR. See RFC 1035.
 type MINFO struct {
 	Hdr   RR_Header
-	Rmail string `dns:"cdomain-name"`
-	Email string `dns:"cdomain-name"`
+	Rmail Name `dns:"cdomain-name"`
+	Email Name `dns:"cdomain-name"`
 }
 
 func (rr *MINFO) String() string {
-	return rr.Hdr.String() + sprintName(rr.Rmail) + " " + sprintName(rr.Email)
+	return rr.Hdr.String() + rr.Rmail.String() + " " + rr.Email.String()
 }
 
 // MR RR. See RFC 1035.
 type MR struct {
 	Hdr RR_Header
-	Mr  string `dns:"cdomain-name"`
+	Mr  Name `dns:"cdomain-name"`
 }
 
 func (rr *MR) String() string {
-	return rr.Hdr.String() + sprintName(rr.Mr)
+	return rr.Hdr.String() + rr.Mr.String()
 }
 
 // MF RR. See RFC 1035.
 type MF struct {
 	Hdr RR_Header
-	Mf  string `dns:"cdomain-name"`
+	Mf  Name `dns:"cdomain-name"`
 }
 
 func (rr *MF) String() string {
-	return rr.Hdr.String() + sprintName(rr.Mf)
+	return rr.Hdr.String() + rr.Mf.String()
 }
 
 // MD RR. See RFC 1035.
 type MD struct {
 	Hdr RR_Header
-	Md  string `dns:"cdomain-name"`
+	Md  Name `dns:"cdomain-name"`
 }
 
 func (rr *MD) String() string {
-	return rr.Hdr.String() + sprintName(rr.Md)
+	return rr.Hdr.String() + rr.Md.String()
 }
 
 // MX RR. See RFC 1035.
 type MX struct {
 	Hdr        RR_Header
 	Preference uint16
-	Mx         string `dns:"cdomain-name"`
+	Mx         Name `dns:"cdomain-name"`
 }
 
 func (rr *MX) String() string {
-	return rr.Hdr.String() + strconv.Itoa(int(rr.Preference)) + " " + sprintName(rr.Mx)
+	return rr.Hdr.String() + strconv.Itoa(int(rr.Preference)) + " " + rr.Mx.String()
 }
 
 // AFSDB RR. See RFC 1183.
 type AFSDB struct {
 	Hdr      RR_Header
 	Subtype  uint16
-	Hostname string `dns:"domain-name"`
+	Hostname Name `dns:"domain-name"`
 }
 
 func (rr *AFSDB) String() string {
-	return rr.Hdr.String() + strconv.Itoa(int(rr.Subtype)) + " " + sprintName(rr.Hostname)
+	return rr.Hdr.String() + strconv.Itoa(int(rr.Subtype)) + " " + rr.Hostname.String()
 }
 
 // X25 RR. See RFC 1183, Section 3.1.
@@ -452,49 +469,49 @@ func (rr *ISDN) String() string {
 type RT struct {
 	Hdr        RR_Header
 	Preference uint16
-	Host       string `dns:"domain-name"` // RFC 3597 prohibits compressing records not defined in RFC 1035.
+	Host       Name `dns:"domain-name"` // RFC 3597 prohibits compressing records not defined in RFC 1035.
 }
 
 func (rr *RT) String() string {
-	return rr.Hdr.String() + strconv.Itoa(int(rr.Preference)) + " " + sprintName(rr.Host)
+	return rr.Hdr.String() + strconv.Itoa(int(rr.Preference)) + " " + rr.Host.String()
 }
 
 // NS RR. See RFC 1035.
 type NS struct {
 	Hdr RR_Header
-	Ns  string `dns:"cdomain-name"`
+	Ns  Name `dns:"cdomain-name"`
 }
 
 func (rr *NS) String() string {
-	return rr.Hdr.String() + sprintName(rr.Ns)
+	return rr.Hdr.String() + rr.Ns.String()
 }
 
 // PTR RR. See RFC 1035.
 type PTR struct {
 	Hdr RR_Header
-	Ptr string `dns:"cdomain-name"`
+	Ptr Name `dns:"cdomain-name"`
 }
 
 func (rr *PTR) String() string {
-	return rr.Hdr.String() + sprintName(rr.Ptr)
+	return rr.Hdr.String() + rr.Ptr.String()
 }
 
 // RP RR. See RFC 1138, Section 2.2.
 type RP struct {
 	Hdr  RR_Header
-	Mbox string `dns:"domain-name"`
-	Txt  string `dns:"domain-name"`
+	Mbox Name `dns:"domain-name"`
+	Txt  Name `dns:"domain-name"`
 }
 
 func (rr *RP) String() string {
-	return rr.Hdr.String() + sprintName(rr.Mbox) + " " + sprintName(rr.Txt)
+	return rr.Hdr.String() + rr.Mbox.String() + " " + rr.Txt.String()
 }
 
 // SOA RR. See RFC 1035.
 type SOA struct {
 	Hdr     RR_Header
-	Ns      string `dns:"cdomain-name"`
-	Mbox    string `dns:"cdomain-name"`
+	Ns      Name `dns:"cdomain-name"`
+	Mbox    Name `dns:"cdomain-name"`
 	Serial  uint32
 	Refresh uint32
 	Retry   uint32
@@ -503,7 +520,7 @@ type SOA struct {
 }
 
 func (rr *SOA) String() string {
-	return rr.Hdr.String() + sprintName(rr.Ns) + " " + sprintName(rr.Mbox) +
+	return rr.Hdr.String() + rr.Ns.String() + " " + rr.Mbox.String() +
 		" " + strconv.FormatInt(int64(rr.Serial), 10) +
 		" " + strconv.FormatInt(int64(rr.Refresh), 10) +
 		" " + strconv.FormatInt(int64(rr.Retry), 10) +
@@ -593,10 +610,9 @@ func sprintTxt(txt []string) string {
 	for i, s := range txt {
 		out.Grow(3 + len(s))
 		if i > 0 {
-			out.WriteString(` "`)
-		} else {
-			out.WriteByte('"')
+			out.WriteByte(' ')
 		}
+		out.WriteByte('"')
 		for j := 0; j < len(s); {
 			b, n := nextByte(s, j)
 			if n == 0 {
@@ -710,14 +726,14 @@ type SRV struct {
 	Priority uint16
 	Weight   uint16
 	Port     uint16
-	Target   string `dns:"domain-name"`
+	Target   Name `dns:"domain-name"`
 }
 
 func (rr *SRV) String() string {
 	return rr.Hdr.String() +
 		strconv.Itoa(int(rr.Priority)) + " " +
 		strconv.Itoa(int(rr.Weight)) + " " +
-		strconv.Itoa(int(rr.Port)) + " " + sprintName(rr.Target)
+		strconv.Itoa(int(rr.Port)) + " " + rr.Target.String()
 }
 
 // NAPTR RR. See RFC 2915.
@@ -728,7 +744,7 @@ type NAPTR struct {
 	Flags       string
 	Service     string
 	Regexp      string
-	Replacement string `dns:"domain-name"`
+	Replacement Name `dns:"domain-name"`
 }
 
 func (rr *NAPTR) String() string {
@@ -738,7 +754,7 @@ func (rr *NAPTR) String() string {
 		"\"" + rr.Flags + "\" " +
 		"\"" + rr.Service + "\" " +
 		"\"" + rr.Regexp + "\" " +
-		rr.Replacement
+		rr.Replacement.String()
 }
 
 // CERT RR. See RFC 4398.
@@ -770,11 +786,11 @@ func (rr *CERT) String() string {
 // DNAME RR. See RFC 2672.
 type DNAME struct {
 	Hdr    RR_Header
-	Target string `dns:"domain-name"`
+	Target Name `dns:"domain-name"`
 }
 
 func (rr *DNAME) String() string {
-	return rr.Hdr.String() + sprintName(rr.Target)
+	return rr.Hdr.String() + rr.Target.String()
 }
 
 // A RR. See RFC 1035.
@@ -808,12 +824,12 @@ func (rr *AAAA) String() string {
 type PX struct {
 	Hdr        RR_Header
 	Preference uint16
-	Map822     string `dns:"domain-name"`
-	Mapx400    string `dns:"domain-name"`
+	Map822     Name `dns:"domain-name"`
+	Mapx400    Name `dns:"domain-name"`
 }
 
 func (rr *PX) String() string {
-	return rr.Hdr.String() + strconv.Itoa(int(rr.Preference)) + " " + sprintName(rr.Map822) + " " + sprintName(rr.Mapx400)
+	return rr.Hdr.String() + strconv.Itoa(int(rr.Preference)) + " " + rr.Map822.String() + " " + rr.Mapx400.String()
 }
 
 // GPOS RR. See RFC 1712.
@@ -922,7 +938,7 @@ type RRSIG struct {
 	Expiration  uint32
 	Inception   uint32
 	KeyTag      uint16
-	SignerName  string `dns:"domain-name"`
+	SignerName  Name   `dns:"domain-name"`
 	Signature   string `dns:"base64"`
 }
 
@@ -935,7 +951,7 @@ func (rr *RRSIG) String() string {
 		" " + TimeToString(rr.Expiration) +
 		" " + TimeToString(rr.Inception) +
 		" " + strconv.Itoa(int(rr.KeyTag)) +
-		" " + sprintName(rr.SignerName) +
+		" " + rr.SignerName.String() +
 		" " + rr.Signature
 	return s
 }
@@ -948,19 +964,19 @@ type NXT struct {
 // NSEC RR. See RFC 4034 and RFC 3755.
 type NSEC struct {
 	Hdr        RR_Header
-	NextDomain string   `dns:"domain-name"`
+	NextDomain Name     `dns:"domain-name"`
 	TypeBitMap []uint16 `dns:"nsec"`
 }
 
 func (rr *NSEC) String() string {
-	s := rr.Hdr.String() + sprintName(rr.NextDomain)
+	s := rr.Hdr.String() + rr.NextDomain.String()
 	for _, t := range rr.TypeBitMap {
 		s += " " + Type(t).String()
 	}
 	return s
 }
 
-func (rr *NSEC) len(off int, compression map[string]struct{}) int {
+func (rr *NSEC) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += domainNameLen(rr.NextDomain, off+l, compression, false)
 	l += typeBitMapLen(rr.TypeBitMap)
@@ -993,12 +1009,12 @@ func (rr *DS) String() string {
 type KX struct {
 	Hdr        RR_Header
 	Preference uint16
-	Exchanger  string `dns:"domain-name"`
+	Exchanger  Name `dns:"domain-name"`
 }
 
 func (rr *KX) String() string {
 	return rr.Hdr.String() + strconv.Itoa(int(rr.Preference)) +
-		" " + sprintName(rr.Exchanger)
+		" " + rr.Exchanger.String()
 }
 
 // TA RR. See http://www.watson.org/~weiler/INI1999-19.pdf.
@@ -1020,13 +1036,13 @@ func (rr *TA) String() string {
 // TALINK RR. See https://www.iana.org/assignments/dns-parameters/TALINK/talink-completed-template.
 type TALINK struct {
 	Hdr          RR_Header
-	PreviousName string `dns:"domain-name"`
-	NextName     string `dns:"domain-name"`
+	PreviousName Name `dns:"domain-name"`
+	NextName     Name `dns:"domain-name"`
 }
 
 func (rr *TALINK) String() string {
 	return rr.Hdr.String() +
-		sprintName(rr.PreviousName) + " " + sprintName(rr.NextName)
+		rr.PreviousName.String() + " " + rr.NextName.String()
 }
 
 // SSHFP RR. See RFC 4255.
@@ -1076,7 +1092,7 @@ type IPSECKEY struct {
 	GatewayType uint8
 	Algorithm   uint8
 	GatewayAddr netip.Addr `dns:"-"` // packing/unpacking/parsing/etc handled together with GatewayHost
-	GatewayHost string     `dns:"ipsechost"`
+	GatewayHost Name       `dns:"ipsechost"`
 	PublicKey   string     `dns:"base64"`
 }
 
@@ -1086,7 +1102,7 @@ func (rr *IPSECKEY) String() string {
 	case IPSECGatewayIPv4, IPSECGatewayIPv6:
 		gateway = rr.GatewayAddr.String()
 	case IPSECGatewayHost:
-		gateway = rr.GatewayHost
+		gateway = rr.GatewayHost.String()
 	case IPSECGatewayNone:
 		fallthrough
 	default:
@@ -1106,7 +1122,7 @@ type AMTRELAY struct {
 	Precedence  uint8
 	GatewayType uint8      // discovery is packed in here at bit 0x80
 	GatewayAddr netip.Addr `dns:"-"` // packing/unpacking/parsing/etc handled together with GatewayHost
-	GatewayHost string     `dns:"amtrelayhost"`
+	GatewayHost Name       `dns:"amtrelayhost"`
 }
 
 func (rr *AMTRELAY) String() string {
@@ -1115,7 +1131,7 @@ func (rr *AMTRELAY) String() string {
 	case AMTRELAYIPv4, AMTRELAYIPv6:
 		gateway = rr.GatewayAddr.String()
 	case AMTRELAYHost:
-		gateway = rr.GatewayHost
+		gateway = rr.GatewayHost.String()
 	case AMTRELAYNone:
 		fallthrough
 	default:
@@ -1151,10 +1167,10 @@ func (rr *RKEY) String() string {
 // NSAPPTR RR. See RFC 1348.
 type NSAPPTR struct {
 	Hdr RR_Header
-	Ptr string `dns:"domain-name"`
+	Ptr Name `dns:"domain-name"`
 }
 
-func (rr *NSAPPTR) String() string { return rr.Hdr.String() + sprintName(rr.Ptr) }
+func (rr *NSAPPTR) String() string { return rr.Hdr.String() + rr.Ptr.String() }
 
 // NSEC3 RR. See RFC 5155.
 type NSEC3 struct {
@@ -1182,7 +1198,7 @@ func (rr *NSEC3) String() string {
 	return s
 }
 
-func (rr *NSEC3) len(off int, compression map[string]struct{}) int {
+func (rr *NSEC3) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 6 + len(rr.Salt)/2 + base32HexNoPadEncoding.DecodedLen(len(rr.NextDomain))
 	l += typeBitMapLen(rr.TypeBitMap)
@@ -1211,7 +1227,7 @@ func (rr *NSEC3PARAM) String() string {
 // TKEY RR. See RFC 2930.
 type TKEY struct {
 	Hdr        RR_Header
-	Algorithm  string `dns:"domain-name"`
+	Algorithm  Name `dns:"domain-name"`
 	Inception  uint32
 	Expiration uint32
 	Mode       uint16
@@ -1225,7 +1241,7 @@ type TKEY struct {
 // TKEY has no official presentation format, but this will suffice.
 func (rr *TKEY) String() string {
 	s := ";" + rr.Hdr.String() +
-		" " + rr.Algorithm +
+		" " + rr.Algorithm.String() +
 		" " + TimeToString(rr.Inception) +
 		" " + TimeToString(rr.Expiration) +
 		" " + strconv.Itoa(int(rr.Mode)) +
@@ -1254,7 +1270,7 @@ func (rr *RFC3597) String() string {
 func rfc3597Header(h RR_Header) string {
 	var s string
 
-	s += sprintName(h.Name) + "\t"
+	s += h.Name.String() + "\t"
 	s += strconv.FormatInt(int64(h.Ttl), 10) + "\t"
 	s += "CLASS" + strconv.Itoa(int(h.Class)) + "\t"
 	s += "TYPE" + strconv.Itoa(int(h.Rrtype)) + "\t"
@@ -1329,9 +1345,9 @@ type HIP struct {
 	HitLength          uint8
 	PublicKeyAlgorithm uint8
 	PublicKeyLength    uint16
-	Hit                string   `dns:"size-hex:HitLength"`
-	PublicKey          string   `dns:"size-base64:PublicKeyLength"`
-	RendezvousServers  []string `dns:"domain-name"`
+	Hit                string `dns:"size-hex:HitLength"`
+	PublicKey          string `dns:"size-base64:PublicKeyLength"`
+	RendezvousServers  []Name `dns:"domain-name"`
 }
 
 func (rr *HIP) String() string {
@@ -1340,7 +1356,7 @@ func (rr *HIP) String() string {
 		" " + rr.Hit +
 		" " + rr.PublicKey
 	for _, d := range rr.RendezvousServers {
-		s += " " + sprintName(d)
+		s += " " + d.String()
 	}
 	return s
 }
@@ -1400,11 +1416,11 @@ func (rr *L64) String() string {
 type LP struct {
 	Hdr        RR_Header
 	Preference uint16
-	Fqdn       string `dns:"domain-name"`
+	Fqdn       Name `dns:"domain-name"`
 }
 
 func (rr *LP) String() string {
-	return rr.Hdr.String() + strconv.Itoa(int(rr.Preference)) + " " + sprintName(rr.Fqdn)
+	return rr.Hdr.String() + strconv.Itoa(int(rr.Preference)) + " " + rr.Fqdn.String()
 }
 
 // EUI48 RR. See RFC 7043.
@@ -1501,7 +1517,7 @@ func (rr *CSYNC) String() string {
 	return s
 }
 
-func (rr *CSYNC) len(off int, compression map[string]struct{}) int {
+func (rr *CSYNC) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 4 + 2
 	l += typeBitMapLen(rr.TypeBitMap)
@@ -1675,4 +1691,193 @@ func splitN(s string, n int) []string {
 	}
 
 	return sx
+}
+
+// Name is a DNS domain name.
+type Name struct {
+	// wire-format; non-printable, but can be copied and works as a key
+	encoded string
+}
+
+func NameFromString(s string) (ret Name, err error) {
+	buf, err := serializeName(s)
+	if err != nil {
+		return ret, err
+	}
+
+	ret.encoded = string(buf)
+	return ret, nil
+}
+
+func NameFromWire(b []byte) (ret Name, err error) {
+	if len(b) == 0 || len(b) > maxDomainNameWireOctets {
+		return ret, ErrName
+	}
+
+	var off int
+	for {
+		labelLen := int(b[off])
+		if labelLen >= 0x40 {
+			return ret, ErrName
+		}
+		off++
+		if len(b[off:]) < labelLen {
+			return ret, ErrName
+		}
+		if labelLen == 0 {
+			break
+		}
+		off += labelLen
+	}
+	if off != len(b) {
+		return ret, ErrName
+	}
+
+	ret.encoded = string(b)
+	return ret, nil
+
+}
+
+func NameFromLabels(labels [][]byte) (ret Name, err error) {
+	if len(labels) == 0 {
+		return ret, nil
+	}
+
+	// each size indicator + null terminator
+	bufLen := len(labels) + 1
+
+	for _, label := range labels {
+		labelLen := len(label)
+		bufLen += labelLen
+		if labelLen == 0 || labelLen > 0x40 || bufLen > maxDomainNameWireOctets {
+			return ret, ErrName
+		}
+	}
+
+	buf := make([]byte, bufLen)
+
+	var off int
+	for _, label := range labels {
+		buf[off] = byte(len(label))
+		off++
+		off += copy(buf[off:], label)
+	}
+
+	ret.encoded = string(buf)
+	return ret, nil
+}
+
+func (n Name) String() string {
+	if n.encoded == "" {
+		return ""
+	}
+	ret, err := deserializeName([]byte(n.encoded))
+	if err != nil {
+		log.Panicf("unexpected unpack error with name %s: %s", hex.EncodeToString([]byte(n.encoded)), err)
+	}
+	return ret
+}
+
+func (n Name) ToWire() []byte {
+	return []byte(n.encoded)
+}
+
+func (n Name) Canonical() Name {
+	if len(n.encoded) == 0 {
+		root, _ := NameFromString(".")
+		return root
+	}
+	buf := []byte(n.encoded)
+	var idx int
+	var modified bool
+	for {
+		chunkLen := int(buf[idx])
+		if chunkLen == 0 {
+			break
+		}
+		idx++
+		for i := idx; i < idx+chunkLen; i++ {
+			if c := buf[i]; 'A' <= c && c <= 'Z' {
+				buf[i] = c + ('a' - 'A')
+				modified = true
+			}
+		}
+		idx += chunkLen
+	}
+
+	if !modified {
+		return n
+	}
+
+	return Name{encoded: string(buf)}
+}
+
+func (n Name) EncodedLen() int {
+	return len(n.encoded)
+}
+
+func (n Name) Concat(names ...Name) (Name, error) {
+	if len(names) == 0 {
+		return n, nil
+	}
+	if n.EncodedLen() == 0 {
+		return n, ErrName
+	}
+
+	totalSize := n.EncodedLen() - len(names)
+	for _, name := range names {
+		el := name.EncodedLen()
+		if el == 0 {
+			return n, ErrName
+		}
+		totalSize += el
+	}
+	buf := make([]byte, totalSize)
+
+	var off int
+	// without final null byte of each name
+	off += copy(buf[off:], []byte(n.encoded)[:len(n.encoded)-1])
+	for _, name := range names {
+		off += copy(buf[off:], []byte(name.encoded)[:len(name.encoded)-1])
+	}
+
+	return NameFromWire(buf)
+}
+
+func (n Name) SubNames() []Name {
+	var ret []Name
+
+	var off int
+	for off < len(n.encoded)-1 {
+		ret = append(ret, Name{encoded: n.encoded[off:]})
+		labelLen := int(n.encoded[off])
+		off += labelLen + 1
+	}
+
+	return ret
+}
+
+func mustParseName(s string) Name {
+	ret, err := NameFromString(s)
+	if err != nil {
+		log.Panicf("err: %s, name: %q", err, s)
+	}
+	return ret
+}
+
+func escapeLabel(s []byte) string {
+	var b strings.Builder
+
+	for _, c := range s {
+		switch {
+		case isDomainNameLabelSpecial(c):
+			b.WriteByte('\\')
+			b.WriteByte(c)
+		case c < ' ' || c > '~':
+			b.WriteString(escapeByte(c))
+		default:
+			b.WriteByte(c)
+		}
+	}
+	return b.String()
 }

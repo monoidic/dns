@@ -43,7 +43,7 @@ type RR interface {
 	//
 	// If compression is nil, the uncompressed size will be returned, otherwise the compressed
 	// size will be returned and domain names will be added to the map for future compression.
-	len(off int, compression map[string]struct{}) int
+	len(off int, compression map[Name]struct{}) int
 
 	// pack packs the records RDATA into wire format. The header will
 	// already have been packed into msg.
@@ -66,7 +66,7 @@ type RR interface {
 
 // RR_Header is the header all DNS resource records share.
 type RR_Header struct {
-	Name     string `dns:"cdomain-name"`
+	Name     Name `dns:"cdomain-name"`
 	Rrtype   uint16
 	Class    uint16
 	Ttl      uint32
@@ -89,7 +89,7 @@ func (h *RR_Header) String() string {
 		// and maybe other things
 	}
 
-	s.WriteString(sprintName(h.Name))
+	s.WriteString(h.Name.String())
 	s.WriteByte('\t')
 
 	s.WriteString(strconv.FormatInt(int64(h.Ttl), 10))
@@ -104,7 +104,7 @@ func (h *RR_Header) String() string {
 	return s.String()
 }
 
-func (h *RR_Header) len(off int, compression map[string]struct{}) int {
+func (h *RR_Header) len(off int, compression map[Name]struct{}) int {
 	l := domainNameLen(h.Name, off, compression, true)
 	l += 10 // rrtype(2) + class(2) + ttl(4) + rdlength(2)
 	return l

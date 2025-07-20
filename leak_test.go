@@ -50,7 +50,7 @@ func goroutineLeaked() error {
 	}
 
 	var stackCount map[string]int
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		n := 0
 		stackCount = make(map[string]int)
 		gs := interestingGoroutines()

@@ -84,7 +84,9 @@ func (h *RR_Header) copy() RR {
 func (h *RR_Header) String() string {
 	var s strings.Builder
 
-	if h.Rrtype == TypeOPT {
+	switch h.Rrtype {
+	case TypeOPT, TypeNULL, TypeTKEY:
+		// these types have no string representation
 		s.WriteByte(';')
 		// and maybe other things
 	}

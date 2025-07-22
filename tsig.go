@@ -97,7 +97,7 @@ func (ts tsigSecretProvider) Verify(msg []byte, t *TSIG) error {
 // See RFC 2845 and RFC 4635.
 type TSIG struct {
 	Hdr        RR_Header
-	Algorithm  Name   `dns:"domain-name"`
+	Algorithm  Name
 	TimeSigned uint64 `dns:"uint48"`
 	Fudge      uint16
 	MACSize    uint16
@@ -133,11 +133,11 @@ func (*TSIG) parse(c *zlexer, origin string) *ParseError {
 // RFC 2845, section 3.4.2. TSIG Variables.
 type tsigWireFmt struct {
 	// From RR_Header
-	Name  Name `dns:"domain-name"`
+	Name  Name
 	Class uint16
 	Ttl   uint32
 	// Rdata of the TSIG
-	Algorithm  Name   `dns:"domain-name"`
+	Algorithm  Name
 	TimeSigned uint64 `dns:"uint48"`
 	Fudge      uint16
 	// MACSize, MAC and OrigId excluded

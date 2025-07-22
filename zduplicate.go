@@ -2,6 +2,10 @@
 
 package dns
 
+import (
+	"slices"
+)
+
 // isDuplicate() functions
 
 func (r1 *A) isDuplicate(_r2 RR) bool {
@@ -55,17 +59,9 @@ func (r1 *AMTRELAY) isDuplicate(_r2 RR) bool {
 	if r1.GatewayType != r2.GatewayType {
 		return false
 	}
-	switch r1.GatewayType {
-	case IPSECGatewayIPv4, IPSECGatewayIPv6:
-		if r1.GatewayAddr != r2.GatewayAddr {
-			return false
-		}
-	case IPSECGatewayHost:
-		if !isDuplicateName(r1.GatewayHost, r2.GatewayHost) {
-			return false
-		}
+	if !isDuplicateGateway(r1.GatewayType, r1.GatewayAddr, r2.GatewayAddr, r1.GatewayHost, r2.GatewayHost) {
+		return false
 	}
-
 	return true
 }
 
@@ -101,13 +97,8 @@ func (r1 *AVC) isDuplicate(_r2 RR) bool {
 		return false
 	}
 	_ = r2
-	if len(r1.Txt) != len(r2.Txt) {
+	if !slices.Equal(r1.Txt, r2.Txt) {
 		return false
-	}
-	for i, v := range r1.Txt {
-		if v != r2.Txt[i] {
-			return false
-		}
 	}
 	return true
 }
@@ -217,13 +208,8 @@ func (r1 *CSYNC) isDuplicate(_r2 RR) bool {
 	if r1.Flags != r2.Flags {
 		return false
 	}
-	if len(r1.TypeBitMap) != len(r2.TypeBitMap) {
+	if !slices.Equal(r1.TypeBitMap, r2.TypeBitMap) {
 		return false
-	}
-	for i, v := range r1.TypeBitMap {
-		if v != r2.TypeBitMap[i] {
-			return false
-		}
 	}
 	return true
 }
@@ -464,17 +450,9 @@ func (r1 *IPSECKEY) isDuplicate(_r2 RR) bool {
 	if r1.Algorithm != r2.Algorithm {
 		return false
 	}
-	switch r1.GatewayType {
-	case IPSECGatewayIPv4, IPSECGatewayIPv6:
-		if r1.GatewayAddr != r2.GatewayAddr {
-			return false
-		}
-	case IPSECGatewayHost:
-		if !isDuplicateName(r1.GatewayHost, r2.GatewayHost) {
-			return false
-		}
+	if !isDuplicateGateway(r1.GatewayType, r1.GatewayAddr, r2.GatewayAddr, r1.GatewayHost, r2.GatewayHost) {
+		return false
 	}
-
 	if r1.PublicKey != r2.PublicKey {
 		return false
 	}
@@ -757,13 +735,8 @@ func (r1 *NINFO) isDuplicate(_r2 RR) bool {
 		return false
 	}
 	_ = r2
-	if len(r1.ZSData) != len(r2.ZSData) {
+	if !slices.Equal(r1.ZSData, r2.ZSData) {
 		return false
-	}
-	for i, v := range r1.ZSData {
-		if v != r2.ZSData[i] {
-			return false
-		}
 	}
 	return true
 }
@@ -801,13 +774,8 @@ func (r1 *NSEC) isDuplicate(_r2 RR) bool {
 	if !isDuplicateName(r1.NextDomain, r2.NextDomain) {
 		return false
 	}
-	if len(r1.TypeBitMap) != len(r2.TypeBitMap) {
+	if !slices.Equal(r1.TypeBitMap, r2.TypeBitMap) {
 		return false
-	}
-	for i, v := range r1.TypeBitMap {
-		if v != r2.TypeBitMap[i] {
-			return false
-		}
 	}
 	return true
 }
@@ -839,13 +807,8 @@ func (r1 *NSEC3) isDuplicate(_r2 RR) bool {
 	if r1.NextDomain != r2.NextDomain {
 		return false
 	}
-	if len(r1.TypeBitMap) != len(r2.TypeBitMap) {
+	if !slices.Equal(r1.TypeBitMap, r2.TypeBitMap) {
 		return false
-	}
-	for i, v := range r1.TypeBitMap {
-		if v != r2.TypeBitMap[i] {
-			return false
-		}
 	}
 	return true
 }
@@ -904,13 +867,8 @@ func (r1 *NXT) isDuplicate(_r2 RR) bool {
 	if !isDuplicateName(r1.NextDomain, r2.NextDomain) {
 		return false
 	}
-	if len(r1.TypeBitMap) != len(r2.TypeBitMap) {
+	if !slices.Equal(r1.TypeBitMap, r2.TypeBitMap) {
 		return false
-	}
-	for i, v := range r1.TypeBitMap {
-		if v != r2.TypeBitMap[i] {
-			return false
-		}
 	}
 	return true
 }
@@ -963,13 +921,8 @@ func (r1 *RESINFO) isDuplicate(_r2 RR) bool {
 		return false
 	}
 	_ = r2
-	if len(r1.Txt) != len(r2.Txt) {
+	if !slices.Equal(r1.Txt, r2.Txt) {
 		return false
-	}
-	for i, v := range r1.Txt {
-		if v != r2.Txt[i] {
-			return false
-		}
 	}
 	return true
 }
@@ -1166,13 +1119,8 @@ func (r1 *SPF) isDuplicate(_r2 RR) bool {
 		return false
 	}
 	_ = r2
-	if len(r1.Txt) != len(r2.Txt) {
+	if !slices.Equal(r1.Txt, r2.Txt) {
 		return false
-	}
-	for i, v := range r1.Txt {
-		if v != r2.Txt[i] {
-			return false
-		}
 	}
 	return true
 }
@@ -1372,13 +1320,8 @@ func (r1 *TXT) isDuplicate(_r2 RR) bool {
 		return false
 	}
 	_ = r2
-	if len(r1.Txt) != len(r2.Txt) {
+	if !slices.Equal(r1.Txt, r2.Txt) {
 		return false
-	}
-	for i, v := range r1.Txt {
-		if v != r2.Txt[i] {
-			return false
-		}
 	}
 	return true
 }

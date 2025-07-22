@@ -164,14 +164,14 @@ func base64StringDecodedLen(s string) int {
 func noRdata(h RR_Header) bool { return h.Rdlength == 0 }
 
 func unpackUint8(msg []byte, off int) (i uint8, off1 int, err error) {
-	if off+1 > len(msg) {
+	if len(msg[off:]) < 1 {
 		return 0, len(msg), &Error{err: "overflow unpacking uint8"}
 	}
 	return msg[off], off + 1, nil
 }
 
 func packUint8(i uint8, msg []byte, off int) (off1 int, err error) {
-	if off+1 > len(msg) {
+	if len(msg[off:]) < 1 {
 		return len(msg), &Error{err: "overflow packing uint8"}
 	}
 	msg[off] = i
@@ -179,14 +179,14 @@ func packUint8(i uint8, msg []byte, off int) (off1 int, err error) {
 }
 
 func unpackUint16(msg []byte, off int) (i uint16, off1 int, err error) {
-	if off+2 > len(msg) {
+	if len(msg[off:]) < 2 {
 		return 0, len(msg), &Error{err: "overflow unpacking uint16"}
 	}
 	return binary.BigEndian.Uint16(msg[off:]), off + 2, nil
 }
 
 func packUint16(i uint16, msg []byte, off int) (off1 int, err error) {
-	if off+2 > len(msg) {
+	if len(msg[off:]) < 2 {
 		return len(msg), &Error{err: "overflow packing uint16"}
 	}
 	binary.BigEndian.PutUint16(msg[off:], i)
@@ -194,14 +194,14 @@ func packUint16(i uint16, msg []byte, off int) (off1 int, err error) {
 }
 
 func unpackUint32(msg []byte, off int) (i uint32, off1 int, err error) {
-	if off+4 > len(msg) {
+	if len(msg[off:]) < 4 {
 		return 0, len(msg), &Error{err: "overflow unpacking uint32"}
 	}
 	return binary.BigEndian.Uint32(msg[off:]), off + 4, nil
 }
 
 func packUint32(i uint32, msg []byte, off int) (off1 int, err error) {
-	if off+4 > len(msg) {
+	if len(msg[off:]) < 4 {
 		return len(msg), &Error{err: "overflow packing uint32"}
 	}
 	binary.BigEndian.PutUint32(msg[off:], i)
@@ -209,39 +209,35 @@ func packUint32(i uint32, msg []byte, off int) (off1 int, err error) {
 }
 
 func unpackUint48(msg []byte, off int) (i uint64, off1 int, err error) {
-	if off+6 > len(msg) {
+	if len(msg[off:]) < 6 {
 		return 0, len(msg), &Error{err: "overflow unpacking uint64 as uint48"}
 	}
 	// Used in TSIG where the last 48 bits are occupied, so for now, assume a uint48 (6 bytes)
-	i = uint64(msg[off])<<40 | uint64(msg[off+1])<<32 | uint64(msg[off+2])<<24 | uint64(msg[off+3])<<16 |
-		uint64(msg[off+4])<<8 | uint64(msg[off+5])
+	i = uint64(binary.BigEndian.Uint32(msg[off:])) << 16
+	i |= uint64(binary.BigEndian.Uint16(msg[off+4:]))
 	off += 6
 	return i, off, nil
 }
 
 func packUint48(i uint64, msg []byte, off int) (off1 int, err error) {
-	if off+6 > len(msg) {
+	if len(msg[off:]) < 6 {
 		return len(msg), &Error{err: "overflow packing uint64 as uint48"}
 	}
-	msg[off] = byte(i >> 40)
-	msg[off+1] = byte(i >> 32)
-	msg[off+2] = byte(i >> 24)
-	msg[off+3] = byte(i >> 16)
-	msg[off+4] = byte(i >> 8)
-	msg[off+5] = byte(i)
+	binary.BigEndian.PutUint32(msg[off:], uint32(i>>16))
+	binary.BigEndian.PutUint16(msg[off+4:], uint16(i))
 	off += 6
 	return off, nil
 }
 
 func unpackUint64(msg []byte, off int) (i uint64, off1 int, err error) {
-	if off+8 > len(msg) {
+	if len(msg[off:]) < 8 {
 		return 0, len(msg), &Error{err: "overflow unpacking uint64"}
 	}
 	return binary.BigEndian.Uint64(msg[off:]), off + 8, nil
 }
 
 func packUint64(i uint64, msg []byte, off int) (off1 int, err error) {
-	if off+8 > len(msg) {
+	if len(msg[off:]) < 8 {
 		return len(msg), &Error{err: "overflow packing uint64"}
 	}
 	binary.BigEndian.PutUint64(msg[off:], i)
@@ -250,12 +246,12 @@ func packUint64(i uint64, msg []byte, off int) (off1 int, err error) {
 }
 
 func unpackString(msg []byte, off int) (string, int, error) {
-	if off+1 > len(msg) {
+	if len(msg[off:]) < 1 {
 		return "", off, &Error{err: "overflow unpacking txt"}
 	}
 	l := int(msg[off])
 	off++
-	if off+l > len(msg) {
+	if len(msg[off:]) < l {
 		return "", off, &Error{err: "overflow unpacking txt"}
 	}
 	var s strings.Builder
@@ -367,8 +363,7 @@ func packStringAny(s string, msg []byte, off int) (int, error) {
 	if off+len(s) > len(msg) {
 		return len(msg), &Error{err: "overflow packing anything"}
 	}
-	copy(msg[off:off+len(s)], s)
-	off += len(s)
+	off += copy(msg[off:off+len(s)], s)
 	return off, nil
 }
 

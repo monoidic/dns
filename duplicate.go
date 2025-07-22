@@ -1,5 +1,7 @@
 package dns
 
+import "net/netip"
+
 //go:generate go run duplicate_generate.go
 
 // IsDuplicate checks of r1 and r2 are duplicates of each other, excluding the TTL.
@@ -38,4 +40,15 @@ func isDuplicateName(s1, s2 Name) bool {
 	// funnily enough, the maximum label length is 0x3f, before 0x41 (A)
 	// the only places where A-Z could occur would be within labels, so this will just work™
 	return equal(s1.encoded, s2.encoded)
+}
+
+func isDuplicateGateway(gatewayType uint8, laddr, raddr netip.Addr, lhost, rhost Name) bool {
+	switch gatewayType {
+	case IPSECGatewayIPv4, IPSECGatewayIPv6:
+		return laddr == raddr
+	case IPSECGatewayHost:
+		return isDuplicateName(lhost, rhost)
+	default:
+		return false
+	}
 }

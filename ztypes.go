@@ -3,8 +3,11 @@
 package dns
 
 import (
+	"encoding/hex"
 	"net"
 	"slices"
+	"strconv"
+	"strings"
 )
 
 // TypeToRR is a map of constructors for each RR type.
@@ -1350,4 +1353,509 @@ func (rr *ZONEMD) copy() RR {
 		rr.Hash,
 		rr.Digest,
 	}
+}
+
+// String() functions
+func (rr *A) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	if rr.A.IsValid() {
+		b.WriteString(rr.A.String())
+	}
+
+	return b.String()
+}
+
+func (rr *AAAA) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	if rr.AAAA.IsValid() {
+		b.WriteString(rr.AAAA.String())
+	}
+
+	return b.String()
+}
+
+func (rr *AFSDB) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Subtype), 10))
+	b.WriteByte(' ')
+	b.WriteString(rr.Hostname.String())
+	return b.String()
+}
+
+func (rr *ANY) String() string {
+	return rr.Hdr.String()
+}
+
+func (rr *APL) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	for i, p := range rr.Prefixes {
+		if i > 0 {
+			b.WriteByte(' ')
+		}
+		b.WriteString(p.str())
+	}
+	return b.String()
+}
+
+func (rr *AVC) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(sprintTxt(rr.Txt))
+	return b.String()
+}
+
+func (rr *CAA) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Flag), 10))
+	b.WriteByte(' ')
+	b.WriteString(rr.Tag)
+	b.WriteByte(' ')
+	b.WriteString(sprintTxtOctet(rr.Value))
+	return b.String()
+}
+
+func (rr *CNAME) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.Target.String())
+	return b.String()
+}
+
+func (rr *CSYNC) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Serial), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Flags), 10))
+	for _, t := range rr.TypeBitMap {
+		b.WriteByte(' ')
+		b.WriteString(Type(t).String())
+	}
+	return b.String()
+}
+
+func (rr *DHCID) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.Digest)
+	return b.String()
+}
+
+func (rr *DNAME) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.Target.String())
+	return b.String()
+}
+
+func (rr *DNSKEY) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Flags), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Protocol), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Algorithm), 10))
+	b.WriteByte(' ')
+	b.WriteString(rr.PublicKey)
+	return b.String()
+}
+
+func (rr *DS) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.KeyTag), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Algorithm), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.DigestType), 10))
+	b.WriteByte(' ')
+	b.WriteString(strings.ToUpper(rr.Digest))
+	return b.String()
+}
+
+func (rr *EID) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strings.ToUpper(rr.Endpoint))
+	return b.String()
+}
+
+func (rr *EUI48) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(euiToString(rr.Address, 48))
+	return b.String()
+}
+
+func (rr *EUI64) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(euiToString(rr.Address, 64))
+	return b.String()
+}
+
+func (rr *GID) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Gid), 10))
+	return b.String()
+}
+
+func (rr *GPOS) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.Longitude)
+	b.WriteByte(' ')
+	b.WriteString(rr.Latitude)
+	b.WriteByte(' ')
+	b.WriteString(rr.Altitude)
+	return b.String()
+}
+
+func (rr *KX) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Preference), 10))
+	b.WriteByte(' ')
+	b.WriteString(rr.Exchanger.String())
+	return b.String()
+}
+
+func (rr *L32) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Preference), 10))
+	if rr.Locator32.IsValid() {
+		b.WriteByte(' ')
+		b.WriteString(rr.Locator32.String())
+	}
+
+	return b.String()
+}
+
+func (rr *LP) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Preference), 10))
+	b.WriteByte(' ')
+	b.WriteString(rr.Fqdn.String())
+	return b.String()
+}
+
+func (rr *MB) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.Mb.String())
+	return b.String()
+}
+
+func (rr *MD) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.Md.String())
+	return b.String()
+}
+
+func (rr *MF) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.Mf.String())
+	return b.String()
+}
+
+func (rr *MG) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.Mg.String())
+	return b.String()
+}
+
+func (rr *MINFO) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.Rmail.String())
+	b.WriteByte(' ')
+	b.WriteString(rr.Email.String())
+	return b.String()
+}
+
+func (rr *MR) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.Mr.String())
+	return b.String()
+}
+
+func (rr *MX) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Preference), 10))
+	b.WriteByte(' ')
+	b.WriteString(rr.Mx.String())
+	return b.String()
+}
+
+func (rr *NIMLOC) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strings.ToUpper(rr.Locator))
+	return b.String()
+}
+
+func (rr *NINFO) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(sprintTxt(rr.ZSData))
+	return b.String()
+}
+
+func (rr *NS) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.Ns.String())
+	return b.String()
+}
+
+func (rr *NSAPPTR) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.Ptr.String())
+	return b.String()
+}
+
+func (rr *NSEC) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.NextDomain.String())
+	for _, t := range rr.TypeBitMap {
+		b.WriteByte(' ')
+		b.WriteString(Type(t).String())
+	}
+	return b.String()
+}
+
+func (rr *NULL) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(hex.EncodeToString([]byte(rr.Data)))
+	return b.String()
+}
+
+func (rr *NXNAME) String() string {
+	return rr.Hdr.String()
+}
+
+func (rr *OPENPGPKEY) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.PublicKey)
+	return b.String()
+}
+
+func (rr *PTR) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.Ptr.String())
+	return b.String()
+}
+
+func (rr *PX) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Preference), 10))
+	b.WriteByte(' ')
+	b.WriteString(rr.Map822.String())
+	b.WriteByte(' ')
+	b.WriteString(rr.Mapx400.String())
+	return b.String()
+}
+
+func (rr *RESINFO) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(sprintTxt(rr.Txt))
+	return b.String()
+}
+
+func (rr *RKEY) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Flags), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Protocol), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Algorithm), 10))
+	b.WriteByte(' ')
+	b.WriteString(rr.PublicKey)
+	return b.String()
+}
+
+func (rr *RP) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.Mbox.String())
+	b.WriteByte(' ')
+	b.WriteString(rr.Txt.String())
+	return b.String()
+}
+
+func (rr *RT) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Preference), 10))
+	b.WriteByte(' ')
+	b.WriteString(rr.Host.String())
+	return b.String()
+}
+
+func (rr *SOA) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.Ns.String())
+	b.WriteByte(' ')
+	b.WriteString(rr.Mbox.String())
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Serial), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Refresh), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Retry), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Expire), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Minttl), 10))
+	return b.String()
+}
+
+func (rr *SPF) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(sprintTxt(rr.Txt))
+	return b.String()
+}
+
+func (rr *SRV) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Priority), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Weight), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Port), 10))
+	b.WriteByte(' ')
+	b.WriteString(rr.Target.String())
+	return b.String()
+}
+
+func (rr *SSHFP) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Algorithm), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Type), 10))
+	b.WriteByte(' ')
+	b.WriteString(strings.ToUpper(rr.FingerPrint))
+	return b.String()
+}
+
+func (rr *SVCB) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Priority), 10))
+	b.WriteByte(' ')
+	b.WriteString(rr.Target.String())
+	for _, e := range rr.Value {
+		b.WriteByte(' ')
+		b.WriteString(e.Key().String())
+		b.WriteString("=\"")
+		b.WriteString(e.String())
+		b.WriteByte('"')
+	}
+	return b.String()
+}
+
+func (rr *TA) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.KeyTag), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Algorithm), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.DigestType), 10))
+	b.WriteByte(' ')
+	b.WriteString(strings.ToUpper(rr.Digest))
+	return b.String()
+}
+
+func (rr *TALINK) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.PreviousName.String())
+	b.WriteByte(' ')
+	b.WriteString(rr.NextName.String())
+	return b.String()
+}
+
+func (rr *TLSA) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Usage), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Selector), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.MatchingType), 10))
+	b.WriteByte(' ')
+	b.WriteString(strings.ToUpper(rr.Certificate))
+	return b.String()
+}
+
+func (rr *TXT) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(sprintTxt(rr.Txt))
+	return b.String()
+}
+
+func (rr *UID) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Uid), 10))
+	return b.String()
+}
+
+func (rr *URI) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Priority), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Weight), 10))
+	b.WriteByte(' ')
+	b.WriteString(sprintTxtOctet(rr.Target))
+	return b.String()
+}
+
+func (rr *X25) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.PSDNAddress)
+	return b.String()
+}
+
+func (rr *ZONEMD) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Serial), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Scheme), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Hash), 10))
+	b.WriteByte(' ')
+	b.WriteString(strings.ToUpper(rr.Digest))
+	return b.String()
 }

@@ -24,6 +24,7 @@ import (
 const (
 	maxCompressionOffset    = 1 << 14 // We have 14 bits for the compression pointer
 	maxDomainNameWireOctets = 255     // See RFC 1035 section 2.3.4
+	maxTxtOctets            = 255
 
 	// This is the maximum number of compression pointers that should occur in a
 	// semantically valid message. Each label in a domain name must be at least one
@@ -73,6 +74,7 @@ var (
 	ErrTime          error = &Error{err: "bad time"}      // ErrTime indicates a timing error in TSIG authentication.
 	ErrLen           error = &Error{err: "message too long"}
 	ErrName          error = &Error{err: "invalid name"}
+	ErrTxt           error = &Error{err: "invalid txt string"}
 )
 
 // Id by default returns a 16-bit random number to be used as a message id. The

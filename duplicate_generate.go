@@ -23,6 +23,10 @@ var packageHdr = `
 
 package dns
 
+import (
+	"slices"
+)
+
 `
 
 func getTypeStruct(t types.Type, scope *types.Scope) (*types.Struct, bool) {
@@ -91,74 +95,69 @@ func main() {
 		fmt.Fprintf(b, "r2, ok := _r2.(*%s)\n", name)
 		fmt.Fprint(b, "if !ok { return false }\n")
 		fmt.Fprint(b, "_ = r2\n")
+	loop:
 		for i := 1; i < st.NumFields(); i++ {
 			field := st.Field(i).Name()
 			o2 := func(s string) { fmt.Fprintf(b, s+"\n", field, field) }
 
-			// For some reason, a and aaaa don't pop up as *types.Slice here (mostly like because the are
-			// *indirectly* defined as a slice in the net package).
-			if _, ok := st.Field(i).Type().(*types.Slice); ok {
-				o2("if len(r1.%s) != len(r2.%s) {\nreturn false\n}")
-
-				if st.Tag(i) == `dns:"cdomain-name"` || st.Tag(i) == `dns:"domain-name"` {
-					o2(`for i, v := range r1.%s {
-						if !isDuplicateName(v, r2.%s[i]) {
-							return false
-						}
-					}`)
-
-					continue
-				}
-
-				if st.Tag(i) == `dns:"apl"` {
-					o2(`for i, v := range r1.%s {
-						if !v.equals(&r2.%s[i]) {
-							return false
-						}
-					}`)
-
-					continue
-				}
-
-				if st.Tag(i) == `dns:"pairs"` {
-					o2(`if !areSVCBPairArraysEqual(r1.%s, r2.%s) {
-						return false
-					}`)
-
-					continue
-				}
-
-				o2(`for i, v := range r1.%s {
-					if v != r2.%s[i] {
-						return false
-					}
-				}`)
-
-				continue
-			}
-
+			matched := true
 			switch st.Tag(i) {
 			case `dns:"-"`:
 				// ignored
 			case `dns:"a"`, `dns:"aaaa"`:
 				o2("if r1.%s != r2.%s {\nreturn false\n}")
-			case `dns:"cdomain-name"`, `dns:"domain-name"`:
+			case `dns:"cdomain-name"`:
 				o2("if !isDuplicateName(r1.%s, r2.%s) {\nreturn false\n}")
 			case `dns:"ipsechost"`, `dns:"amtrelayhost"`:
-				o2(`switch r1.GatewayType {
-				case IPSECGatewayIPv4, IPSECGatewayIPv6:
-					if r1.GatewayAddr != r2.GatewayAddr {
-						return false
-					}
-				case IPSECGatewayHost:
-					if !isDuplicateName(r1.%s, r2.%s) {
-						return false
-					}
-				}
-				`)
+				o2("if !isDuplicateGateway(r1.GatewayType, r1.GatewayAddr, r2.GatewayAddr, r1.%s, r2.%s) {\nreturn false\n}")
 			default:
-				o2("if r1.%s != r2.%s {\nreturn false\n}")
+				matched = false
 			}
+			if matched {
+				continue
+			}
+
+			switch ft := st.Field(i).Type().(type) {
+			case *types.Named:
+				switch ft.Obj().Name() {
+				case "Name":
+					o2("if !isDuplicateName(r1.%s, r2.%s) {\nreturn false\n}")
+					continue loop
+				}
+			case *types.Slice:
+				switch st.Tag(i) {
+				case `dns:"domain-name"`, `dns:"apl"`, `dns:"pairs"`:
+					// pass
+				default:
+					o2("if !slices.Equal(r1.%s, r2.%s) {\nreturn false\n}")
+					continue loop
+				}
+
+				o2("if len(r1.%s) != len(r2.%s) {\nreturn false\n}")
+
+				switch st.Tag(i) {
+				case `dns:"domain-name"`:
+					o2(`for i, v := range r1.%s {
+						if !isDuplicateName(v, r2.%s[i]) {
+							return false
+						}
+					}`)
+				case `dns:"apl"`:
+					o2(`for i, v := range r1.%s {
+						if !v.equals(&r2.%s[i]) {
+							return false
+						}
+					}`)
+				case `dns:"pairs"`:
+					o2(`if !areSVCBPairArraysEqual(r1.%s, r2.%s) {
+						return false
+					}`)
+				}
+				continue loop
+			}
+
+			// fallback
+			o2("if r1.%s != r2.%s {\nreturn false\n}")
 		}
 		fmt.Fprint(b, "return true\n}\n\n")
 	}
@@ -167,7 +166,7 @@ func main() {
 	res, err := format.Source(b.Bytes())
 	if err != nil {
 		b.WriteTo(os.Stderr)
-		log.Fatal(err)
+		log.Panic(err)
 	}
 
 	// write result
@@ -179,6 +178,6 @@ func main() {
 
 func fatalIfErr(err error) {
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 }

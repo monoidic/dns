@@ -115,7 +115,7 @@ type rrsigWireFmt struct {
 	Expiration  uint32
 	Inception   uint32
 	KeyTag      uint16
-	SignerName  Name `dns:"domain-name"`
+	SignerName  Name
 	/* No Signature */
 }
 
@@ -612,7 +612,7 @@ func (p wireSlice) Less(i, j int) bool {
 	return bytes.Compare(p[i][ioff+10:], p[j][joff+10:]) < 0
 }
 
-func canonicalize(r1 RR) {
+func Canonicalize(r1 RR) {
 	// 6.2. Canonical RR Form. (3) - domain rdata to lowercase.
 	//   NS, MD, MF, CNAME, SOA, MB, MG, MR, PTR,
 	//   HINFO, MINFO, MX, RP, AFSDB, RT, SIG, PX, NXT, NAPTR, KX,
@@ -623,6 +623,8 @@ func canonicalize(r1 RR) {
 	//	that needs conversion to lowercase, and twice at that.  Since HINFO
 	//	records contain no domain names, they are not subject to case
 	//	conversion.
+	hdr := r1.Header()
+	hdr.Name = hdr.Name.Canonical()
 	switch x := r1.(type) {
 	case *NS:
 		x.Ns = x.Ns.Canonical()
@@ -689,8 +691,7 @@ func rawSignatureData(rrset []RR, s *RRSIG) (buf []byte, err error) {
 			}
 		}
 		// RFC 4034: 6.2.  Canonical RR Form. (2) - domain name to lowercase
-		h.Name = h.Name.Canonical()
-		canonicalize(r1)
+		Canonicalize(r1)
 		// 6.2. Canonical RR Form. (5) - origTTL
 		wire := make([]byte, Len(r1)+1) // +1 to be safe(r)
 		off, err := PackRR(r1, wire, 0, nil, false)

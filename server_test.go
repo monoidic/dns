@@ -1171,13 +1171,12 @@ func TestServerReuseaddr(t *testing.T) {
 		select {
 		case <-wait:
 		case err := <-fin:
-			switch {
-			case expectSuccess:
+
+			if expectSuccess {
 				t.Fatalf("%s: failed to start server: %v", t.Name(), err)
-			default:
-				fin <- err
-				return nil, fin
 			}
+			fin <- err
+			return nil, fin
 		}
 		return srv, fin
 	}
@@ -1248,13 +1247,11 @@ func TestServerReuseaddr(t *testing.T) {
 		port := freePortFn(t)
 		srv1, fin1 := startServerFn(t, "tcp", fmt.Sprintf("%s:%d", ip, port), true)
 		srv2, fin2 := startServerFn(t, "tcp", fmt.Sprintf("%s:%d", ip, port), false)
-		switch {
-		case srv2 != nil && srv2.started:
+		if srv2 != nil && srv2.started {
 			t.Fatalf("second ListenAndServe should not have started")
-		default:
-			if err := <-fin2; err == nil {
-				t.Fatalf("second ListenAndServe should have returned a startup error: %v", err)
-			}
+		}
+		if err := <-fin2; err == nil {
+			t.Fatalf("second ListenAndServe should have returned a startup error: %v", err)
 		}
 
 		if err := srv1.Shutdown(); err != nil {

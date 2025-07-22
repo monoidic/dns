@@ -209,8 +209,8 @@ func makeSVCBKeyValue(key SVCBKey) SVCBKeyValue {
 // SVCB RR. See RFC 9460.
 type SVCB struct {
 	Hdr      RR_Header
-	Priority uint16         // If zero, Value must be empty or discarded by the user of this library
-	Target   Name           `dns:"domain-name"`
+	Priority uint16 // If zero, Value must be empty or discarded by the user of this library
+	Target   Name
 	Value    []SVCBKeyValue `dns:"pairs"`
 }
 
@@ -869,16 +869,6 @@ func (s *SVCBLocal) parse(b string) error {
 
 func (s *SVCBLocal) copy() SVCBKeyValue {
 	return &SVCBLocal{s.KeyCode, slices.Clone(s.Data)}
-}
-
-func (rr *SVCB) String() string {
-	s := rr.Hdr.String() +
-		strconv.Itoa(int(rr.Priority)) + " " +
-		rr.Target.String()
-	for _, e := range rr.Value {
-		s += " " + e.Key().String() + "=\"" + e.String() + "\""
-	}
-	return s
 }
 
 // areSVCBPairArraysEqual checks if SVCBKeyValue arrays are equal after sorting their

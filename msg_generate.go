@@ -81,7 +81,7 @@ func main() {
 
 		// Check if corresponding TypeX exists
 		if scope.Lookup("Type"+o.Name()) == nil && o.Name() != "RFC3597" {
-			log.Fatalf("Constant Type%s does not exist.", o.Name())
+			log.Panicf("Constant Type%s does not exist.", o.Name())
 		}
 
 		namedTypes = append(namedTypes, o.Name())
@@ -121,60 +121,75 @@ return off, err
 				case `dns:"apl"`:
 					o("off, err = packDataApl(rr.%s, msg, off)\n")
 				default:
-					log.Fatalln(name, st.Field(i).Name(), st.Tag(i))
+					log.Panicln(name, st.Field(i).Name(), st.Tag(i))
 				}
 				continue
 			}
 
-			switch {
-			case st.Tag(i) == `dns:"-"`: // ignored
-			case st.Tag(i) == `dns:"cdomain-name"`:
-				o("off, err = packDomainName(rr.%s, msg, off, compression, compress)\n")
-			case st.Tag(i) == `dns:"domain-name"`:
-				o("off, err = packDomainName(rr.%s, msg, off, compression, false)\n")
-			case st.Tag(i) == `dns:"a"`:
-				o("off, err = packDataA(rr.%s, msg, off)\n")
-			case st.Tag(i) == `dns:"aaaa"`:
-				o("off, err = packDataAAAA(rr.%s, msg, off)\n")
-			case st.Tag(i) == `dns:"uint48"`:
-				o("off, err = packUint48(rr.%s, msg, off)\n")
-			case st.Tag(i) == `dns:"txt"`:
-				o("off, err = packTxtString(rr.%s, msg, off)\n")
-
-			case strings.HasPrefix(st.Tag(i), `dns:"size-base32`): // size-base32 can be packed just like base32
-				fallthrough
-			case st.Tag(i) == `dns:"base32"`:
-				o("off, err = packStringBase32(rr.%s, msg, off)\n")
-
-			case strings.HasPrefix(st.Tag(i), `dns:"size-base64`): // size-base64 can be packed just like base64
-				fallthrough
-			case st.Tag(i) == `dns:"base64"`:
-				o("off, err = packStringBase64(rr.%s, msg, off)\n")
-
-			case strings.HasPrefix(st.Tag(i), `dns:"size-hex:SaltLength`):
+			if strings.HasPrefix(st.Tag(i), `dns:"size-hex:SaltLength`) {
 				// directly write instead of using o() so we get the error check in the correct place
 				field := st.Field(i).Name()
 				fmt.Fprintf(b, `// Only pack salt if value is not "-", i.e. empty
-if rr.%s != "-" {
-  off, err = packStringHex(rr.%s, msg, off)
-  if err != nil {
-    return off, err
-  }
-}
-`, field, field)
+				if rr.%s != "-" {
+				  off, err = packStringHex(rr.%s, msg, off)
+				  if err != nil {
+					return off, err
+				  }
+				}
+				`, field, field)
 				continue
-			case strings.HasPrefix(st.Tag(i), `dns:"size-hex`): // size-hex can be packed just like hex
-				fallthrough
-			case st.Tag(i) == `dns:"hex"`:
+			}
+			if strings.HasPrefix(st.Tag(i), `dns:"size-hex`) { // size-hex can be packed just like hex
 				o("off, err = packStringHex(rr.%s, msg, off)\n")
-			case st.Tag(i) == `dns:"any"`:
+				continue
+			}
+			if strings.HasPrefix(st.Tag(i), `dns:"size-base32`) { // size-base32 can be packed just like base32
+				o("off, err = packStringBase32(rr.%s, msg, off)\n")
+				continue
+			}
+			if strings.HasPrefix(st.Tag(i), `dns:"size-base64`) { // size-base64 can be packed just like base64
+				o("off, err = packStringBase64(rr.%s, msg, off)\n")
+				continue
+			}
+
+			matched := true
+			switch st.Tag(i) {
+			case `dns:"-"`: // ignored
+			case `dns:"cdomain-name"`:
+				o("off, err = packDomainName(rr.%s, msg, off, compression, compress)\n")
+			case `dns:"a"`:
+				o("off, err = packDataA(rr.%s, msg, off)\n")
+			case `dns:"aaaa"`:
+				o("off, err = packDataAAAA(rr.%s, msg, off)\n")
+			case `dns:"uint48"`, `dns:"eui48"`:
+				o("off, err = packUint48(rr.%s, msg, off)\n")
+			case `dns:"txt"`:
+				o("off, err = packTxtString(rr.%s, msg, off)\n")
+			case `dns:"base32"`:
+				o("off, err = packStringBase32(rr.%s, msg, off)\n")
+			case `dns:"base64"`:
+				o("off, err = packStringBase64(rr.%s, msg, off)\n")
+			case `dns:"hex"`:
+				o("off, err = packStringHex(rr.%s, msg, off)\n")
+			case `dns:"any"`:
 				o("off, err = packStringAny(rr.%s, msg, off)\n")
-			case st.Tag(i) == `dns:"octet"`:
+			case `dns:"octet"`:
 				o("off, err = packOctetString(rr.%s, msg, off)\n")
-			case st.Tag(i) == `dns:"ipsechost"` || st.Tag(i) == `dns:"amtrelayhost"`:
+			case `dns:"ipsechost"`, `dns:"amtrelayhost"`:
 				o("off, err = packIPSECGateway(rr.GatewayAddr, rr.%s, msg, off, rr.GatewayType, compression, false)\n")
-			case st.Tag(i) == "":
-				switch st.Field(i).Type().(*types.Basic).Kind() {
+			case "", `dns:"eui64"`:
+				matched = false
+			default:
+				log.Panicln(name, st.Field(i).Name(), st.Tag(i))
+			}
+
+			if matched {
+				continue
+			}
+
+			switch ft := st.Field(i).Type().(type) {
+			case *types.Basic:
+				switch ft.Kind() {
 				case types.Uint8:
 					o("off, err = packUint8(rr.%s, msg, off)\n")
 				case types.Uint16:
@@ -186,10 +201,17 @@ if rr.%s != "-" {
 				case types.String:
 					o("off, err = packTxtString(rr.%s, msg, off)\n")
 				default:
-					log.Fatalln(name, st.Field(i).Name())
+					log.Panicln(name, st.Field(i).Name())
+				}
+			case *types.Named:
+				switch ft.Obj().Name() {
+				case "Name":
+					o("off, err = packDomainName(rr.%s, msg, off, compression, false)\n")
+				default:
+					log.Panicln(name, st.Field(i).Name(), st.Tag(i))
 				}
 			default:
-				log.Fatalln(name, st.Field(i).Name(), st.Tag(i))
+				log.Panicln(name, st.Field(i).Name(), st.Tag(i))
 			}
 		}
 		fmt.Fprint(b, "return off, nil }\n\n")
@@ -231,7 +253,7 @@ return off, fmt.Errorf("%s: %%w", err)
 				case "base64":
 					fmt.Fprintf(b, "rr.%s, off, err = unpackStringBase64(msg, off, off + int(rr.%s))\n", st.Field(i).Name(), structMember)
 				default:
-					log.Fatalln(name, st.Field(i).Name(), st.Tag(i))
+					log.Panicln(name, st.Field(i).Name(), st.Tag(i))
 				}
 				fmt.Fprint(b, `if err != nil {
 return off, err
@@ -256,23 +278,21 @@ return off, err
 				case `dns:"apl"`:
 					o("rr.%s, off, err = unpackDataApl(msg, off)\n")
 				default:
-					log.Fatalln(name, st.Field(i).Name(), st.Tag(i))
+					log.Panicln(name, st.Field(i).Name(), st.Tag(i))
 				}
 				continue
 			}
 
 			switch st.Tag(i) {
 			case `dns:"-"`: // ignored
-			case `dns:"cdomain-name"`:
-				fallthrough
-			case `dns:"domain-name"`:
-				o("rr.%s, off, err = UnpackDomainName(msg, off)\n")
 			case `dns:"a"`:
 				o("rr.%s, off, err = unpackDataA(msg, off)\n")
 			case `dns:"aaaa"`:
 				o("rr.%s, off, err = unpackDataAAAA(msg, off)\n")
-			case `dns:"uint48"`:
+			case `dns:"uint48"`, `dns:"eui48"`:
 				o("rr.%s, off, err = unpackUint48(msg, off)\n")
+			case `dns:"eui64"`:
+				o("rr.%s, off, err = unpackUint64(msg, off)\n")
 			case `dns:"txt"`:
 				o("rr.%s, off, err = unpackString(msg, off)\n")
 			case `dns:"base32"`:
@@ -287,23 +307,38 @@ return off, err
 				o("rr.%s, off, err = unpackStringOctet(msg, off)\n")
 			case `dns:"ipsechost"`, `dns:"amtrelayhost"`:
 				o("rr.GatewayAddr, rr.%s, off, err = unpackIPSECGateway(msg, off, rr.GatewayType)\n")
+			case `dns:"cdomain-name"`:
+				fallthrough // unpack function is the same as the generic one
+				// TODO(monoidic) disallow compression when unpacking unless cdomain-name is used?
 			case "":
-				switch st.Field(i).Type().(*types.Basic).Kind() {
-				case types.Uint8:
-					o("rr.%s, off, err = unpackUint8(msg, off)\n")
-				case types.Uint16:
-					o("rr.%s, off, err = unpackUint16(msg, off)\n")
-				case types.Uint32:
-					o("rr.%s, off, err = unpackUint32(msg, off)\n")
-				case types.Uint64:
-					o("rr.%s, off, err = unpackUint64(msg, off)\n")
-				case types.String:
-					o("rr.%s, off, err = unpackString(msg, off)\n")
+				switch ft := st.Field(i).Type().(type) {
+				case *types.Basic:
+					switch ft.Kind() {
+					case types.Uint8:
+						o("rr.%s, off, err = unpackUint8(msg, off)\n")
+					case types.Uint16:
+						o("rr.%s, off, err = unpackUint16(msg, off)\n")
+					case types.Uint32:
+						o("rr.%s, off, err = unpackUint32(msg, off)\n")
+					case types.Uint64:
+						o("rr.%s, off, err = unpackUint64(msg, off)\n")
+					case types.String:
+						o("rr.%s, off, err = unpackString(msg, off)\n")
+					default:
+						log.Panicln(name, st.Field(i).Name())
+					}
+				case *types.Named:
+					switch ft.Obj().Name() {
+					case "Name":
+						o("rr.%s, off, err = UnpackDomainName(msg, off)\n")
+					default:
+						log.Panicln(name, st.Field(i).Name())
+					}
 				default:
-					log.Fatalln(name, st.Field(i).Name())
+					log.Panicln(name, st.Field(i).Name())
 				}
 			default:
-				log.Fatalln(name, st.Field(i).Name(), st.Tag(i))
+				log.Panicln(name, st.Field(i).Name(), st.Tag(i))
 			}
 		}
 		fmt.Fprintf(b, "return off, nil }\n\n")
@@ -313,7 +348,7 @@ return off, err
 	res, err := format.Source(b.Bytes())
 	if err != nil {
 		b.WriteTo(os.Stderr)
-		log.Fatal(err)
+		log.Panic(err)
 	}
 
 	// write result
@@ -338,6 +373,6 @@ func structTag(s string) string {
 
 func fatalIfErr(err error) {
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 }

@@ -288,7 +288,7 @@ func TestPackDomainNameNSECTypeBitmap(t *testing.T) {
 					Class:  ClassINET,
 				},
 				NextDomain: mustParseName("a.com."),
-				TypeBitMap: []uint16{TypeNS, TypeNSEC},
+				TypeBitMap: []Type{TypeNS, TypeNSEC},
 			},
 		},
 	}

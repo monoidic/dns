@@ -684,8 +684,8 @@ func TestRfc1982(t *testing.T) {
 	// fall in the current 68 year span
 	strtests := []string{"20120525134203", "19700101000000", "20380119031408"}
 	for _, v := range strtests {
-		if x, _ := StringToTime(v); v != TimeToString(x) {
-			t.Errorf("1982 arithmetic string failure %s (%s:%d)", v, TimeToString(x), x)
+		if x, _ := StringToTime(v); v != x.String() {
+			t.Errorf("1982 arithmetic string failure %s (%s:%d)", v, x.String(), x)
 		}
 	}
 
@@ -712,7 +712,7 @@ func TestRfc1982(t *testing.T) {
 	}
 	for from, to := range future {
 		x, _ := StringToTime(from)
-		y := TimeToString(x)
+		y := x.String()
 		if y != to {
 			t.Errorf("1982 arithmetic future failure %s:%s (%s)", from, to, y)
 		}
@@ -893,7 +893,7 @@ foo. IN A 10.0.0.5
 
 foo. IN A 10.0.0.6
 
-foo. IN DNSKEY 256 3 5 AwEAAb+8l ; this is comment 6
+foo. IN DNSKEY 256 3 5 AwEAAb+8 ; this is comment 6
 foo. IN NSEC miek.nl. TXT RRSIG NSEC; this is comment 7
 foo. IN TXT "THIS IS TEXT MAN"; this is comment 8
 `
@@ -1409,10 +1409,10 @@ func TestParseTLSA(t *testing.T) {
 
 func TestParseSMIMEA(t *testing.T) {
 	lt := map[string]string{
-		"2e85e1db3e62be6ea._smimecert.example.com.\t3600\tIN\tSMIMEA\t1 1 2 bd80f334566928fc18f58df7e4928c1886f48f71ca3fd41cd9b1854aca7c2180aaacad2819612ed68e7bd3701cc39be7f2529b017c0bc6a53e8fb3f0c7d48070":   "2e85e1db3e62be6ea._smimecert.example.com.\t3600\tIN\tSMIMEA\t1 1 2 bd80f334566928fc18f58df7e4928c1886f48f71ca3fd41cd9b1854aca7c2180aaacad2819612ed68e7bd3701cc39be7f2529b017c0bc6a53e8fb3f0c7d48070",
-		"2e85e1db3e62be6ea._smimecert.example.com.\t3600\tIN\tSMIMEA\t0 0 1 cdcf0fc66b182928c5217ddd42c826983f5a4b94160ee6c1c9be62d38199f710":                                                                   "2e85e1db3e62be6ea._smimecert.example.com.\t3600\tIN\tSMIMEA\t0 0 1 cdcf0fc66b182928c5217ddd42c826983f5a4b94160ee6c1c9be62d38199f710",
-		"2e85e1db3e62be6ea._smimecert.example.com.\t3600\tIN\tSMIMEA\t3 0 2 499a1eda2af8828b552cdb9d80c3744a25872fddd73f3898d8e4afa3549595d2dd4340126e759566fe8c26b251fa0c887ba4869f011a65f7e79967c2eb729f5b":   "2e85e1db3e62be6ea._smimecert.example.com.\t3600\tIN\tSMIMEA\t3 0 2 499a1eda2af8828b552cdb9d80c3744a25872fddd73f3898d8e4afa3549595d2dd4340126e759566fe8c26b251fa0c887ba4869f011a65f7e79967c2eb729f5b",
-		"2e85e1db3e62be6eb._smimecert.example.com.\t3600\tIN\tSMIMEA\t3 0 2 499a1eda2af8828b552cdb9d80c3744a25872fddd73f3898d8e4afa3549595d2dd4340126e759566fe8 c26b251fa0c887ba4869f01 1a65f7e79967c2eb729f5b": "2e85e1db3e62be6eb._smimecert.example.com.\t3600\tIN\tSMIMEA\t3 0 2 499a1eda2af8828b552cdb9d80c3744a25872fddd73f3898d8e4afa3549595d2dd4340126e759566fe8c26b251fa0c887ba4869f011a65f7e79967c2eb729f5b",
+		"2e85e1db3e62be6ea._smimecert.example.com.\t3600\tIN\tSMIMEA\t1 1 2 bd80f334566928fc18f58df7e4928c1886f48f71ca3fd41cd9b1854aca7c2180aaacad2819612ed68e7bd3701cc39be7f2529b017c0bc6a53e8fb3f0c7d48070":   "2e85e1db3e62be6ea._smimecert.example.com.\t3600\tIN\tSMIMEA\t1 1 2 BD80F334566928FC18F58DF7E4928C1886F48F71CA3FD41CD9B1854ACA7C2180AAACAD2819612ED68E7BD3701CC39BE7F2529B017C0BC6A53E8FB3F0C7D48070",
+		"2e85e1db3e62be6ea._smimecert.example.com.\t3600\tIN\tSMIMEA\t0 0 1 cdcf0fc66b182928c5217ddd42c826983f5a4b94160ee6c1c9be62d38199f710":                                                                   "2e85e1db3e62be6ea._smimecert.example.com.\t3600\tIN\tSMIMEA\t0 0 1 CDCF0FC66B182928C5217DDD42C826983F5A4B94160EE6C1C9BE62D38199F710",
+		"2e85e1db3e62be6ea._smimecert.example.com.\t3600\tIN\tSMIMEA\t3 0 2 499a1eda2af8828b552cdb9d80c3744a25872fddd73f3898d8e4afa3549595d2dd4340126e759566fe8c26b251fa0c887ba4869f011a65f7e79967c2eb729f5b":   "2e85e1db3e62be6ea._smimecert.example.com.\t3600\tIN\tSMIMEA\t3 0 2 499A1EDA2AF8828B552CDB9D80C3744A25872FDDD73F3898D8E4AFA3549595D2DD4340126E759566FE8C26B251FA0C887BA4869F011A65F7E79967C2EB729F5B",
+		"2e85e1db3e62be6eb._smimecert.example.com.\t3600\tIN\tSMIMEA\t3 0 2 499a1eda2af8828b552cdb9d80c3744a25872fddd73f3898d8e4afa3549595d2dd4340126e759566fe8 c26b251fa0c887ba4869f01 1a65f7e79967c2eb729f5b": "2e85e1db3e62be6eb._smimecert.example.com.\t3600\tIN\tSMIMEA\t3 0 2 499A1EDA2AF8828B552CDB9D80C3744A25872FDDD73F3898D8E4AFA3549595D2DD4340126E759566FE8C26B251FA0C887BA4869F011A65F7E79967C2EB729F5B",
 	}
 	for i, o := range lt {
 		rr, err := NewRR(i)

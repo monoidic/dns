@@ -6,10 +6,8 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/binary"
-	"encoding/hex"
 	"hash"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -33,14 +31,11 @@ type TsigProvider interface {
 	Verify(msg []byte, t *TSIG) error
 }
 
-type tsigHMACProvider string
+type tsigHMACProvider ByteField
 
 func (key tsigHMACProvider) Generate(msg []byte, t *TSIG) ([]byte, error) {
 	// If we barf here, the caller is to blame
-	rawsecret, err := fromBase64([]byte(key))
-	if err != nil {
-		return nil, err
-	}
+	rawsecret := ByteField(key).Raw()
 	var h hash.Hash
 	switch t.Algorithm.Canonical() {
 	case HmacSHA1:
@@ -65,17 +60,14 @@ func (key tsigHMACProvider) Verify(msg []byte, t *TSIG) error {
 	if err != nil {
 		return err
 	}
-	mac, err := hex.DecodeString(t.MAC)
-	if err != nil {
-		return err
-	}
+	mac := t.MAC.Raw()
 	if !hmac.Equal(b, mac) {
 		return ErrSig
 	}
 	return nil
 }
 
-type tsigSecretProvider map[string]string
+type tsigSecretProvider map[string]ByteField
 
 func (ts tsigSecretProvider) Generate(msg []byte, t *TSIG) ([]byte, error) {
 	key, ok := ts[t.Hdr.Name.String()]
@@ -101,11 +93,11 @@ type TSIG struct {
 	TimeSigned uint64 `dns:"uint48"`
 	Fudge      uint16
 	MACSize    uint16
-	MAC        string `dns:"size-hex:MACSize"`
+	MAC        ByteField `dns:"size-hex:MACSize"`
 	OrigId     uint16
 	Error      uint16
 	OtherLen   uint16
-	OtherData  string `dns:"size-hex:OtherLen"`
+	OtherData  ByteField `dns:"size-hex:OtherLen"`
 }
 
 // TSIG has no official presentation format, but this will suffice.
@@ -117,11 +109,11 @@ func (rr *TSIG) String() string {
 		" " + tsigTimeToString(rr.TimeSigned) +
 		" " + strconv.Itoa(int(rr.Fudge)) +
 		" " + strconv.Itoa(int(rr.MACSize)) +
-		" " + strings.ToUpper(rr.MAC) +
+		" " + rr.MAC.Hex() +
 		" " + strconv.Itoa(int(rr.OrigId)) +
 		" " + strconv.Itoa(int(rr.Error)) + // BIND prints NOERROR
 		" " + strconv.Itoa(int(rr.OtherLen)) +
-		" " + rr.OtherData
+		" " + rr.OtherData.Hex()
 	return s
 }
 
@@ -134,7 +126,7 @@ func (*TSIG) parse(c *zlexer, origin string) *ParseError {
 type tsigWireFmt struct {
 	// From RR_Header
 	Name  Name
-	Class uint16
+	Class Class
 	Ttl   uint32
 	// Rdata of the TSIG
 	Algorithm  Name
@@ -143,13 +135,13 @@ type tsigWireFmt struct {
 	// MACSize, MAC and OrigId excluded
 	Error     uint16
 	OtherLen  uint16
-	OtherData string `dns:"size-hex:OtherLen"`
+	OtherData ByteField `dns:"size-hex:OtherLen"`
 }
 
 // If we have the MAC use this type to convert it to wiredata. Section 3.4.3. Request MAC
 type macWireFmt struct {
 	MACSize uint16
-	MAC     string `dns:"size-hex:MACSize"`
+	MAC     ByteField `dns:"size-hex:MACSize"`
 }
 
 // 3.3. Time values used in TSIG calculations
@@ -164,12 +156,13 @@ type timerWireFmt struct {
 // time The TSIG MAC is saved in that Tsig RR. When TsigGenerate is called for
 // the first time requestMAC should be set to the empty string and timersOnly to
 // false.
-func TsigGenerate(m *Msg, secret, requestMAC string, timersOnly bool) ([]byte, string, error) {
+func TsigGenerate(m *Msg, secret, requestMAC ByteField, timersOnly bool) ([]byte, ByteField, error) {
 	return TsigGenerateWithProvider(m, tsigHMACProvider(secret), requestMAC, timersOnly)
 }
 
 // TsigGenerateWithProvider is similar to TsigGenerate, but allows for a custom TsigProvider.
-func TsigGenerateWithProvider(m *Msg, provider TsigProvider, requestMAC string, timersOnly bool) ([]byte, string, error) {
+func TsigGenerateWithProvider(m *Msg, provider TsigProvider, requestMAC ByteField, timersOnly bool) ([]byte, ByteField, error) {
+	var ret ByteField
 	if m.IsTsig() == nil {
 		panic("dns: TSIG not last RR in additional")
 	}
@@ -178,35 +171,35 @@ func TsigGenerateWithProvider(m *Msg, provider TsigProvider, requestMAC string, 
 	m.Extra = m.Extra[0 : len(m.Extra)-1] // kill the TSIG from the msg
 	mbuf, err := m.Pack()
 	if err != nil {
-		return nil, "", err
+		return nil, ret, err
 	}
 
 	buf, err := tsigBuffer(mbuf, rr, requestMAC, timersOnly)
 	if err != nil {
-		return nil, "", err
+		return nil, ret, err
 	}
 
 	// Copy all TSIG fields except MAC, its size, and time signed which are filled when signing.
 	t := rr.copy().(*TSIG)
 	t.TimeSigned = 0
-	t.MAC = ""
+	t.MAC = ByteField{}
 	t.MACSize = 0
 
 	// Sign unless there is a key or MAC validation error (RFC 8945 5.3.2)
 	if rr.Error != RcodeBadKey && rr.Error != RcodeBadSig {
 		mac, err := provider.Generate(buf, rr)
 		if err != nil {
-			return nil, "", err
+			return nil, ret, err
 		}
 		t.TimeSigned = rr.TimeSigned
-		t.MAC = hex.EncodeToString(mac)
-		t.MACSize = uint16(hex.DecodedLen(len(t.MAC)))
+		t.MAC = BFFromBytes(mac)
+		t.MACSize = uint16(t.MAC.EncodedLen())
 	}
 
 	tbuf := make([]byte, Len(t))
 	off, err := PackRR(t, tbuf, 0, nil, false)
 	if err != nil {
-		return nil, "", err
+		return nil, ret, err
 	}
 	mbuf = append(mbuf, tbuf[:off]...)
 	// Update the ArCount directly in the buffer.
@@ -218,17 +211,17 @@ func TsigGenerateWithProvider(m *Msg, provider TsigProvider, requestMAC string, 
 // TsigVerify verifies the TSIG on a message. If the signature does not
 // validate the returned error contains the cause. If the signature is OK, the
 // error is nil.
-func TsigVerify(msg []byte, secret, requestMAC string, timersOnly bool) error {
+func TsigVerify(msg []byte, secret, requestMAC ByteField, timersOnly bool) error {
 	return tsigVerify(msg, tsigHMACProvider(secret), requestMAC, timersOnly, uint64(time.Now().Unix()))
 }
 
 // TsigVerifyWithProvider is similar to TsigVerify, but allows for a custom TsigProvider.
-func TsigVerifyWithProvider(msg []byte, provider TsigProvider, requestMAC string, timersOnly bool) error {
+func TsigVerifyWithProvider(msg []byte, provider TsigProvider, requestMAC ByteField, timersOnly bool) error {
 	return tsigVerify(msg, provider, requestMAC, timersOnly, uint64(time.Now().Unix()))
 }
 
 // actual implementation of TsigVerify, taking the current time ('now') as a parameter for the convenience of tests.
-func tsigVerify(msg []byte, provider TsigProvider, requestMAC string, timersOnly bool, now uint64) error {
+func tsigVerify(msg []byte, provider TsigProvider, requestMAC ByteField, timersOnly bool, now uint64) error {
 	// Strip the TSIG from the incoming msg
 	stripped, tsig, err := stripTsig(msg)
 	if err != nil {
@@ -260,7 +253,7 @@ func tsigVerify(msg []byte, provider TsigProvider, requestMAC string, timersOnly
 }
 
 // Create a wiredata buffer for the MAC calculation.
-func tsigBuffer(msgbuf []byte, rr *TSIG, requestMAC string, timersOnly bool) ([]byte, error) {
+func tsigBuffer(msgbuf []byte, rr *TSIG, requestMAC ByteField, timersOnly bool) ([]byte, error) {
 	var buf []byte
 	if rr.TimeSigned == 0 {
 		rr.TimeSigned = uint64(time.Now().Unix())
@@ -272,11 +265,11 @@ func tsigBuffer(msgbuf []byte, rr *TSIG, requestMAC string, timersOnly bool) ([]
 	// Replace message ID in header with original ID from TSIG
 	binary.BigEndian.PutUint16(msgbuf[0:2], rr.OrigId)
 
-	if requestMAC != "" {
+	if requestMAC.EncodedLen() != 0 {
 		m := new(macWireFmt)
-		m.MACSize = uint16(hex.DecodedLen(len(requestMAC)))
+		m.MACSize = uint16(requestMAC.EncodedLen())
 		m.MAC = requestMAC
-		buf = make([]byte, len(requestMAC)) // long enough
+		buf = make([]byte, requestMAC.EncodedLen()*2) // long enough
 		n, err := packMacWire(m, buf)
 		if err != nil {
 			return nil, err
@@ -312,7 +305,7 @@ func tsigBuffer(msgbuf []byte, rr *TSIG, requestMAC string, timersOnly bool) ([]
 		tsigvar = tsigvar[:n]
 	}
 
-	if requestMAC != "" {
+	if requestMAC.EncodedLen() != 0 {
 		x := append(buf, msgbuf...)
 		buf = append(x, tsigvar...)
 	} else {
@@ -398,7 +391,7 @@ func packTsigWire(tw *tsigWireFmt, msg []byte) (int, error) {
 	if len(msg[off:]) < 6 {
 		return off, ErrBuf
 	}
-	binary.BigEndian.PutUint16(msg[off+0:], tw.Class)
+	binary.BigEndian.PutUint16(msg[off+0:], uint16(tw.Class))
 	binary.BigEndian.PutUint32(msg[off+2:], tw.Ttl)
 	off += 6
 
@@ -419,7 +412,7 @@ func packTsigWire(tw *tsigWireFmt, msg []byte) (int, error) {
 	binary.BigEndian.PutUint16(msg[off+10:], tw.OtherLen)
 	off += 12
 
-	off, err = packStringHex(tw.OtherData, msg, off)
+	off, err = packByteField(tw.OtherData, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -431,7 +424,7 @@ func packMacWire(mw *macWireFmt, msg []byte) (int, error) {
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringHex(mw.MAC, msg, off)
+	off, err = packByteField(mw.MAC, msg, off)
 	if err != nil {
 		return off, err
 	}

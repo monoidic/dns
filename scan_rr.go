@@ -1,7 +1,6 @@
 package dns
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -11,24 +10,60 @@ import (
 
 // A remainder of the rdata with embedded spaces, return the parsed string (sans the spaces)
 // or an error
-func endingToString(c *zlexer, errstr string) (string, *ParseError) {
+func endingToHex(c *zlexer, errstr string) (ByteField, *ParseError) {
 	var s strings.Builder
+	var ret ByteField
 	l, _ := c.Next() // zString
 	for l.value != zNewline && l.value != zEOF {
 		if l.err {
-			return s.String(), &ParseError{err: errstr, lex: l}
+			return ret, &ParseError{err: errstr, lex: l}
 		}
 		switch l.value {
 		case zString:
 			s.WriteString(l.token)
 		case zBlank: // Ok
 		default:
-			return "", &ParseError{err: errstr, lex: l}
+			return ret, &ParseError{err: errstr, lex: l}
 		}
 		l, _ = c.Next()
 	}
 
-	return s.String(), nil
+	hex := s.String()
+	var err error
+	ret, err = BFFromHex(hex)
+	if err != nil {
+		return ret, &ParseError{err: errstr, lex: l}
+	}
+
+	return ret, nil
+}
+
+func endingToBase64(c *zlexer, errstr string) (ByteField, *ParseError) {
+	var s strings.Builder
+	var ret ByteField
+	l, _ := c.Next() // zString
+	for l.value != zNewline && l.value != zEOF {
+		if l.err {
+			return ret, &ParseError{err: errstr, lex: l}
+		}
+		switch l.value {
+		case zString:
+			s.WriteString(l.token)
+		case zBlank: // Ok
+		default:
+			return ret, &ParseError{err: errstr, lex: l}
+		}
+		l, _ = c.Next()
+	}
+
+	hex := s.String()
+	var err error
+	ret, err = BFFromBase64(hex)
+	if err != nil {
+		return ret, &ParseError{err: errstr, lex: l}
+	}
+
+	return ret, nil
 }
 
 // A remainder of the rdata with embedded spaces, split on unquoted whitespace
@@ -777,20 +812,23 @@ func (rr *HIP) parse(c *zlexer, o string) *ParseError {
 	if l.token == "" || l.err {
 		return &ParseError{err: "bad HIP Hit", lex: l}
 	}
-	rr.Hit = l.token // This can not contain spaces, see RFC 5205 Section 6.
-	rr.HitLength = uint8(len(rr.Hit)) / 2
+	var err error
+	rr.Hit, err = BFFromHex(l.token) // This can not contain spaces, see RFC 5205 Section 6.
+	if err != nil || rr.Hit.EncodedLen() > 0xff {
+		return &ParseError{err: "bad HIP Hit", lex: l}
+	}
+	rr.HitLength = uint8(rr.Hit.EncodedLen())
 
 	c.Next()        // zBlank
 	l, _ = c.Next() // zString
 	if l.token == "" || l.err {
 		return &ParseError{err: "bad HIP PublicKey", lex: l}
 	}
-	rr.PublicKey = l.token // This cannot contain spaces
-	decodedPK, decodedPKerr := base64.StdEncoding.DecodeString(rr.PublicKey)
-	if decodedPKerr != nil {
+	rr.PublicKey, err = BFFromBase64(l.token) // This cannot contain spaces
+	if err != nil || rr.PublicKey.EncodedLen() > 0xff_ff {
 		return &ParseError{err: "bad HIP PublicKey", lex: l}
 	}
-	rr.PublicKeyLength = uint16(len(decodedPK))
+	rr.PublicKeyLength = uint16(rr.PublicKey.EncodedLen())
 
 	// RendezvousServers (if any)
 	l, _ = c.Next()
@@ -840,7 +878,7 @@ func (rr *CERT) parse(c *zlexer, o string) *ParseError {
 	} else {
 		rr.Algorithm = uint8(i)
 	}
-	s, e1 := endingToString(c, "bad CERT Certificate")
+	s, e1 := endingToBase64(c, "bad CERT Certificate")
 	if e1 != nil {
 		return e1
 	}
@@ -849,7 +887,7 @@ func (rr *CERT) parse(c *zlexer, o string) *ParseError {
 }
 
 func (rr *OPENPGPKEY) parse(c *zlexer, o string) *ParseError {
-	s, e := endingToString(c, "bad OPENPGPKEY PublicKey")
+	s, e := endingToBase64(c, "bad OPENPGPKEY PublicKey")
 	if e != nil {
 		return e
 	}
@@ -876,9 +914,9 @@ func (rr *CSYNC) parse(c *zlexer, o string) *ParseError {
 	}
 	rr.Flags = uint16(j)
 
-	rr.TypeBitMap = []uint16{}
+	rr.TypeBitMap = []Type{}
 	var (
-		k  uint16
+		k  Type
 		ok bool
 	)
 	l, _ = c.Next()
@@ -889,11 +927,13 @@ func (rr *CSYNC) parse(c *zlexer, o string) *ParseError {
 		case zString:
 			tokenUpper := strings.ToUpper(l.token)
 			if k, ok = StringToType[tokenUpper]; !ok {
-				if k, ok = typeToInt(l.token); !ok {
+				var v uint16
+				if v, ok = typeToInt(l.token); !ok {
 					return &ParseError{err: "bad CSYNC TypeBitMap", lex: l}
 				}
+				k = Type(v)
 			}
-			rr.TypeBitMap = append(rr.TypeBitMap, k)
+			rr.TypeBitMap = append(rr.TypeBitMap, Type(k))
 		default:
 			return &ParseError{err: "bad CSYNC TypeBitMap", lex: l}
 		}
@@ -926,7 +966,7 @@ func (rr *ZONEMD) parse(c *zlexer, o string) *ParseError {
 	}
 	rr.Hash = uint8(i)
 
-	s, e2 := endingToString(c, "bad ZONEMD Digest")
+	s, e2 := endingToHex(c, "bad ZONEMD Digest")
 	if e2 != nil {
 		return e2
 	}
@@ -941,10 +981,12 @@ func (rr *RRSIG) parse(c *zlexer, o string) *ParseError {
 	tokenUpper := strings.ToUpper(l.token)
 	if t, ok := StringToType[tokenUpper]; !ok {
 		if strings.HasPrefix(tokenUpper, "TYPE") {
-			t, ok = typeToInt(l.token)
+			var v uint16
+			v, ok = typeToInt(l.token)
 			if !ok {
 				return &ParseError{err: "bad RRSIG Typecovered", lex: l}
 			}
+			t = Type(v)
 			rr.TypeCovered = t
 		} else {
 			return &ParseError{err: "bad RRSIG Typecovered", lex: l}
@@ -989,7 +1031,7 @@ func (rr *RRSIG) parse(c *zlexer, o string) *ParseError {
 	if i, err := StringToTime(l.token); err != nil {
 		// Try to see if all numeric and use it as epoch
 		if i, err := strconv.ParseUint(l.token, 10, 32); err == nil {
-			rr.Expiration = uint32(i)
+			rr.Expiration = Time(i)
 		} else {
 			return &ParseError{err: "bad RRSIG Expiration", lex: l}
 		}
@@ -1001,7 +1043,7 @@ func (rr *RRSIG) parse(c *zlexer, o string) *ParseError {
 	l, _ = c.Next()
 	if i, err := StringToTime(l.token); err != nil {
 		if i, err := strconv.ParseUint(l.token, 10, 32); err == nil {
-			rr.Inception = uint32(i)
+			rr.Inception = Time(i)
 		} else {
 			return &ParseError{err: "bad RRSIG Inception", lex: l}
 		}
@@ -1025,7 +1067,7 @@ func (rr *RRSIG) parse(c *zlexer, o string) *ParseError {
 	}
 	rr.SignerName = name
 
-	s, e4 := endingToString(c, "bad RRSIG Signature")
+	s, e4 := endingToBase64(c, "bad RRSIG Signature")
 	if e4 != nil {
 		return e4
 	}
@@ -1044,9 +1086,9 @@ func (rr *NSEC) parse(c *zlexer, o string) *ParseError {
 	}
 	rr.NextDomain = name
 
-	rr.TypeBitMap = []uint16{}
+	rr.TypeBitMap = []Type{}
 	var (
-		k  uint16
+		k  Type
 		ok bool
 	)
 	l, _ = c.Next()
@@ -1057,9 +1099,11 @@ func (rr *NSEC) parse(c *zlexer, o string) *ParseError {
 		case zString:
 			tokenUpper := strings.ToUpper(l.token)
 			if k, ok = StringToType[tokenUpper]; !ok {
-				if k, ok = typeToInt(l.token); !ok {
+				var v uint16
+				if v, ok = typeToInt(l.token); !ok {
 					return &ParseError{err: "bad NSEC TypeBitMap", lex: l}
 				}
+				k = Type(v)
 			}
 			rr.TypeBitMap = append(rr.TypeBitMap, k)
 		default:
@@ -1096,9 +1140,13 @@ func (rr *NSEC3) parse(c *zlexer, o string) *ParseError {
 	if l.token == "" || l.err {
 		return &ParseError{err: "bad NSEC3 Salt", lex: l}
 	}
+	var err error
 	if l.token != "-" {
-		rr.SaltLength = uint8(len(l.token)) / 2
-		rr.Salt = l.token
+		rr.Salt, err = BFFromHex(l.token)
+		if err != nil || rr.Salt.EncodedLen() > 0xff {
+			return &ParseError{err: "bad NSEC3 Salt", lex: l}
+		}
+		rr.SaltLength = uint8(rr.Salt.EncodedLen())
 	}
 
 	c.Next()
@@ -1107,11 +1155,14 @@ func (rr *NSEC3) parse(c *zlexer, o string) *ParseError {
 		return &ParseError{err: "bad NSEC3 NextDomain", lex: l}
 	}
 	rr.HashLength = 20 // Fix for NSEC3 (sha1 160 bits)
-	rr.NextDomain = l.token
+	rr.NextDomain, err = BFFromBase32(l.token)
+	if err != nil {
+		return &ParseError{err: "bad NSEC3 NextDomain", lex: l}
+	}
 
-	rr.TypeBitMap = []uint16{}
+	rr.TypeBitMap = []Type{}
 	var (
-		k  uint16
+		k  Type
 		ok bool
 	)
 	l, _ = c.Next()
@@ -1122,9 +1173,11 @@ func (rr *NSEC3) parse(c *zlexer, o string) *ParseError {
 		case zString:
 			tokenUpper := strings.ToUpper(l.token)
 			if k, ok = StringToType[tokenUpper]; !ok {
-				if k, ok = typeToInt(l.token); !ok {
+				var v uint16
+				if v, ok = typeToInt(l.token); !ok {
 					return &ParseError{err: "bad NSEC3 TypeBitMap", lex: l}
 				}
+				k = Type(v)
 			}
 			rr.TypeBitMap = append(rr.TypeBitMap, k)
 		default:
@@ -1159,8 +1212,12 @@ func (rr *NSEC3PARAM) parse(c *zlexer, o string) *ParseError {
 	c.Next()
 	l, _ = c.Next()
 	if l.token != "-" {
-		rr.SaltLength = uint8(len(l.token) / 2)
-		rr.Salt = l.token
+		var err error
+		rr.Salt, err = BFFromHex(l.token)
+		if err != nil {
+			return &ParseError{err: "bad NSEC3PARAM Salt", lex: l}
+		}
+		rr.SaltLength = uint8(rr.Salt.EncodedLen())
 	}
 	return slurpRemainder(c)
 }
@@ -1232,7 +1289,7 @@ func (rr *SSHFP) parse(c *zlexer, o string) *ParseError {
 	}
 	rr.Type = uint8(i)
 	c.Next() // zBlank
-	s, e2 := endingToString(c, "bad SSHFP Fingerprint")
+	s, e2 := endingToHex(c, "bad SSHFP Fingerprint")
 	if e2 != nil {
 		return e2
 	}
@@ -1261,7 +1318,7 @@ func (rr *DNSKEY) parseDNSKEY(c *zlexer, o, typ string) *ParseError {
 		return &ParseError{err: "bad " + typ + " Algorithm", lex: l}
 	}
 	rr.Algorithm = uint8(i)
-	s, e3 := endingToString(c, "bad "+typ+" PublicKey")
+	s, e3 := endingToBase64(c, "bad "+typ+" PublicKey")
 	if e3 != nil {
 		return e3
 	}
@@ -1313,7 +1370,7 @@ func (rr *IPSECKEY) parse(c *zlexer, o string) *ParseError {
 
 	c.Next() // zBlank
 
-	s, pErr := endingToString(c, "bad IPSECKEY PublicKey")
+	s, pErr := endingToBase64(c, "bad IPSECKEY PublicKey")
 	if pErr != nil {
 		return pErr
 	}
@@ -1408,7 +1465,7 @@ func (rr *RKEY) parse(c *zlexer, o string) *ParseError {
 		return &ParseError{err: "bad RKEY Algorithm", lex: l}
 	}
 	rr.Algorithm = uint8(i)
-	s, e3 := endingToString(c, "bad RKEY PublicKey")
+	s, e3 := endingToBase64(c, "bad RKEY PublicKey")
 	if e3 != nil {
 		return e3
 	}
@@ -1417,7 +1474,7 @@ func (rr *RKEY) parse(c *zlexer, o string) *ParseError {
 }
 
 func (rr *EID) parse(c *zlexer, o string) *ParseError {
-	s, e := endingToString(c, "bad EID Endpoint")
+	s, e := endingToHex(c, "bad EID Endpoint")
 	if e != nil {
 		return e
 	}
@@ -1426,7 +1483,7 @@ func (rr *EID) parse(c *zlexer, o string) *ParseError {
 }
 
 func (rr *NIMLOC) parse(c *zlexer, o string) *ParseError {
-	s, e := endingToString(c, "bad NIMLOC Locator")
+	s, e := endingToHex(c, "bad NIMLOC Locator")
 	if e != nil {
 		return e
 	}
@@ -1493,7 +1550,7 @@ func (rr *DS) parseDS(c *zlexer, o, typ string) *ParseError {
 		return &ParseError{err: "bad " + typ + " DigestType", lex: l}
 	}
 	rr.DigestType = uint8(i)
-	s, e2 := endingToString(c, "bad "+typ+" Digest")
+	s, e2 := endingToHex(c, "bad "+typ+" Digest")
 	if e2 != nil {
 		return e2
 	}
@@ -1527,7 +1584,7 @@ func (rr *TA) parse(c *zlexer, o string) *ParseError {
 		return &ParseError{err: "bad TA DigestType", lex: l}
 	}
 	rr.DigestType = uint8(i)
-	s, e2 := endingToString(c, "bad TA Digest")
+	s, e2 := endingToHex(c, "bad TA Digest")
 	if e2 != nil {
 		return e2
 	}
@@ -1557,7 +1614,7 @@ func (rr *TLSA) parse(c *zlexer, o string) *ParseError {
 	}
 	rr.MatchingType = uint8(i)
 	// So this needs be e2 (i.e. different than e), because...??t
-	s, e3 := endingToString(c, "bad TLSA Certificate")
+	s, e3 := endingToHex(c, "bad TLSA Certificate")
 	if e3 != nil {
 		return e3
 	}
@@ -1587,7 +1644,7 @@ func (rr *SMIMEA) parse(c *zlexer, o string) *ParseError {
 	}
 	rr.MatchingType = uint8(i)
 	// So this needs be e2 (i.e. different than e), because...??t
-	s, e3 := endingToString(c, "bad SMIMEA Certificate")
+	s, e3 := endingToHex(c, "bad SMIMEA Certificate")
 	if e3 != nil {
 		return e3
 	}
@@ -1608,11 +1665,11 @@ func (rr *RFC3597) parse(c *zlexer, o string) *ParseError {
 		return &ParseError{err: "bad RFC3597 Rdata ", lex: l}
 	}
 
-	s, e1 := endingToString(c, "bad RFC3597 Rdata")
+	s, e1 := endingToHex(c, "bad RFC3597 Rdata")
 	if e1 != nil {
 		return e1
 	}
-	if int(rdlength)*2 != len(s) {
+	if rdlength != uint64(s.EncodedLen()) {
 		return &ParseError{err: "bad RFC3597 Rdata", lex: l}
 	}
 	rr.Rdata = s
@@ -1697,7 +1754,7 @@ func (rr *URI) parse(c *zlexer, o string) *ParseError {
 
 func (rr *DHCID) parse(c *zlexer, o string) *ParseError {
 	// awesome record to parse!
-	s, e := endingToString(c, "bad DHCID Digest")
+	s, e := endingToBase64(c, "bad DHCID Digest")
 	if e != nil {
 		return e
 	}
@@ -1891,7 +1948,10 @@ func (rr *TKEY) parse(c *zlexer, o string) *ParseError {
 	if l.value != zString {
 		return &ParseError{err: "bad TKEY key", lex: l}
 	}
-	rr.Key = l.token
+	rr.Key, err = BFFromHex(l.token)
+	if err != nil {
+		return &ParseError{err: "bad TKEY key", lex: l}
+	}
 	c.Next() // zBlank
 
 	// Get the otherdata length and string data
@@ -1904,9 +1964,12 @@ func (rr *TKEY) parse(c *zlexer, o string) *ParseError {
 	c.Next() // zBlank
 	l, _ = c.Next()
 	if l.value != zString {
-		return &ParseError{err: "bad TKEY otherday", lex: l}
+		return &ParseError{err: "bad TKEY otherdata", lex: l}
 	}
-	rr.OtherData = l.token
+	rr.OtherData, err = BFFromHex(l.token)
+	if err != nil {
+		return &ParseError{err: "bad TKEY otherdata", lex: l}
+	}
 	return nil
 }
 

@@ -6,13 +6,13 @@ import (
 )
 
 func TestPackNsec3(t *testing.T) {
-	nsec3 := HashName(mustParseName("dnsex.nl."), SHA1, 0, "DEAD")
-	if nsec3 != "ROCCJAE8BJJU7HN6T7NG3TNM8ACRS87J" {
+	nsec3 := HashName(mustParseName("dnsex.nl."), SHA1, 0, []byte{0xde, 0xad})
+	if BFFromBytes(nsec3).Base32() != "ROCCJAE8BJJU7HN6T7NG3TNM8ACRS87J" {
 		t.Error(nsec3)
 	}
 
-	nsec3 = HashName(mustParseName("a.b.c.example.org."), SHA1, 2, "DEAD")
-	if nsec3 != "6LQ07OAHBTOOEU2R9ANI2AT70K5O0RCG" {
+	nsec3 = HashName(mustParseName("a.b.c.example.org."), SHA1, 2, []byte{0xde, 0xad})
+	if BFFromBytes(nsec3).Base32() != "6LQ07OAHBTOOEU2R9ANI2AT70K5O0RCG" {
 		t.Error(nsec3)
 	}
 }
@@ -48,8 +48,8 @@ func TestNsec3(t *testing.T) {
 				Hash:       1,
 				Flags:      1,
 				Iterations: 5,
-				Salt:       "F10E9F7EA83FC8F3",
-				NextDomain: "PT3RON8N7PM3A0OE989IB84OOSADP7O8",
+				Salt:       check1(BFFromHex("F10E9F7EA83FC8F3")),
+				NextDomain: check1(BFFromBase32("PT3RON8N7PM3A0OE989IB84OOSADP7O8")),
 			},
 			name:   "bsd.com.",
 			covers: true,
@@ -60,8 +60,8 @@ func TestNsec3(t *testing.T) {
 				Hash:       1,
 				Flags:      1,
 				Iterations: 5,
-				Salt:       "F10E9F7EA83FC8F3",
-				NextDomain: "2N1TB3VAIRUOBL6RKDVII42N9TFMIALP",
+				Salt:       check1(BFFromHex("F10E9F7EA83FC8F3")),
+				NextDomain: check1(BFFromBase32("2N1TB3VAIRUOBL6RKDVII42N9TFMIALP")),
 			},
 			name:   "csd.com.",
 			covers: true,
@@ -72,8 +72,8 @@ func TestNsec3(t *testing.T) {
 				Hash:       1,
 				Flags:      1,
 				Iterations: 5,
-				Salt:       "F10E9F7EA83FC8F3",
-				NextDomain: "3V62ULR0NRE83V0RJA2VJGTLIF9V6RAB",
+				Salt:       check1(BFFromHex("F10E9F7EA83FC8F3")),
+				NextDomain: check1(BFFromBase32("3V62ULR0NRE83V0RJA2VJGTLIF9V6RAB")),
 			},
 			name:   "asd.com.",
 			covers: true,
@@ -85,8 +85,8 @@ func TestNsec3(t *testing.T) {
 				Hash:       1,
 				Flags:      1,
 				Iterations: 5,
-				Salt:       "F10E9F7EA83FC8F3",
-				NextDomain: "39P99DCGG0MDLARTCRMCF6OFLLUL7PR6",
+				Salt:       check1(BFFromHex("F10E9F7EA83FC8F3")),
+				NextDomain: check1(BFFromBase32("39P99DCGG0MDLARTCRMCF6OFLLUL7PR6")),
 			},
 			name:   "asd.com.",
 			covers: false,
@@ -97,8 +97,8 @@ func TestNsec3(t *testing.T) {
 				Hash:       1,
 				Flags:      1,
 				Iterations: 5,
-				Salt:       "F10E9F7EA83FC8F3",
-				NextDomain: "39P99DCGG0MDLARTCRMCF6OFLLUL7PR6",
+				Salt:       check1(BFFromHex("F10E9F7EA83FC8F3")),
+				NextDomain: check1(BFFromBase32("39P99DCGG0MDLARTCRMCF6OFLLUL7PR6")),
 			},
 			name:   "asd.com.",
 			covers: false,
@@ -109,8 +109,8 @@ func TestNsec3(t *testing.T) {
 				Hash:       1,
 				Flags:      1,
 				Iterations: 5,
-				Salt:       "F10E9F7EA83FC8F3",
-				NextDomain: "2N1TB3VAIRUOBL6RKDVII42N9TFMIALP",
+				Salt:       check1(BFFromHex("F10E9F7EA83FC8F3")),
+				NextDomain: check1(BFFromBase32("2N1TB3VAIRUOBL6RKDVII42N9TFMIALP")),
 			},
 			name:   "asd.com.",
 			covers: false,
@@ -121,8 +121,8 @@ func TestNsec3(t *testing.T) {
 				Hash:       1,
 				Flags:      1,
 				Iterations: 5,
-				Salt:       "F10E9F7EA83FC8F3",
-				NextDomain: "2N1TB3VAIRUOBL6RKDVII42N9TFMIALP",
+				Salt:       check1(BFFromHex("F10E9F7EA83FC8F3")),
+				NextDomain: check1(BFFromBase32("2N1TB3VAIRUOBL6RKDVII42N9TFMIALP")),
 			},
 			name:   "*.asd.com.",
 			covers: true,
@@ -133,8 +133,8 @@ func TestNsec3(t *testing.T) {
 				Hash:       1,
 				Flags:      1,
 				Iterations: 5,
-				Salt:       "F10E9F7EA83FC8F3",
-				NextDomain: "PT3RON8N7PM3A0OE989IB84OOSADP7O8",
+				Salt:       check1(BFFromHex("F10E9F7EA83FC8F3")),
+				NextDomain: check1(BFFromBase32("PT3RON8N7PM3A0OE989IB84OOSADP7O8")),
 			},
 			name:   "asd.com.",
 			covers: false,
@@ -161,7 +161,7 @@ func BenchmarkHashName(b *testing.B) {
 	} {
 		b.Run(strconv.Itoa(int(iter)), func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
-				if HashName(mustParseName("some.example.org."), SHA1, iter, "deadbeef") == "" {
+				if len(HashName(mustParseName("some.example.org."), SHA1, iter, []byte{0xde, 0xad, 0xbe, 0xef})) == 0 {
 					b.Fatalf("HashName failed")
 				}
 			}

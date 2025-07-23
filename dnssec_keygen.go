@@ -83,7 +83,7 @@ func (k *DNSKEY) setPublicKeyRSA(_E int, _N *big.Int) bool {
 	}
 	buf := exponentToBuf(_E)
 	buf = append(buf, _N.Bytes()...)
-	k.PublicKey = toBase64(buf)
+	k.PublicKey = BFFromBytes(buf)
 	return true
 }
 
@@ -99,7 +99,7 @@ func (k *DNSKEY) setPublicKeyECDSA(_X, _Y *big.Int) bool {
 	case ECDSAP384SHA384:
 		intlen = 48
 	}
-	k.PublicKey = toBase64(curveToBuf(_X, _Y, intlen))
+	k.PublicKey = BFFromBytes(curveToBuf(_X, _Y, intlen))
 	return true
 }
 
@@ -108,7 +108,7 @@ func (k *DNSKEY) setPublicKeyED25519(_K ed25519.PublicKey) bool {
 	if _K == nil {
 		return false
 	}
-	k.PublicKey = toBase64(_K)
+	k.PublicKey = BFFromBytes(_K)
 	return true
 }
 

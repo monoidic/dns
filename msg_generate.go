@@ -124,29 +124,8 @@ return off, err
 				continue
 			}
 
-			if strings.HasPrefix(st.Tag(i), `dns:"size-hex:SaltLength`) {
-				// directly write instead of using o() so we get the error check in the correct place
-				field := st.Field(i).Name()
-				fmt.Fprintf(b, `// Only pack salt if value is not "-", i.e. empty
-				if rr.%s != "-" {
-				  off, err = packStringHex(rr.%s, msg, off)
-				  if err != nil {
-					return off, err
-				  }
-				}
-				`, field, field)
-				continue
-			}
-			if strings.HasPrefix(st.Tag(i), `dns:"size-hex`) { // size-hex can be packed just like hex
-				o("off, err = packStringHex(rr.%s, msg, off)\n")
-				continue
-			}
-			if strings.HasPrefix(st.Tag(i), `dns:"size-base32`) { // size-base32 can be packed just like base32
-				o("off, err = packStringBase32(rr.%s, msg, off)\n")
-				continue
-			}
-			if strings.HasPrefix(st.Tag(i), `dns:"size-base64`) { // size-base64 can be packed just like base64
-				o("off, err = packStringBase64(rr.%s, msg, off)\n")
+			if tag := st.Tag(i); strings.HasPrefix(tag, `dns:"size-hex`) || strings.HasPrefix(tag, `dns:"size-base32`) || strings.HasPrefix(tag, `dns:"size-base64`) {
+				o("off, err = packByteField(rr.%s, msg, off)\n")
 				continue
 			}
 
@@ -161,21 +140,13 @@ return off, err
 				o("off, err = packDataAAAA(rr.%s, msg, off)\n")
 			case `dns:"uint48"`, `dns:"eui48"`:
 				o("off, err = packUint48(rr.%s, msg, off)\n")
-			case `dns:"base32"`:
-				o("off, err = packStringBase32(rr.%s, msg, off)\n")
-			case `dns:"base64"`:
-				o("off, err = packStringBase64(rr.%s, msg, off)\n")
-			case `dns:"hex"`:
-				o("off, err = packStringHex(rr.%s, msg, off)\n")
-			case `dns:"any"`:
-				o("off, err = packStringAny(rr.%s, msg, off)\n")
 			case `dns:"octet"`:
 				o("off, err = packOctetString(rr.%s, msg, off)\n")
 			case `dns:"ipsechost"`, `dns:"amtrelayhost"`:
 				o("off, err = packIPSECGateway(rr.GatewayAddr, rr.%s, msg, off, rr.GatewayType, compression, false)\n")
 			case `dns:"lenoctet"`:
 				o("off, err = packLenOctet(rr.%s, msg, off)\n")
-			case "", `dns:"eui64"`, `dns:"baretxt"`:
+			case "", `dns:"eui64"`, `dns:"baretxt"`, `dns:"hex"`, `dns:"base32"`, `dns:"base64"`:
 				matched = false
 			default:
 				log.Panicln(name, st.Field(i).Name(), st.Tag(i))
@@ -207,6 +178,12 @@ return off, err
 					o("off, err = packTxtString(rr.%s, msg, off)\n")
 				case "TxtStrings":
 					o("off, err = packTxt(rr.%s, msg, off)\n")
+				case "ByteField":
+					o("off, err = packByteField(rr.%s, msg, off)\n")
+				case "Type":
+					o("off, err = packUint16(uint16(rr.%s), msg, off)\n")
+				case "Time":
+					o("off, err = packUint32(uint32(rr.%s), msg, off)\n")
 				default:
 					log.Panicln(name, st.Field(i).Name(), st.Tag(i))
 				}
@@ -246,12 +223,8 @@ return off, fmt.Errorf("%s: %%w", err)
 				structMember := structMember(st.Tag(i))
 				structTag := structTag(st.Tag(i))
 				switch structTag {
-				case "hex":
-					fmt.Fprintf(b, "rr.%s, off, err = unpackStringHex(msg, off, off + int(rr.%s))\n", st.Field(i).Name(), structMember)
-				case "base32":
-					fmt.Fprintf(b, "rr.%s, off, err = unpackStringBase32(msg, off, off + int(rr.%s))\n", st.Field(i).Name(), structMember)
-				case "base64":
-					fmt.Fprintf(b, "rr.%s, off, err = unpackStringBase64(msg, off, off + int(rr.%s))\n", st.Field(i).Name(), structMember)
+				case "hex", "base32", "base64":
+					fmt.Fprintf(b, "rr.%s, off, err = unpackByteField(msg, off, off + int(rr.%s))\n", st.Field(i).Name(), structMember)
 				default:
 					log.Panicln(name, st.Field(i).Name(), st.Tag(i))
 				}
@@ -291,21 +264,13 @@ return off, err
 				o("rr.%s, off, err = unpackUint48(msg, off)\n")
 			case `dns:"eui64"`:
 				o("rr.%s, off, err = unpackUint64(msg, off)\n")
-			case `dns:"base32"`:
-				o("rr.%s, off, err = unpackStringBase32(msg, off, rdStart + int(rr.Hdr.Rdlength))\n")
-			case `dns:"base64"`:
-				o("rr.%s, off, err = unpackStringBase64(msg, off, rdStart + int(rr.Hdr.Rdlength))\n")
-			case `dns:"hex"`:
-				o("rr.%s, off, err = unpackStringHex(msg, off, rdStart + int(rr.Hdr.Rdlength))\n")
-			case `dns:"any"`:
-				o("rr.%s, off, err = unpackStringAny(msg, off, rdStart + int(rr.Hdr.Rdlength))\n")
 			case `dns:"octet"`:
 				o("rr.%s, off, err = unpackStringOctet(msg, off)\n")
 			case `dns:"ipsechost"`, `dns:"amtrelayhost"`:
 				o("rr.GatewayAddr, rr.%s, off, err = unpackIPSECGateway(msg, off, rr.GatewayType)\n")
 			case `dns:"lenoctet"`:
 				o("rr.%s, off, err = unpackLenOctet(msg, off)\n")
-			case `dns:"cdomain-name"`, `dns:"baretxt"`:
+			case `dns:"cdomain-name"`, `dns:"baretxt"`, `dns:"hex"`, `dns:"base32"`, `dns:"base64"`:
 				fallthrough // unpack function is the same as the generic one
 				// TODO(monoidic) disallow compression when unpacking unless cdomain-name is used?
 			case "":
@@ -331,6 +296,12 @@ return off, err
 						o("rr.%s, off, err = unpackString(msg, off)\n")
 					case "TxtStrings":
 						o("rr.%s, off, err = unpackTxt(msg, off)\n")
+					case "ByteField":
+						o("rr.%s, off, err = unpackByteField(msg, off, rdStart + int(rr.Hdr.Rdlength))\n")
+					case "Type":
+						o("rr.%s, off, err = unpackType(msg, off)\n")
+					case "Time":
+						o("rr.%s, off, err = unpackTime(msg, off)\n")
 					default:
 						log.Panicln(name, st.Field(i).Name())
 					}

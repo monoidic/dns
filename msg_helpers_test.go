@@ -12,7 +12,7 @@ import (
 // the other code paths.
 func TestPackDataNsec(t *testing.T) {
 	type args struct {
-		bitmap []uint16
+		bitmap []Type
 		msg    []byte
 		off    int
 	}
@@ -27,7 +27,7 @@ func TestPackDataNsec(t *testing.T) {
 		{
 			name: "overflow",
 			args: args{
-				bitmap: []uint16{
+				bitmap: []Type{
 					8962, 8963, 8970, 8971, 8978, 8979,
 					8986, 8987, 8994, 8995, 9002, 9003,
 					9010, 9011, 9018, 9019, 9026, 9027,
@@ -50,7 +50,7 @@ func TestPackDataNsec(t *testing.T) {
 		{
 			name: "disordered nsec bits",
 			args: args{
-				bitmap: []uint16{
+				bitmap: []Type{
 					8962,
 					1,
 				},
@@ -78,7 +78,7 @@ func TestPackDataNsec(t *testing.T) {
 		{
 			name: "simple message with only one window",
 			args: args{
-				bitmap: []uint16{
+				bitmap: []Type{
 					1,
 				},
 				msg: []byte{
@@ -97,7 +97,7 @@ func TestPackDataNsec(t *testing.T) {
 		{
 			name: "multiple types",
 			args: args{
-				bitmap: []uint16{
+				bitmap: []Type{
 					TypeNS, TypeSOA, TypeRRSIG, TypeDNSKEY, TypeNSEC3PARAM,
 				},
 				msg: []byte{
@@ -140,8 +140,8 @@ func TestPackDataNsec(t *testing.T) {
 func TestPackDataNsecDirtyBuffer(t *testing.T) {
 	zeroBuf := []byte{0, 0, 0, 0, 0, 0, 0, 0, 0}
 	dirtyBuf := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}
-	off1, _ := packDataNsec([]uint16{TypeNS, TypeSOA, TypeRRSIG}, zeroBuf, 0)
-	off2, _ := packDataNsec([]uint16{TypeNS, TypeSOA, TypeRRSIG}, dirtyBuf, 0)
+	off1, _ := packDataNsec([]Type{TypeNS, TypeSOA, TypeRRSIG}, zeroBuf, 0)
+	off2, _ := packDataNsec([]Type{TypeNS, TypeSOA, TypeRRSIG}, dirtyBuf, 0)
 	if off1 != off2 {
 		t.Errorf("off1 %v != off2 %v", off1, off2)
 	}
@@ -153,11 +153,11 @@ func TestPackDataNsecDirtyBuffer(t *testing.T) {
 func BenchmarkPackDataNsec(b *testing.B) {
 	benches := []struct {
 		name  string
-		types []uint16
+		types []Type
 	}{
 		{"empty", nil},
-		{"typical", []uint16{TypeNS, TypeSOA, TypeRRSIG, TypeDNSKEY, TypeNSEC3PARAM}},
-		{"multiple_windows", []uint16{1, 300, 350, 10000, 20000}},
+		{"typical", []Type{TypeNS, TypeSOA, TypeRRSIG, TypeDNSKEY, TypeNSEC3PARAM}},
+		{"multiple_windows", []Type{1, 300, 350, 10000, 20000}},
 	}
 	for _, bb := range benches {
 		b.Run(bb.name, func(b *testing.B) {

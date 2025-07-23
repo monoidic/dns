@@ -41,8 +41,7 @@ var skipString = map[string]struct{}{
 	"NAPTR":      {},
 	"NSEC3":      {}, // TODO(monoidic)
 	"NSEC3PARAM": {}, // TODO(monoidic)
-	"RFC3597":    {}, // TODO(monoidic)
-	"RRSIG":      {}, // TODO(monoidic)
+	"RFC3597":    {},
 	"SMIMEA":     {},
 }
 
@@ -52,7 +51,6 @@ var packageHdr = `
 package dns
 
 import (
-	"encoding/hex"
 	"net"
 	"slices"
 	"strconv"
@@ -63,7 +61,7 @@ import (
 
 var TypeToRR = template.Must(template.New("TypeToRR").Parse(`
 // TypeToRR is a map of constructors for each RR type.
-var TypeToRR = map[uint16]func() RR{
+var TypeToRR = map[Type]func() RR{
 {{range .}}{{if ne . "RFC3597"}}  Type{{.}}:  func() RR { return new({{.}}) },
 {{end}}{{end}}                    }
 
@@ -71,7 +69,7 @@ var TypeToRR = map[uint16]func() RR{
 
 var typeToString = template.Must(template.New("typeToString").Parse(`
 // TypeToString is a map of strings for each RR type.
-var TypeToString = map[uint16]string{
+var TypeToString = map[Type]string{
 {{range .}}{{if ne . "NSAPPTR"}}  Type{{.}}: "{{.}}",
 {{end}}{{end}}                    TypeNSAPPTR:    "NSAP-PTR",
 }
@@ -130,11 +128,14 @@ func main() {
 		if o == nil || !o.Exported() {
 			continue
 		}
-		b, ok := o.Type().(*types.Basic)
-		if !ok || b.Kind() != types.Uint16 {
+		b, ok := o.Type().(*types.Named)
+		if !ok || b.Obj().Name() != "Type" {
 			continue
 		}
 		if !strings.HasPrefix(o.Name(), "Type") {
+			continue
+		}
+		if o.Name() == "Type" {
 			continue
 		}
 		name := strings.TrimPrefix(o.Name(), "Type")
@@ -212,13 +213,8 @@ func main() {
 				continue
 			}
 
-			if strings.HasPrefix(st.Tag(i), `dns:"size-base64`) {
-				o("l += base64StringDecodedLen(rr.%s)\n")
-				continue
-			}
-			if strings.HasPrefix(st.Tag(i), `dns:"size-hex:`) {
-				// this has an extra field where the length is stored
-				o("l += len(rr.%s)/2\n")
+			if tag := st.Tag(i); strings.HasPrefix(tag, `dns:"size-base64`) || strings.HasPrefix(tag, `dns:"size-hex:`) {
+				o("l += rr.%s.EncodedLen()\n")
 				continue
 			}
 
@@ -229,12 +225,6 @@ func main() {
 				o("l += domainNameLen(rr.%s, off+l, compression, true)\n")
 			case `dns:"octet"`:
 				o("l += escapedNameLen(rr.%s)\n")
-			case `dns:"base64"`:
-				o("l += base64StringDecodedLen(rr.%s)\n")
-			case `dns:"hex"`:
-				o("l += len(rr.%s)/2\n")
-			case `dns:"any"`:
-				o("l += len(rr.%s)\n")
 			case `dns:"a"`:
 				o("if rr.%s.IsValid() { l += net.IPv4len }\n")
 			case `dns:"aaaa"`:
@@ -263,7 +253,7 @@ func main() {
 				`)
 			case `dns:"lenoctet"`:
 				o("l += escapedNameLen(rr.%s) + 1\n")
-			case `dns:"eui64"`, `dns:"amtrelaytype"`, `dns:"baretxt"`:
+			case `dns:"eui64"`, `dns:"amtrelaytype"`, `dns:"baretxt"`, `dns:"base64"`, `dns:"hex"`:
 				fallthrough
 			case "":
 				switch ft := st.Field(i).Type().(type) {
@@ -284,8 +274,12 @@ func main() {
 					switch ft.Obj().Name() {
 					case "Name":
 						o("l += domainNameLen(rr.%s, off+l, compression, false)\n")
-					case "TxtString", "TxtStrings":
+					case "TxtString", "TxtStrings", "ByteField":
 						o("l += rr.%s.EncodedLen()\n")
+					case "Type":
+						o("l += 2 // %s\n")
+					case "Time":
+						o("l += 4 // %s\n")
 					default:
 						log.Panicln(name, st.Field(i).Name())
 					}
@@ -385,8 +379,6 @@ func main() {
 				} else {
 					o2("if rr.%s.IsValid() {b.WriteString(rr.%s.String())}\n")
 				}
-			case `dns:"any"`:
-				o("b.WriteString(hex.EncodeToString([]byte(rr.%s)))\n")
 			case `dns:"octet"`:
 				o("b.WriteString(sprintTxtOctet(rr.%s))\n")
 			case `dns:"nsec"`:
@@ -400,9 +392,9 @@ func main() {
 			case `dns:"eui64"`:
 				o("b.WriteString(euiToString(rr.%s, 64))\n")
 			case `dns:"hex"`:
-				o("b.WriteString(strings.ToUpper(rr.%s))\n")
+				o("b.WriteString(rr.%s.Hex())\n")
 			case `dns:"base64"`:
-				o("b.WriteString(rr.%s)\n")
+				o("b.WriteString(rr.%s.Base64())\n")
 			case `dns:"pairs"`:
 				o(`for _, e := range rr.%s {
 	b.WriteByte(' ')
@@ -461,7 +453,7 @@ func main() {
 			switch s := st.Field(i).Type().(*types.Named).Obj().Name(); s {
 			case "net/netip.Addr":
 				o2("if rr.%s.IsValid() {b.WriteString(rr.%s.String())}\n")
-			case "Name", "TxtString", "TxtStrings":
+			case "Name", "TxtString", "TxtStrings", "Time", "Type":
 				o("b.WriteString(rr.%s.String())\n")
 			default:
 				log.Panicln(st, field, s)

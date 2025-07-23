@@ -37,7 +37,7 @@ func TestSecure(t *testing.T) {
 	sig.OrigTtl = 14400
 	sig.KeyTag = 12051
 	sig.SignerName = sig.Hdr.Name
-	sig.Signature = "oMCbslaAVIp/8kVtLSms3tDABpcPRUgHLrOR48OOplkYo+8TeEGWwkSwaz/MRo2fB4FxW0qj/hTlIjUGuACSd+b1wKdH5GvzRJc2pFmxtCbm55ygAh4EUL0F6U5cKtGJGSXxxg6UFCQ0doJCmiGFa78LolaUOXImJrk6AFrGa0M="
+	sig.Signature = check1(BFFromBase64("oMCbslaAVIp/8kVtLSms3tDABpcPRUgHLrOR48OOplkYo+8TeEGWwkSwaz/MRo2fB4FxW0qj/hTlIjUGuACSd+b1wKdH5GvzRJc2pFmxtCbm55ygAh4EUL0F6U5cKtGJGSXxxg6UFCQ0doJCmiGFa78LolaUOXImJrk6AFrGa0M="))
 
 	key := new(DNSKEY)
 	key.Hdr.Name = sig.Hdr.Name
@@ -46,7 +46,7 @@ func TestSecure(t *testing.T) {
 	key.Flags = 256
 	key.Protocol = 3
 	key.Algorithm = RSASHA256
-	key.PublicKey = "AwEAAcNEU67LJI5GEgF9QLNqLO1SMq1EdoQ6E9f85ha0k0ewQGCblyW2836GiVsm6k8Kr5ECIoMJ6fZWf3CQSQ9ycWfTyOHfmI3eQ/1Covhb2y4bAmL/07PhrL7ozWBW3wBfM335Ft9xjtXHPy7ztCbV9qZ4TVDTW/Iyg0PiwgoXVesz"
+	key.PublicKey = check1(BFFromBase64("AwEAAcNEU67LJI5GEgF9QLNqLO1SMq1EdoQ6E9f85ha0k0ewQGCblyW2836GiVsm6k8Kr5ECIoMJ6fZWf3CQSQ9ycWfTyOHfmI3eQ/1Covhb2y4bAmL/07PhrL7ozWBW3wBfM335Ft9xjtXHPy7ztCbV9qZ4TVDTW/Iyg0PiwgoXVesz"))
 
 	// It should validate. Period is checked separately, so this will keep on working
 	if sig.Verify(key, []RR{soa}) != nil {
@@ -67,7 +67,7 @@ func TestSignature(t *testing.T) {
 	sig.Inception = 800   // Thu Jan  1 01:13:20 CET 1970
 	sig.KeyTag = 34641
 	sig.SignerName = sig.Hdr.Name
-	sig.Signature = "AwEAAaHIwpx3w4VHKi6i1LHnTaWeHCL154Jug0Rtc9ji5qwPXpBo6A5sRv7cSsPQKPIwxLpyCrbJ4mr2L0EPOdvP6z6YfljK2ZmTbogU9aSU2fiq/4wjxbdkLyoDVgtO+JsxNN4bjr4WcWhsmk1Hg93FV9ZpkWb0Tbad8DFqNDzr//kZ"
+	sig.Signature = check1(BFFromBase64("AwEAAaHIwpx3w4VHKi6i1LHnTaWeHCL154Jug0Rtc9ji5qwPXpBo6A5sRv7cSsPQKPIwxLpyCrbJ4mr2L0EPOdvP6z6YfljK2ZmTbogU9aSU2fiq/4wjxbdkLyoDVgtO+JsxNN4bjr4WcWhsmk1Hg93FV9ZpkWb0Tbad8DFqNDzr//kZ"))
 
 	// Should not be valid
 	if sig.ValidityPeriod(time.Now()) {
@@ -269,7 +269,7 @@ func TestShouldNotVerifyInvalidSig(t *testing.T) {
 func Test65534(t *testing.T) {
 	t6 := new(RFC3597)
 	t6.Hdr = RR_Header{mustParseName("miek.nl."), 65534, ClassINET, 14400, 0}
-	t6.Rdata = "505D870001"
+	t6.Rdata = check1(BFFromHex("505D870001"))
 	key := new(DNSKEY)
 	key.Hdr.Name = t6.Hdr.Name
 	key.Hdr.Rrtype = TypeDNSKEY
@@ -323,7 +323,7 @@ Coefficient: UuRoNqe7YHnKmQzE6iDWKTMIWTuoqqrFAmXPmKQnC+Y+BQzOVEHUo9bXdDnoI9hzXP1
 	if err != nil {
 		t.Fatal(err)
 	}
-	if pubkey.(*DNSKEY).PublicKey != "AwEAAZuMCu2FdugHkTrXYgl5qixvcDw1aDDlvL46/xJKbHBAHY16fNUb2b65cwko2Js/aJxUYJbZk5dwCDZxYfrfbZVtDPQuc3o8QaChVxC7/JYz2AHc9qHvqQ1j4VrH71RWINlQo6VYjzN/BGpMhOZoZOEwzp1HfsOE3lNYcoWU1smL" {
+	if pubkey.(*DNSKEY).PublicKey.Base64() != "AwEAAZuMCu2FdugHkTrXYgl5qixvcDw1aDDlvL46/xJKbHBAHY16fNUb2b65cwko2Js/aJxUYJbZk5dwCDZxYfrfbZVtDPQuc3o8QaChVxC7/JYz2AHc9qHvqQ1j4VrH71RWINlQo6VYjzN/BGpMhOZoZOEwzp1HfsOE3lNYcoWU1smL" {
 		t.Error("pubkey is not what we've read")
 	}
 	if pubkey.(*DNSKEY).PrivateKeyString(privkey) != privStr {
@@ -341,7 +341,7 @@ func TestTag(t *testing.T) {
 	key.Flags = 256
 	key.Protocol = 3
 	key.Algorithm = RSASHA256
-	key.PublicKey = "AwEAAcNEU67LJI5GEgF9QLNqLO1SMq1EdoQ6E9f85ha0k0ewQGCblyW2836GiVsm6k8Kr5ECIoMJ6fZWf3CQSQ9ycWfTyOHfmI3eQ/1Covhb2y4bAmL/07PhrL7ozWBW3wBfM335Ft9xjtXHPy7ztCbV9qZ4TVDTW/Iyg0PiwgoXVesz"
+	key.PublicKey = check1(BFFromBase64("AwEAAcNEU67LJI5GEgF9QLNqLO1SMq1EdoQ6E9f85ha0k0ewQGCblyW2836GiVsm6k8Kr5ECIoMJ6fZWf3CQSQ9ycWfTyOHfmI3eQ/1Covhb2y4bAmL/07PhrL7ozWBW3wBfM335Ft9xjtXHPy7ztCbV9qZ4TVDTW/Iyg0PiwgoXVesz"))
 
 	tag := key.KeyTag()
 	if tag != 12051 {
@@ -402,10 +402,10 @@ func TestKeyToDS(t *testing.T) {
 	key.Flags = 256
 	key.Protocol = 3
 	key.Algorithm = RSASHA256
-	key.PublicKey = "AwEAAcNEU67LJI5GEgF9QLNqLO1SMq1EdoQ6E9f85ha0k0ewQGCblyW2836GiVsm6k8Kr5ECIoMJ6fZWf3CQSQ9ycWfTyOHfmI3eQ/1Covhb2y4bAmL/07PhrL7ozWBW3wBfM335Ft9xjtXHPy7ztCbV9qZ4TVDTW/Iyg0PiwgoXVesz"
+	key.PublicKey = check1(BFFromBase64("AwEAAcNEU67LJI5GEgF9QLNqLO1SMq1EdoQ6E9f85ha0k0ewQGCblyW2836GiVsm6k8Kr5ECIoMJ6fZWf3CQSQ9ycWfTyOHfmI3eQ/1Covhb2y4bAmL/07PhrL7ozWBW3wBfM335Ft9xjtXHPy7ztCbV9qZ4TVDTW/Iyg0PiwgoXVesz"))
 
 	ds := key.ToDS(SHA1)
-	if strings.ToUpper(ds.Digest) != "B5121BDB5B8D86D0CC5FFAFBAAABE26C3E20BAC1" {
+	if ds.Digest.Hex() != "B5121BDB5B8D86D0CC5FFAFBAAABE26C3E20BAC1" {
 		t.Errorf("wrong DS digest for SHA1\n%v", ds)
 	}
 }
@@ -464,7 +464,7 @@ Activate: 20110302104537`
 	sig.Algorithm = k.Algorithm
 
 	sig.Sign(p.(*rsa.PrivateKey), []RR{soa})
-	if sig.Signature != "D5zsobpQcmMmYsUMLxCVEtgAdCvTu8V/IEeP4EyLBjqPJmjt96bwM9kqihsccofA5LIJ7DN91qkCORjWSTwNhzCv7bMyr2o5vBZElrlpnRzlvsFIoAZCD9xg6ZY7ZyzUJmU6IcTwG4v3xEYajcpbJJiyaw/RqR90MuRdKPiBzSo=" {
+	if sig.Signature.Base64() != "D5zsobpQcmMmYsUMLxCVEtgAdCvTu8V/IEeP4EyLBjqPJmjt96bwM9kqihsccofA5LIJ7DN91qkCORjWSTwNhzCv7bMyr2o5vBZElrlpnRzlvsFIoAZCD9xg6ZY7ZyzUJmU6IcTwG4v3xEYajcpbJJiyaw/RqR90MuRdKPiBzSo=" {
 		t.Errorf("signature is not correct: %v", sig)
 	}
 }
@@ -488,7 +488,7 @@ PrivateKey: WURgWHCcYIYUPWgeLmiPY2DJJk02vgrmTfitxgqcL4vwW7BOrbawVmVe0d9V94SR`
 	if ds.KeyTag != 10771 {
 		t.Fatal("wrong keytag on DS")
 	}
-	if ds.Digest != "72d7b62976ce06438e9c0bf319013cf801f09ecc84b8d7e9495f27e305c6a9b0563a9b5f4d288405c3008a946df983d6" {
+	if ds.Digest.Hex() != "72D7B62976CE06438E9C0BF319013CF801F09ECC84B8D7E9495F27E305C6A9B0563A9B5F4D288405C3008A946DF983D6" {
 		t.Fatal("wrong DS Digest")
 	}
 	a := testRR("www.example.net. 3600 IN A 192.0.2.1")
@@ -666,8 +666,8 @@ PrivateKey: GU6SnQ/Ou+xC5RumuIUIuJZteXT2z0O/ok1s38Et6mQ=`
 	}
 
 	// Signatures are randomized
-	rrRRSIG.(*RRSIG).Signature = ""
-	ourRRSIG.Signature = ""
+	rrRRSIG.(*RRSIG).Signature = ByteField{}
+	ourRRSIG.Signature = ByteField{}
 	if !reflect.DeepEqual(ourRRSIG, rrRRSIG.(*RRSIG)) {
 		t.Fatalf("RRSIG record differs:\n%v\n%v", ourRRSIG, rrRRSIG.(*RRSIG))
 	}
@@ -733,8 +733,8 @@ PrivateKey: WURgWHCcYIYUPWgeLmiPY2DJJk02vgrmTfitxgqcL4vwW7BOrbawVmVe0d9V94SR`
 	}
 
 	// Signatures are randomized
-	rrRRSIG.(*RRSIG).Signature = ""
-	ourRRSIG.Signature = ""
+	rrRRSIG.(*RRSIG).Signature = ByteField{}
+	ourRRSIG.Signature = ByteField{}
 	if !reflect.DeepEqual(ourRRSIG, rrRRSIG.(*RRSIG)) {
 		t.Fatalf("RRSIG record differs:\n%v\n%v", ourRRSIG, rrRRSIG.(*RRSIG))
 	}
@@ -900,8 +900,8 @@ func TestInvalidRRSet(t *testing.T) {
 	// Need to fill in: Inception, Expiration, KeyTag, SignerName and Algorithm
 	curTime := time.Now()
 	signature := &RRSIG{
-		Inception:  uint32(curTime.Unix()),
-		Expiration: uint32(curTime.Add(time.Hour).Unix()),
+		Inception:  Time(curTime.Unix()),
+		Expiration: Time(curTime.Add(time.Hour).Unix()),
 		KeyTag:     key.KeyTag(),
 		SignerName: keyname,
 		Algorithm:  ECDSAP256SHA256,

@@ -13,7 +13,6 @@ import (
 	_ "crypto/sha512" // need its init function
 	"encoding/asn1"
 	"encoding/binary"
-	"encoding/hex"
 	"math/big"
 	"sort"
 	"strings"
@@ -108,12 +107,12 @@ const (
 
 // The RRSIG needs to be converted to wireformat with some of the rdata (the signature) missing.
 type rrsigWireFmt struct {
-	TypeCovered uint16
+	TypeCovered Type
 	Algorithm   uint8
 	Labels      uint8
 	OrigTtl     uint32
-	Expiration  uint32
-	Inception   uint32
+	Expiration  Time
+	Inception   Time
 	KeyTag      uint16
 	SignerName  Name
 	/* No Signature */
@@ -124,7 +123,7 @@ type dnskeyWireFmt struct {
 	Flags     uint16
 	Protocol  uint8
 	Algorithm uint8
-	PublicKey string `dns:"base64"`
+	PublicKey ByteField `dns:"base64"`
 	/* Nothing is left out */
 }
 
@@ -139,7 +138,7 @@ func (k *DNSKEY) KeyTag() uint16 {
 		// This algorithm has been deprecated, but keep this key-tag calculation.
 		// Look at the bottom two bytes of the modules, which the last item in the pubkey.
 		// See https://www.rfc-editor.org/errata/eid193 .
-		modulus, _ := fromBase64([]byte(k.PublicKey))
+		modulus := k.PublicKey.Raw()
 		if len(modulus) > 1 {
 			x := binary.BigEndian.Uint16(modulus[len(modulus)-3:])
 			keytag = int(x)
@@ -223,7 +222,7 @@ func (k *DNSKEY) ToDS(h uint8) *DS {
 	s := hash.New()
 	s.Write(owner)
 	s.Write(wire)
-	ds.Digest = hex.EncodeToString(s.Sum(nil))
+	ds.Digest = BFFromBytes(s.Sum(nil))
 	return ds
 }
 
@@ -317,7 +316,7 @@ func (rr *RRSIG) signAsIs(k crypto.Signer, rrset []RR) error {
 			return err
 		}
 
-		rr.Signature = toBase64(signature)
+		rr.Signature = BFFromBytes(signature)
 		return nil
 	}
 }
@@ -429,7 +428,7 @@ func (rr *RRSIG) Verify(k *DNSKEY, rrset []RR) error {
 		return err
 	}
 
-	sigbuf := rr.sigBuf() // Get the binary signature data
+	sigbuf := rr.Signature.Raw() // Get the binary signature data
 	// TODO(miek)
 	// remove the domain name and assume its ours?
 	// if rr.Algorithm == PRIVATEDNS { // PRIVATEOID
@@ -503,21 +502,9 @@ func (rr *RRSIG) ValidityPeriod(t time.Time) bool {
 	return ti <= utc && utc <= te
 }
 
-// Return the signatures base64 encoding sigdata as a byte slice.
-func (rr *RRSIG) sigBuf() []byte {
-	sigbuf, err := fromBase64([]byte(rr.Signature))
-	if err != nil {
-		return nil
-	}
-	return sigbuf
-}
-
 // publicKeyRSA returns the RSA public key from a DNSKEY record.
 func (k *DNSKEY) publicKeyRSA() *rsa.PublicKey {
-	keybuf, err := fromBase64([]byte(k.PublicKey))
-	if err != nil {
-		return nil
-	}
+	keybuf := k.PublicKey.Raw()
 
 	if len(keybuf) < 1+1+64 {
 		// Exponent must be at least 1 byte and modulus at least 64
@@ -567,10 +554,7 @@ func (k *DNSKEY) publicKeyRSA() *rsa.PublicKey {
 
 // publicKeyECDSA returns the Curve public key from the DNSKEY record.
 func (k *DNSKEY) publicKeyECDSA() *ecdsa.PublicKey {
-	keybuf, err := fromBase64([]byte(k.PublicKey))
-	if err != nil {
-		return nil
-	}
+	keybuf := k.PublicKey.Raw()
 	pubkey := new(ecdsa.PublicKey)
 	switch k.Algorithm {
 	case ECDSAP256SHA256:
@@ -592,10 +576,7 @@ func (k *DNSKEY) publicKeyECDSA() *ecdsa.PublicKey {
 }
 
 func (k *DNSKEY) publicKeyED25519() ed25519.PublicKey {
-	keybuf, err := fromBase64([]byte(k.PublicKey))
-	if err != nil {
-		return nil
-	}
+	keybuf := k.PublicKey.Raw()
 	if len(keybuf) != ed25519.PublicKeySize {
 		return nil
 	}
@@ -716,12 +697,12 @@ func packSigWire(sw *rrsigWireFmt, msg []byte) (int, error) {
 	if len(msg) < 18 {
 		return len(msg), ErrBuf
 	}
-	binary.BigEndian.PutUint16(msg[0:], sw.TypeCovered)
+	binary.BigEndian.PutUint16(msg[0:], uint16(sw.TypeCovered))
 	msg[2] = sw.Algorithm
 	msg[3] = sw.Labels
 	binary.BigEndian.PutUint32(msg[4:], sw.OrigTtl)
-	binary.BigEndian.PutUint32(msg[8:], sw.Expiration)
-	binary.BigEndian.PutUint32(msg[12:], sw.Inception)
+	binary.BigEndian.PutUint32(msg[8:], uint32(sw.Expiration))
+	binary.BigEndian.PutUint32(msg[12:], uint32(sw.Inception))
 	binary.BigEndian.PutUint16(msg[16:], sw.KeyTag)
 	off := 18
 	var err error
@@ -742,7 +723,7 @@ func packKeyWire(dw *dnskeyWireFmt, msg []byte) (int, error) {
 	msg[3] = dw.Algorithm
 	off := 4
 	var err error
-	off, err = packStringBase64(dw.PublicKey, msg, off)
+	off, err = packByteField(dw.PublicKey, msg, off)
 	if err != nil {
 		return off, err
 	}

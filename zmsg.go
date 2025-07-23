@@ -99,7 +99,7 @@ func (rr *CDNSKEY) pack(msg []byte, off int, compression compressionMap, compres
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringBase64(rr.PublicKey, msg, off)
+	off, err = packByteField(rr.PublicKey, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -119,7 +119,7 @@ func (rr *CDS) pack(msg []byte, off int, compression compressionMap, compress bo
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringHex(rr.Digest, msg, off)
+	off, err = packByteField(rr.Digest, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -139,7 +139,7 @@ func (rr *CERT) pack(msg []byte, off int, compression compressionMap, compress b
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringBase64(rr.Certificate, msg, off)
+	off, err = packByteField(rr.Certificate, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -171,7 +171,7 @@ func (rr *CSYNC) pack(msg []byte, off int, compression compressionMap, compress 
 }
 
 func (rr *DHCID) pack(msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
-	off, err = packStringBase64(rr.Digest, msg, off)
+	off, err = packByteField(rr.Digest, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -191,7 +191,7 @@ func (rr *DLV) pack(msg []byte, off int, compression compressionMap, compress bo
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringHex(rr.Digest, msg, off)
+	off, err = packByteField(rr.Digest, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -219,7 +219,7 @@ func (rr *DNSKEY) pack(msg []byte, off int, compression compressionMap, compress
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringBase64(rr.PublicKey, msg, off)
+	off, err = packByteField(rr.PublicKey, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -239,7 +239,7 @@ func (rr *DS) pack(msg []byte, off int, compression compressionMap, compress boo
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringHex(rr.Digest, msg, off)
+	off, err = packByteField(rr.Digest, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -247,7 +247,7 @@ func (rr *DS) pack(msg []byte, off int, compression compressionMap, compress boo
 }
 
 func (rr *EID) pack(msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
-	off, err = packStringHex(rr.Endpoint, msg, off)
+	off, err = packByteField(rr.Endpoint, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -319,11 +319,11 @@ func (rr *HIP) pack(msg []byte, off int, compression compressionMap, compress bo
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringHex(rr.Hit, msg, off)
+	off, err = packByteField(rr.Hit, msg, off)
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringBase64(rr.PublicKey, msg, off)
+	off, err = packByteField(rr.PublicKey, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -367,7 +367,7 @@ func (rr *IPSECKEY) pack(msg []byte, off int, compression compressionMap, compre
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringBase64(rr.PublicKey, msg, off)
+	off, err = packByteField(rr.PublicKey, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -399,7 +399,7 @@ func (rr *KEY) pack(msg []byte, off int, compression compressionMap, compress bo
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringBase64(rr.PublicKey, msg, off)
+	off, err = packByteField(rr.PublicKey, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -591,7 +591,7 @@ func (rr *NID) pack(msg []byte, off int, compression compressionMap, compress bo
 }
 
 func (rr *NIMLOC) pack(msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
-	off, err = packStringHex(rr.Locator, msg, off)
+	off, err = packByteField(rr.Locator, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -651,18 +651,15 @@ func (rr *NSEC3) pack(msg []byte, off int, compression compressionMap, compress 
 	if err != nil {
 		return off, err
 	}
-	// Only pack salt if value is not "-", i.e. empty
-	if rr.Salt != "-" {
-		off, err = packStringHex(rr.Salt, msg, off)
-		if err != nil {
-			return off, err
-		}
+	off, err = packByteField(rr.Salt, msg, off)
+	if err != nil {
+		return off, err
 	}
 	off, err = packUint8(rr.HashLength, msg, off)
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringBase32(rr.NextDomain, msg, off)
+	off, err = packByteField(rr.NextDomain, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -690,18 +687,15 @@ func (rr *NSEC3PARAM) pack(msg []byte, off int, compression compressionMap, comp
 	if err != nil {
 		return off, err
 	}
-	// Only pack salt if value is not "-", i.e. empty
-	if rr.Salt != "-" {
-		off, err = packStringHex(rr.Salt, msg, off)
-		if err != nil {
-			return off, err
-		}
+	off, err = packByteField(rr.Salt, msg, off)
+	if err != nil {
+		return off, err
 	}
 	return off, nil
 }
 
 func (rr *NULL) pack(msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
-	off, err = packStringAny(rr.Data, msg, off)
+	off, err = packByteField(rr.Data, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -725,7 +719,7 @@ func (rr *NXT) pack(msg []byte, off int, compression compressionMap, compress bo
 }
 
 func (rr *OPENPGPKEY) pack(msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
-	off, err = packStringBase64(rr.PublicKey, msg, off)
+	off, err = packByteField(rr.PublicKey, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -773,7 +767,7 @@ func (rr *RESINFO) pack(msg []byte, off int, compression compressionMap, compres
 }
 
 func (rr *RFC3597) pack(msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
-	off, err = packStringHex(rr.Rdata, msg, off)
+	off, err = packByteField(rr.Rdata, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -793,7 +787,7 @@ func (rr *RKEY) pack(msg []byte, off int, compression compressionMap, compress b
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringBase64(rr.PublicKey, msg, off)
+	off, err = packByteField(rr.PublicKey, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -813,7 +807,7 @@ func (rr *RP) pack(msg []byte, off int, compression compressionMap, compress boo
 }
 
 func (rr *RRSIG) pack(msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
-	off, err = packUint16(rr.TypeCovered, msg, off)
+	off, err = packUint16(uint16(rr.TypeCovered), msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -829,11 +823,11 @@ func (rr *RRSIG) pack(msg []byte, off int, compression compressionMap, compress 
 	if err != nil {
 		return off, err
 	}
-	off, err = packUint32(rr.Expiration, msg, off)
+	off, err = packUint32(uint32(rr.Expiration), msg, off)
 	if err != nil {
 		return off, err
 	}
-	off, err = packUint32(rr.Inception, msg, off)
+	off, err = packUint32(uint32(rr.Inception), msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -845,7 +839,7 @@ func (rr *RRSIG) pack(msg []byte, off int, compression compressionMap, compress 
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringBase64(rr.Signature, msg, off)
+	off, err = packByteField(rr.Signature, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -865,7 +859,7 @@ func (rr *RT) pack(msg []byte, off int, compression compressionMap, compress boo
 }
 
 func (rr *SIG) pack(msg []byte, off int, compression compressionMap, compress bool) (off1 int, err error) {
-	off, err = packUint16(rr.TypeCovered, msg, off)
+	off, err = packUint16(uint16(rr.TypeCovered), msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -881,11 +875,11 @@ func (rr *SIG) pack(msg []byte, off int, compression compressionMap, compress bo
 	if err != nil {
 		return off, err
 	}
-	off, err = packUint32(rr.Expiration, msg, off)
+	off, err = packUint32(uint32(rr.Expiration), msg, off)
 	if err != nil {
 		return off, err
 	}
-	off, err = packUint32(rr.Inception, msg, off)
+	off, err = packUint32(uint32(rr.Inception), msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -897,7 +891,7 @@ func (rr *SIG) pack(msg []byte, off int, compression compressionMap, compress bo
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringBase64(rr.Signature, msg, off)
+	off, err = packByteField(rr.Signature, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -917,7 +911,7 @@ func (rr *SMIMEA) pack(msg []byte, off int, compression compressionMap, compress
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringHex(rr.Certificate, msg, off)
+	off, err = packByteField(rr.Certificate, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -993,7 +987,7 @@ func (rr *SSHFP) pack(msg []byte, off int, compression compressionMap, compress 
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringHex(rr.FingerPrint, msg, off)
+	off, err = packByteField(rr.FingerPrint, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -1029,7 +1023,7 @@ func (rr *TA) pack(msg []byte, off int, compression compressionMap, compress boo
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringHex(rr.Digest, msg, off)
+	off, err = packByteField(rr.Digest, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -1053,11 +1047,11 @@ func (rr *TKEY) pack(msg []byte, off int, compression compressionMap, compress b
 	if err != nil {
 		return off, err
 	}
-	off, err = packUint32(rr.Inception, msg, off)
+	off, err = packUint32(uint32(rr.Inception), msg, off)
 	if err != nil {
 		return off, err
 	}
-	off, err = packUint32(rr.Expiration, msg, off)
+	off, err = packUint32(uint32(rr.Expiration), msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -1073,7 +1067,7 @@ func (rr *TKEY) pack(msg []byte, off int, compression compressionMap, compress b
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringHex(rr.Key, msg, off)
+	off, err = packByteField(rr.Key, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -1081,7 +1075,7 @@ func (rr *TKEY) pack(msg []byte, off int, compression compressionMap, compress b
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringHex(rr.OtherData, msg, off)
+	off, err = packByteField(rr.OtherData, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -1101,7 +1095,7 @@ func (rr *TLSA) pack(msg []byte, off int, compression compressionMap, compress b
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringHex(rr.Certificate, msg, off)
+	off, err = packByteField(rr.Certificate, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -1125,7 +1119,7 @@ func (rr *TSIG) pack(msg []byte, off int, compression compressionMap, compress b
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringHex(rr.MAC, msg, off)
+	off, err = packByteField(rr.MAC, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -1141,7 +1135,7 @@ func (rr *TSIG) pack(msg []byte, off int, compression compressionMap, compress b
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringHex(rr.OtherData, msg, off)
+	off, err = packByteField(rr.OtherData, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -1209,7 +1203,7 @@ func (rr *ZONEMD) pack(msg []byte, off int, compression compressionMap, compress
 	if err != nil {
 		return off, err
 	}
-	off, err = packStringHex(rr.Digest, msg, off)
+	off, err = packByteField(rr.Digest, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -1338,7 +1332,7 @@ func (rr *CDNSKEY) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("CDNSKEY.Algorithm: %w", err)
 	}
-	rr.PublicKey, off, err = unpackStringBase64(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.PublicKey, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("CDNSKEY.PublicKey: %w", err)
 	}
@@ -1361,7 +1355,7 @@ func (rr *CDS) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("CDS.DigestType: %w", err)
 	}
-	rr.Digest, off, err = unpackStringHex(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.Digest, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("CDS.Digest: %w", err)
 	}
@@ -1384,7 +1378,7 @@ func (rr *CERT) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("CERT.Algorithm: %w", err)
 	}
-	rr.Certificate, off, err = unpackStringBase64(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.Certificate, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("CERT.Certificate: %w", err)
 	}
@@ -1425,7 +1419,7 @@ func (rr *DHCID) unpack(msg []byte, off int) (off1 int, err error) {
 	rdStart := off
 	_ = rdStart
 
-	rr.Digest, off, err = unpackStringBase64(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.Digest, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("DHCID.Digest: %w", err)
 	}
@@ -1448,7 +1442,7 @@ func (rr *DLV) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("DLV.DigestType: %w", err)
 	}
-	rr.Digest, off, err = unpackStringHex(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.Digest, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("DLV.Digest: %w", err)
 	}
@@ -1482,7 +1476,7 @@ func (rr *DNSKEY) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("DNSKEY.Algorithm: %w", err)
 	}
-	rr.PublicKey, off, err = unpackStringBase64(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.PublicKey, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("DNSKEY.PublicKey: %w", err)
 	}
@@ -1505,7 +1499,7 @@ func (rr *DS) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("DS.DigestType: %w", err)
 	}
-	rr.Digest, off, err = unpackStringHex(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.Digest, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("DS.Digest: %w", err)
 	}
@@ -1516,7 +1510,7 @@ func (rr *EID) unpack(msg []byte, off int) (off1 int, err error) {
 	rdStart := off
 	_ = rdStart
 
-	rr.Endpoint, off, err = unpackStringHex(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.Endpoint, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("EID.Endpoint: %w", err)
 	}
@@ -1606,11 +1600,11 @@ func (rr *HIP) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("HIP.PublicKeyLength: %w", err)
 	}
-	rr.Hit, off, err = unpackStringHex(msg, off, off+int(rr.HitLength))
+	rr.Hit, off, err = unpackByteField(msg, off, off+int(rr.HitLength))
 	if err != nil {
 		return off, err
 	}
-	rr.PublicKey, off, err = unpackStringBase64(msg, off, off+int(rr.PublicKeyLength))
+	rr.PublicKey, off, err = unpackByteField(msg, off, off+int(rr.PublicKeyLength))
 	if err != nil {
 		return off, err
 	}
@@ -1660,7 +1654,7 @@ func (rr *IPSECKEY) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("IPSECKEY.GatewayHost: %w", err)
 	}
-	rr.PublicKey, off, err = unpackStringBase64(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.PublicKey, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("IPSECKEY.PublicKey: %w", err)
 	}
@@ -1698,7 +1692,7 @@ func (rr *KEY) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("KEY.Algorithm: %w", err)
 	}
-	rr.PublicKey, off, err = unpackStringBase64(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.PublicKey, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("KEY.PublicKey: %w", err)
 	}
@@ -1935,7 +1929,7 @@ func (rr *NIMLOC) unpack(msg []byte, off int) (off1 int, err error) {
 	rdStart := off
 	_ = rdStart
 
-	rr.Locator, off, err = unpackStringHex(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.Locator, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("NIMLOC.Locator: %w", err)
 	}
@@ -2010,7 +2004,7 @@ func (rr *NSEC3) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("NSEC3.SaltLength: %w", err)
 	}
-	rr.Salt, off, err = unpackStringHex(msg, off, off+int(rr.SaltLength))
+	rr.Salt, off, err = unpackByteField(msg, off, off+int(rr.SaltLength))
 	if err != nil {
 		return off, err
 	}
@@ -2018,7 +2012,7 @@ func (rr *NSEC3) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("NSEC3.HashLength: %w", err)
 	}
-	rr.NextDomain, off, err = unpackStringBase32(msg, off, off+int(rr.HashLength))
+	rr.NextDomain, off, err = unpackByteField(msg, off, off+int(rr.HashLength))
 	if err != nil {
 		return off, err
 	}
@@ -2049,7 +2043,7 @@ func (rr *NSEC3PARAM) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("NSEC3PARAM.SaltLength: %w", err)
 	}
-	rr.Salt, off, err = unpackStringHex(msg, off, off+int(rr.SaltLength))
+	rr.Salt, off, err = unpackByteField(msg, off, off+int(rr.SaltLength))
 	if err != nil {
 		return off, err
 	}
@@ -2060,7 +2054,7 @@ func (rr *NULL) unpack(msg []byte, off int) (off1 int, err error) {
 	rdStart := off
 	_ = rdStart
 
-	rr.Data, off, err = unpackStringAny(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.Data, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("NULL.Data: %w", err)
 	}
@@ -2093,7 +2087,7 @@ func (rr *OPENPGPKEY) unpack(msg []byte, off int) (off1 int, err error) {
 	rdStart := off
 	_ = rdStart
 
-	rr.PublicKey, off, err = unpackStringBase64(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.PublicKey, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("OPENPGPKEY.PublicKey: %w", err)
 	}
@@ -2156,7 +2150,7 @@ func (rr *RFC3597) unpack(msg []byte, off int) (off1 int, err error) {
 	rdStart := off
 	_ = rdStart
 
-	rr.Rdata, off, err = unpackStringHex(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.Rdata, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("RFC3597.Rdata: %w", err)
 	}
@@ -2179,7 +2173,7 @@ func (rr *RKEY) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("RKEY.Algorithm: %w", err)
 	}
-	rr.PublicKey, off, err = unpackStringBase64(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.PublicKey, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("RKEY.PublicKey: %w", err)
 	}
@@ -2205,7 +2199,7 @@ func (rr *RRSIG) unpack(msg []byte, off int) (off1 int, err error) {
 	rdStart := off
 	_ = rdStart
 
-	rr.TypeCovered, off, err = unpackUint16(msg, off)
+	rr.TypeCovered, off, err = unpackType(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("RRSIG.TypeCovered: %w", err)
 	}
@@ -2221,11 +2215,11 @@ func (rr *RRSIG) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("RRSIG.OrigTtl: %w", err)
 	}
-	rr.Expiration, off, err = unpackUint32(msg, off)
+	rr.Expiration, off, err = unpackTime(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("RRSIG.Expiration: %w", err)
 	}
-	rr.Inception, off, err = unpackUint32(msg, off)
+	rr.Inception, off, err = unpackTime(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("RRSIG.Inception: %w", err)
 	}
@@ -2237,7 +2231,7 @@ func (rr *RRSIG) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("RRSIG.SignerName: %w", err)
 	}
-	rr.Signature, off, err = unpackStringBase64(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.Signature, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("RRSIG.Signature: %w", err)
 	}
@@ -2263,7 +2257,7 @@ func (rr *SIG) unpack(msg []byte, off int) (off1 int, err error) {
 	rdStart := off
 	_ = rdStart
 
-	rr.TypeCovered, off, err = unpackUint16(msg, off)
+	rr.TypeCovered, off, err = unpackType(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SIG.TypeCovered: %w", err)
 	}
@@ -2279,11 +2273,11 @@ func (rr *SIG) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("SIG.OrigTtl: %w", err)
 	}
-	rr.Expiration, off, err = unpackUint32(msg, off)
+	rr.Expiration, off, err = unpackTime(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SIG.Expiration: %w", err)
 	}
-	rr.Inception, off, err = unpackUint32(msg, off)
+	rr.Inception, off, err = unpackTime(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("SIG.Inception: %w", err)
 	}
@@ -2295,7 +2289,7 @@ func (rr *SIG) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("SIG.SignerName: %w", err)
 	}
-	rr.Signature, off, err = unpackStringBase64(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.Signature, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("SIG.Signature: %w", err)
 	}
@@ -2318,7 +2312,7 @@ func (rr *SMIMEA) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("SMIMEA.MatchingType: %w", err)
 	}
-	rr.Certificate, off, err = unpackStringHex(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.Certificate, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("SMIMEA.Certificate: %w", err)
 	}
@@ -2406,7 +2400,7 @@ func (rr *SSHFP) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("SSHFP.Type: %w", err)
 	}
-	rr.FingerPrint, off, err = unpackStringHex(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.FingerPrint, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("SSHFP.FingerPrint: %w", err)
 	}
@@ -2448,7 +2442,7 @@ func (rr *TA) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("TA.DigestType: %w", err)
 	}
-	rr.Digest, off, err = unpackStringHex(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.Digest, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("TA.Digest: %w", err)
 	}
@@ -2478,11 +2472,11 @@ func (rr *TKEY) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("TKEY.Algorithm: %w", err)
 	}
-	rr.Inception, off, err = unpackUint32(msg, off)
+	rr.Inception, off, err = unpackTime(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("TKEY.Inception: %w", err)
 	}
-	rr.Expiration, off, err = unpackUint32(msg, off)
+	rr.Expiration, off, err = unpackTime(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("TKEY.Expiration: %w", err)
 	}
@@ -2498,7 +2492,7 @@ func (rr *TKEY) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("TKEY.KeySize: %w", err)
 	}
-	rr.Key, off, err = unpackStringHex(msg, off, off+int(rr.KeySize))
+	rr.Key, off, err = unpackByteField(msg, off, off+int(rr.KeySize))
 	if err != nil {
 		return off, err
 	}
@@ -2506,7 +2500,7 @@ func (rr *TKEY) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("TKEY.OtherLen: %w", err)
 	}
-	rr.OtherData, off, err = unpackStringHex(msg, off, off+int(rr.OtherLen))
+	rr.OtherData, off, err = unpackByteField(msg, off, off+int(rr.OtherLen))
 	if err != nil {
 		return off, err
 	}
@@ -2529,7 +2523,7 @@ func (rr *TLSA) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("TLSA.MatchingType: %w", err)
 	}
-	rr.Certificate, off, err = unpackStringHex(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.Certificate, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("TLSA.Certificate: %w", err)
 	}
@@ -2556,7 +2550,7 @@ func (rr *TSIG) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("TSIG.MACSize: %w", err)
 	}
-	rr.MAC, off, err = unpackStringHex(msg, off, off+int(rr.MACSize))
+	rr.MAC, off, err = unpackByteField(msg, off, off+int(rr.MACSize))
 	if err != nil {
 		return off, err
 	}
@@ -2572,7 +2566,7 @@ func (rr *TSIG) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("TSIG.OtherLen: %w", err)
 	}
-	rr.OtherData, off, err = unpackStringHex(msg, off, off+int(rr.OtherLen))
+	rr.OtherData, off, err = unpackByteField(msg, off, off+int(rr.OtherLen))
 	if err != nil {
 		return off, err
 	}
@@ -2658,7 +2652,7 @@ func (rr *ZONEMD) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("ZONEMD.Hash: %w", err)
 	}
-	rr.Digest, off, err = unpackStringHex(msg, off, rdStart+int(rr.Hdr.Rdlength))
+	rr.Digest, off, err = unpackByteField(msg, off, rdStart+int(rr.Hdr.Rdlength))
 	if err != nil {
 		return off, fmt.Errorf("ZONEMD.Digest: %w", err)
 	}

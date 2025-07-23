@@ -2,6 +2,7 @@ package dns
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -25,123 +26,123 @@ type (
 const (
 	// valid RR_Header.Rrtype and Question.qtype
 
-	TypeNone  uint16 = 0
-	TypeA     uint16 = 1
-	TypeNS    uint16 = 2
-	TypeMD    uint16 = 3
-	TypeMF    uint16 = 4
-	TypeCNAME uint16 = 5
-	TypeSOA   uint16 = 6
-	TypeMB    uint16 = 7
-	TypeMG    uint16 = 8
-	TypeMR    uint16 = 9
-	TypeNULL  uint16 = 10
-	// TypeWKS  uint16 = 11
-	TypePTR     uint16 = 12
-	TypeHINFO   uint16 = 13
-	TypeMINFO   uint16 = 14
-	TypeMX      uint16 = 15
-	TypeTXT     uint16 = 16
-	TypeRP      uint16 = 17
-	TypeAFSDB   uint16 = 18
-	TypeX25     uint16 = 19
-	TypeISDN    uint16 = 20
-	TypeRT      uint16 = 21
-	TypeNSAPPTR uint16 = 23
-	// TypeNSAP    uint16 = 22
-	// TypeNSAPPTR uint16 = 23
-	TypeSIG    uint16 = 24
-	TypeKEY    uint16 = 25
-	TypePX     uint16 = 26
-	TypeGPOS   uint16 = 27
-	TypeAAAA   uint16 = 28
-	TypeLOC    uint16 = 29
-	TypeNXT    uint16 = 30
-	TypeEID    uint16 = 31
-	TypeNIMLOC uint16 = 32
-	TypeSRV    uint16 = 33
-	TypeATMA   uint16 = 34
-	TypeNAPTR  uint16 = 35
-	TypeKX     uint16 = 36
-	TypeCERT   uint16 = 37
-	// TypeA6 uint16 = 38
-	TypeDNAME uint16 = 39
-	// TypeSINK uint16 = 40
-	TypeOPT        uint16 = 41 // EDNS
-	TypeAPL        uint16 = 42
-	TypeDS         uint16 = 43
-	TypeSSHFP      uint16 = 44
-	TypeIPSECKEY   uint16 = 45
-	TypeRRSIG      uint16 = 46
-	TypeNSEC       uint16 = 47
-	TypeDNSKEY     uint16 = 48
-	TypeDHCID      uint16 = 49
-	TypeNSEC3      uint16 = 50
-	TypeNSEC3PARAM uint16 = 51
-	TypeTLSA       uint16 = 52
-	TypeSMIMEA     uint16 = 53
+	TypeNone  Type = 0
+	TypeA     Type = 1
+	TypeNS    Type = 2
+	TypeMD    Type = 3
+	TypeMF    Type = 4
+	TypeCNAME Type = 5
+	TypeSOA   Type = 6
+	TypeMB    Type = 7
+	TypeMG    Type = 8
+	TypeMR    Type = 9
+	TypeNULL  Type = 10
+	// TypeWKS  Type = 11
+	TypePTR     Type = 12
+	TypeHINFO   Type = 13
+	TypeMINFO   Type = 14
+	TypeMX      Type = 15
+	TypeTXT     Type = 16
+	TypeRP      Type = 17
+	TypeAFSDB   Type = 18
+	TypeX25     Type = 19
+	TypeISDN    Type = 20
+	TypeRT      Type = 21
+	TypeNSAPPTR Type = 23
+	// TypeNSAP    Type = 22
+	// TypeNSAPPTR Type = 23
+	TypeSIG    Type = 24
+	TypeKEY    Type = 25
+	TypePX     Type = 26
+	TypeGPOS   Type = 27
+	TypeAAAA   Type = 28
+	TypeLOC    Type = 29
+	TypeNXT    Type = 30
+	TypeEID    Type = 31
+	TypeNIMLOC Type = 32
+	TypeSRV    Type = 33
+	TypeATMA   Type = 34
+	TypeNAPTR  Type = 35
+	TypeKX     Type = 36
+	TypeCERT   Type = 37
+	// TypeA6 Type = 38
+	TypeDNAME Type = 39
+	// TypeSINK Type = 40
+	TypeOPT        Type = 41 // EDNS
+	TypeAPL        Type = 42
+	TypeDS         Type = 43
+	TypeSSHFP      Type = 44
+	TypeIPSECKEY   Type = 45
+	TypeRRSIG      Type = 46
+	TypeNSEC       Type = 47
+	TypeDNSKEY     Type = 48
+	TypeDHCID      Type = 49
+	TypeNSEC3      Type = 50
+	TypeNSEC3PARAM Type = 51
+	TypeTLSA       Type = 52
+	TypeSMIMEA     Type = 53
 	// unassigned 54
-	TypeHIP        uint16 = 55
-	TypeNINFO      uint16 = 56
-	TypeRKEY       uint16 = 57
-	TypeTALINK     uint16 = 58
-	TypeCDS        uint16 = 59
-	TypeCDNSKEY    uint16 = 60
-	TypeOPENPGPKEY uint16 = 61
-	TypeCSYNC      uint16 = 62
-	TypeZONEMD     uint16 = 63
-	TypeSVCB       uint16 = 64
-	TypeHTTPS      uint16 = 65
-	// TypeDSYNC uint16 = 66
-	// TypeHHIT  uint16 = 67
-	// TypeBRID  uint16 = 68
+	TypeHIP        Type = 55
+	TypeNINFO      Type = 56
+	TypeRKEY       Type = 57
+	TypeTALINK     Type = 58
+	TypeCDS        Type = 59
+	TypeCDNSKEY    Type = 60
+	TypeOPENPGPKEY Type = 61
+	TypeCSYNC      Type = 62
+	TypeZONEMD     Type = 63
+	TypeSVCB       Type = 64
+	TypeHTTPS      Type = 65
+	// TypeDSYNC Type = 66
+	// TypeHHIT  Type = 67
+	// TypeBRID  Type = 68
 	// unassigned 69-98
-	TypeSPF    uint16 = 99
-	TypeUINFO  uint16 = 100
-	TypeUID    uint16 = 101
-	TypeGID    uint16 = 102
-	TypeUNSPEC uint16 = 103
-	TypeNID    uint16 = 104
-	TypeL32    uint16 = 105
-	TypeL64    uint16 = 106
-	TypeLP     uint16 = 107
-	TypeEUI48  uint16 = 108
-	TypeEUI64  uint16 = 109
+	TypeSPF    Type = 99
+	TypeUINFO  Type = 100
+	TypeUID    Type = 101
+	TypeGID    Type = 102
+	TypeUNSPEC Type = 103
+	TypeNID    Type = 104
+	TypeL32    Type = 105
+	TypeL64    Type = 106
+	TypeLP     Type = 107
+	TypeEUI48  Type = 108
+	TypeEUI64  Type = 109
 	// unassigned 110-127
-	TypeNXNAME uint16 = 128
+	TypeNXNAME Type = 128
 	// unassigned 129-248
 	// 249-255 defined below
-	TypeURI uint16 = 256
-	TypeCAA uint16 = 257
-	TypeAVC uint16 = 258
-	// TypeDOA uint16 = 259
-	TypeAMTRELAY uint16 = 260
-	TypeRESINFO  uint16 = 261
-	// TypeWALLET uint16 = 262
-	// TypeCLA uint16 = 263
-	// TypeIPN uint16 = 264
+	TypeURI Type = 256
+	TypeCAA Type = 257
+	TypeAVC Type = 258
+	// TypeDOA Type = 259
+	TypeAMTRELAY Type = 260
+	TypeRESINFO  Type = 261
+	// TypeWALLET Type = 262
+	// TypeCLA Type = 263
+	// TypeIPN Type = 264
 
-	TypeTKEY uint16 = 249
-	TypeTSIG uint16 = 250
+	TypeTKEY Type = 249
+	TypeTSIG Type = 250
 
 	// valid Question.Qtype only
-	TypeIXFR  uint16 = 251
-	TypeAXFR  uint16 = 252
-	TypeMAILB uint16 = 253
-	TypeMAILA uint16 = 254
-	TypeANY   uint16 = 255
+	TypeIXFR  Type = 251
+	TypeAXFR  Type = 252
+	TypeMAILB Type = 253
+	TypeMAILA Type = 254
+	TypeANY   Type = 255
 
-	TypeTA       uint16 = 32768
-	TypeDLV      uint16 = 32769
-	TypeReserved uint16 = 65535
+	TypeTA       Type = 32768
+	TypeDLV      Type = 32769
+	TypeReserved Type = 65535
 
 	// valid Question.Qclass
-	ClassINET   = 1
-	ClassCSNET  = 2
-	ClassCHAOS  = 3
-	ClassHESIOD = 4
-	ClassNONE   = 254
-	ClassANY    = 255
+	ClassINET   Class = 1
+	ClassCSNET  Class = 2
+	ClassCHAOS  Class = 3
+	ClassHESIOD Class = 4
+	ClassNONE   Class = 254
+	ClassANY    Class = 255
 
 	// Message Response Codes, see https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml
 	RcodeSuccess                    = 0  // NoError   - No Error                          [DNS]
@@ -280,8 +281,8 @@ var CertTypeToString = map[uint16]string{
 // message.
 type Question struct {
 	Name   Name `dns:"cdomain-name"` // "cdomain-name" specifies encoding (and may be compressed)
-	Qtype  uint16
-	Qclass uint16
+	Qtype  Type
+	Qclass Class
 }
 
 func (q *Question) len(off int, compression map[Name]struct{}) int {
@@ -321,7 +322,7 @@ func (*ANY) parse(c *zlexer, origin string) *ParseError {
 // NULL RR. See RFC 1035.
 type NULL struct {
 	Hdr  RR_Header
-	Data string `dns:"any"`
+	Data ByteField `dns:"hex"`
 }
 
 func (*NULL) parse(c *zlexer, origin string) *ParseError {
@@ -667,7 +668,7 @@ type CERT struct {
 	Type        uint16
 	KeyTag      uint16
 	Algorithm   uint8
-	Certificate string `dns:"base64"`
+	Certificate ByteField `dns:"base64"`
 }
 
 func (rr *CERT) String() string {
@@ -684,7 +685,7 @@ func (rr *CERT) String() string {
 	return rr.Hdr.String() + certtype +
 		" " + strconv.Itoa(int(rr.KeyTag)) +
 		" " + algorithm +
-		" " + rr.Certificate
+		" " + rr.Certificate.Base64()
 }
 
 // DNAME RR. See RFC 2672.
@@ -808,29 +809,15 @@ type SIG struct {
 // RRSIG RR. See RFC 4034 and RFC 3755.
 type RRSIG struct {
 	Hdr         RR_Header
-	TypeCovered uint16
+	TypeCovered Type
 	Algorithm   uint8
 	Labels      uint8
 	OrigTtl     uint32
-	Expiration  uint32
-	Inception   uint32
+	Expiration  Time
+	Inception   Time
 	KeyTag      uint16
 	SignerName  Name
-	Signature   string `dns:"base64"`
-}
-
-func (rr *RRSIG) String() string {
-	s := rr.Hdr.String()
-	s += Type(rr.TypeCovered).String()
-	s += " " + strconv.Itoa(int(rr.Algorithm)) +
-		" " + strconv.Itoa(int(rr.Labels)) +
-		" " + strconv.FormatInt(int64(rr.OrigTtl), 10) +
-		" " + TimeToString(rr.Expiration) +
-		" " + TimeToString(rr.Inception) +
-		" " + strconv.Itoa(int(rr.KeyTag)) +
-		" " + rr.SignerName.String() +
-		" " + rr.Signature
-	return s
+	Signature   ByteField `dns:"base64"`
 }
 
 // NXT RR. See RFC 2535.
@@ -842,7 +829,7 @@ type NXT struct {
 type NSEC struct {
 	Hdr        RR_Header
 	NextDomain Name
-	TypeBitMap []uint16 `dns:"nsec"`
+	TypeBitMap []Type `dns:"nsec"`
 }
 
 func (rr *NSEC) len(off int, compression map[Name]struct{}) int {
@@ -864,7 +851,7 @@ type DS struct {
 	KeyTag     uint16
 	Algorithm  uint8
 	DigestType uint8
-	Digest     string `dns:"hex"`
+	Digest     ByteField `dns:"hex"`
 }
 
 // KX RR. See RFC 2230.
@@ -880,7 +867,7 @@ type TA struct {
 	KeyTag     uint16
 	Algorithm  uint8
 	DigestType uint8
-	Digest     string `dns:"hex"`
+	Digest     ByteField `dns:"hex"`
 }
 
 // TALINK RR. See https://www.iana.org/assignments/dns-parameters/TALINK/talink-completed-template.
@@ -895,7 +882,7 @@ type SSHFP struct {
 	Hdr         RR_Header
 	Algorithm   uint8
 	Type        uint8
-	FingerPrint string `dns:"hex"`
+	FingerPrint ByteField `dns:"hex"`
 }
 
 // KEY RR. See RFC 2535.
@@ -914,7 +901,7 @@ type DNSKEY struct {
 	Flags     uint16
 	Protocol  uint8
 	Algorithm uint8
-	PublicKey string `dns:"base64"`
+	PublicKey ByteField `dns:"base64"`
 }
 
 // IPSECKEY RR. See RFC 4025.
@@ -925,7 +912,7 @@ type IPSECKEY struct {
 	Algorithm   uint8
 	GatewayAddr netip.Addr `dns:"-"` // packing/unpacking/parsing/etc handled together with GatewayHost
 	GatewayHost Name       `dns:"ipsechost"`
-	PublicKey   string     `dns:"base64"`
+	PublicKey   ByteField  `dns:"base64"`
 }
 
 func (rr *IPSECKEY) String() string {
@@ -945,7 +932,7 @@ func (rr *IPSECKEY) String() string {
 		" " + strconv.Itoa(int(rr.GatewayType)) +
 		" " + strconv.Itoa(int(rr.Algorithm)) +
 		" " + gateway +
-		" " + rr.PublicKey
+		" " + rr.PublicKey.Base64()
 }
 
 // AMTRELAY RR. See RFC 8777.
@@ -986,7 +973,7 @@ type RKEY struct {
 	Flags     uint16
 	Protocol  uint8
 	Algorithm uint8
-	PublicKey string `dns:"base64"`
+	PublicKey ByteField `dns:"base64"`
 }
 
 // NSAPPTR RR. See RFC 1348.
@@ -1002,10 +989,10 @@ type NSEC3 struct {
 	Flags      uint8
 	Iterations uint16
 	SaltLength uint8
-	Salt       string `dns:"size-hex:SaltLength"`
+	Salt       ByteField `dns:"size-hex:SaltLength"`
 	HashLength uint8
-	NextDomain string   `dns:"size-base32:HashLength"`
-	TypeBitMap []uint16 `dns:"nsec"`
+	NextDomain ByteField `dns:"size-base32:HashLength"`
+	TypeBitMap []Type    `dns:"nsec"`
 }
 
 func (rr *NSEC3) String() string {
@@ -1014,7 +1001,7 @@ func (rr *NSEC3) String() string {
 		" " + strconv.Itoa(int(rr.Flags)) +
 		" " + strconv.Itoa(int(rr.Iterations)) +
 		" " + saltToString(rr.Salt) +
-		" " + rr.NextDomain
+		" " + rr.NextDomain.Base32()
 	for _, t := range rr.TypeBitMap {
 		s += " " + Type(t).String()
 	}
@@ -1023,7 +1010,7 @@ func (rr *NSEC3) String() string {
 
 func (rr *NSEC3) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
-	l += 6 + len(rr.Salt)/2 + base32HexNoPadEncoding.DecodedLen(len(rr.NextDomain))
+	l += 6 + rr.Salt.EncodedLen() + rr.NextDomain.EncodedLen()
 	l += typeBitMapLen(rr.TypeBitMap)
 	return l
 }
@@ -1035,7 +1022,7 @@ type NSEC3PARAM struct {
 	Flags      uint8
 	Iterations uint16
 	SaltLength uint8
-	Salt       string `dns:"size-hex:SaltLength"`
+	Salt       ByteField `dns:"size-hex:SaltLength"`
 }
 
 func (rr *NSEC3PARAM) String() string {
@@ -1051,42 +1038,42 @@ func (rr *NSEC3PARAM) String() string {
 type TKEY struct {
 	Hdr        RR_Header
 	Algorithm  Name
-	Inception  uint32
-	Expiration uint32
+	Inception  Time
+	Expiration Time
 	Mode       uint16
 	Error      uint16
 	KeySize    uint16
-	Key        string `dns:"size-hex:KeySize"`
+	Key        ByteField `dns:"size-hex:KeySize"`
 	OtherLen   uint16
-	OtherData  string `dns:"size-hex:OtherLen"`
+	OtherData  ByteField `dns:"size-hex:OtherLen"`
 }
 
 // TKEY has no official presentation format, but this will suffice.
 func (rr *TKEY) String() string {
 	s := rr.Hdr.String() +
 		" " + rr.Algorithm.String() +
-		" " + TimeToString(rr.Inception) +
-		" " + TimeToString(rr.Expiration) +
+		" " + rr.Inception.String() +
+		" " + rr.Expiration.String() +
 		" " + strconv.Itoa(int(rr.Mode)) +
 		" " + strconv.Itoa(int(rr.Error)) +
 		" " + strconv.Itoa(int(rr.KeySize)) +
-		" " + rr.Key +
+		" " + rr.Key.Hex() +
 		" " + strconv.Itoa(int(rr.OtherLen)) +
-		" " + rr.OtherData
+		" " + rr.OtherData.Hex()
 	return s
 }
 
 // RFC3597 represents an unknown/generic RR. See RFC 3597.
 type RFC3597 struct {
 	Hdr   RR_Header
-	Rdata string `dns:"hex"`
+	Rdata ByteField `dns:"hex"`
 }
 
 func (rr *RFC3597) String() string {
 	// Let's call it a hack
 	s := rfc3597Header(rr.Hdr)
 
-	s += "\\# " + strconv.Itoa(len(rr.Rdata)/2) + " " + rr.Rdata
+	s += "\\# " + strconv.Itoa(rr.Rdata.EncodedLen()) + " " + rr.Rdata.Hex()
 	return s
 }
 
@@ -1111,7 +1098,7 @@ type URI struct {
 // DHCID RR. See RFC 4701.
 type DHCID struct {
 	Hdr    RR_Header
-	Digest string `dns:"base64"`
+	Digest ByteField `dns:"base64"`
 }
 
 // TLSA RR. See RFC 6698.
@@ -1120,7 +1107,7 @@ type TLSA struct {
 	Usage        uint8
 	Selector     uint8
 	MatchingType uint8
-	Certificate  string `dns:"hex"`
+	Certificate  ByteField `dns:"hex"`
 }
 
 // SMIMEA RR. See RFC 8162.
@@ -1129,7 +1116,7 @@ type SMIMEA struct {
 	Usage        uint8
 	Selector     uint8
 	MatchingType uint8
-	Certificate  string `dns:"hex"`
+	Certificate  ByteField `dns:"hex"`
 }
 
 func (rr *SMIMEA) String() string {
@@ -1141,7 +1128,7 @@ func (rr *SMIMEA) String() string {
 	// Every Nth char needs a space on this output. If we output
 	// this as one giant line, we can't read it can in because in some cases
 	// the cert length overflows scan.maxTok (2048).
-	sx := splitN(rr.Certificate, 1024) // conservative value here
+	sx := splitN(rr.Certificate.Hex(), 1024) // conservative value here
 	s += " " + strings.Join(sx, " ")
 	return s
 }
@@ -1152,16 +1139,16 @@ type HIP struct {
 	HitLength          uint8
 	PublicKeyAlgorithm uint8
 	PublicKeyLength    uint16
-	Hit                string `dns:"size-hex:HitLength"`
-	PublicKey          string `dns:"size-base64:PublicKeyLength"`
-	RendezvousServers  []Name `dns:"domain-name"`
+	Hit                ByteField `dns:"size-hex:HitLength"`
+	PublicKey          ByteField `dns:"size-base64:PublicKeyLength"`
+	RendezvousServers  []Name    `dns:"domain-name"`
 }
 
 func (rr *HIP) String() string {
 	s := rr.Hdr.String() +
 		strconv.Itoa(int(rr.PublicKeyAlgorithm)) +
-		" " + rr.Hit +
-		" " + rr.PublicKey
+		" " + rr.Hit.Hex() +
+		" " + rr.PublicKey.Base64()
 	for _, d := range rr.RendezvousServers {
 		s += " " + d.String()
 	}
@@ -1257,19 +1244,19 @@ type UINFO struct {
 // EID RR. See http://ana-3.lcs.mit.edu/~jnc/nimrod/dns.txt.
 type EID struct {
 	Hdr      RR_Header
-	Endpoint string `dns:"hex"`
+	Endpoint ByteField `dns:"hex"`
 }
 
 // NIMLOC RR. See http://ana-3.lcs.mit.edu/~jnc/nimrod/dns.txt.
 type NIMLOC struct {
 	Hdr     RR_Header
-	Locator string `dns:"hex"`
+	Locator ByteField `dns:"hex"`
 }
 
 // OPENPGPKEY RR. See RFC 7929.
 type OPENPGPKEY struct {
 	Hdr       RR_Header
-	PublicKey string `dns:"base64"`
+	PublicKey ByteField `dns:"base64"`
 }
 
 // CSYNC RR. See RFC 7477.
@@ -1277,7 +1264,7 @@ type CSYNC struct {
 	Hdr        RR_Header
 	Serial     uint32
 	Flags      uint16
-	TypeBitMap []uint16 `dns:"nsec"`
+	TypeBitMap []Type `dns:"nsec"`
 }
 
 func (rr *CSYNC) len(off int, compression map[Name]struct{}) int {
@@ -1293,7 +1280,7 @@ type ZONEMD struct {
 	Serial uint32
 	Scheme uint8
 	Hash   uint8
-	Digest string `dns:"hex"`
+	Digest ByteField `dns:"hex"`
 }
 
 // RESINFO RR. See RFC 9606.
@@ -1376,7 +1363,7 @@ func TimeToString(t uint32) string {
 // StringToTime translates the RRSIG's incep. and expir. times from
 // string values like "20110403154150" to an 32 bit integer.
 // It takes serial arithmetic (RFC 1982) into account.
-func StringToTime(s string) (uint32, error) {
+func StringToTime(s string) (Time, error) {
 	t, err := time.Parse("20060102150405", s)
 	if err != nil {
 		return 0, err
@@ -1385,15 +1372,15 @@ func StringToTime(s string) (uint32, error) {
 	if mod < 0 {
 		mod = 0
 	}
-	return uint32(t.Unix() - mod*year68), nil
+	return Time(t.Unix() - mod*year68), nil
 }
 
 // saltToString converts a NSECX salt to uppercase and returns "-" when it is empty.
-func saltToString(s string) string {
-	if s == "" {
+func saltToString(b ByteField) string {
+	if b.EncodedLen() == 0 {
 		return "-"
 	}
-	return strings.ToUpper(s)
+	return b.Hex()
 }
 
 func euiToString(eui uint64, bits int) (hex string) {
@@ -1591,12 +1578,19 @@ func (n Name) SubNamesIt(yield func(Name) bool) {
 	}
 }
 
-func mustParseName(s string) Name {
-	ret, err := NameFromString(s)
+func check(err error) {
 	if err != nil {
-		log.Panicf("err: %s, name: %q", err, s)
+		log.Panic(err)
 	}
-	return ret
+}
+
+func check1[T any](arg1 T, err error) T {
+	check(err)
+	return arg1
+}
+
+func mustParseName(s string) Name {
+	return check1(NameFromString(s))
 }
 
 func escapeLabel(s []byte) string {
@@ -1682,11 +1676,7 @@ func TxtFromString(s string) (TxtString, error) {
 }
 
 func mustParseTxt(s string) TxtString {
-	ret, err := TxtFromString(s)
-	if err != nil {
-		panic(err)
-	}
-	return ret
+	return check1(TxtFromString(s))
 }
 
 func mustParseTxts(arr ...string) TxtStrings {
@@ -1799,4 +1789,70 @@ func (t TxtStrings) String() string {
 	}
 
 	return b.String()
+}
+
+type ByteField struct {
+	raw string
+}
+
+func BFFromBytes(b []byte) ByteField {
+	return ByteField{raw: string(b)}
+}
+
+func BFFromHex(s string) (ByteField, error) {
+	var ret ByteField
+	buf, err := hex.DecodeString(s)
+	if err == nil {
+		ret.raw = string(buf)
+	}
+	return ret, err
+}
+
+func BFFromBase64(s string) (ByteField, error) {
+	var ret ByteField
+	buf, err := base64.StdEncoding.DecodeString(s)
+	if err == nil {
+		ret.raw = string(buf)
+	}
+	return ret, err
+}
+
+func BFFromBase32(s string) (ByteField, error) {
+	var ret ByteField
+	buf, err := base32HexNoPadEncoding.DecodeString(strings.ToUpper(s))
+	if err == nil {
+		ret.raw = string(buf)
+	}
+	return ret, err
+}
+
+func (b ByteField) EncodedLen() int {
+	return len(b.raw)
+}
+
+func (b ByteField) Hex() string {
+	return strings.ToUpper(hex.EncodeToString([]byte(b.raw)))
+}
+
+func (b ByteField) Base32() string {
+	return base32HexNoPadEncoding.EncodeToString([]byte(b.raw))
+}
+
+func (b ByteField) Base64() string {
+	return base64.StdEncoding.EncodeToString([]byte(b.raw))
+}
+
+func (b ByteField) Raw() []byte {
+	return []byte(b.raw)
+}
+
+type Time uint32
+
+func (t Time) String() string {
+	mod := (int64(t)-time.Now().Unix())/year68 - 1
+	if mod < 0 {
+		mod = 0
+	}
+	ti := time.Unix(int64(t)-mod*year68, 0).UTC()
+	return ti.Format("20060102150405")
 }

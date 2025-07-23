@@ -31,11 +31,11 @@ func isPacketConn(c net.Conn) bool {
 
 // A Conn represents a connection to a DNS server.
 type Conn struct {
-	net.Conn                         // a net.Conn holding the connection
-	UDPSize        uint16            // minimum receive buffer for UDP messages
-	TsigSecret     map[string]string // secret(s) for Tsig map[<zonename>]<base64 secret>, zonename must be in canonical form (lowercase, fqdn, see RFC 4034 Section 6.2)
-	TsigProvider   TsigProvider      // An implementation of the TsigProvider interface. If defined it replaces TsigSecret and is used for all TSIG operations.
-	tsigRequestMAC string
+	net.Conn                            // a net.Conn holding the connection
+	UDPSize        uint16               // minimum receive buffer for UDP messages
+	TsigSecret     map[string]ByteField // secret(s) for Tsig map[<zonename>]<base64 secret>, zonename must be in canonical form (lowercase, fqdn, see RFC 4034 Section 6.2)
+	TsigProvider   TsigProvider         // An implementation of the TsigProvider interface. If defined it replaces TsigSecret and is used for all TSIG operations.
+	tsigRequestMAC ByteField
 }
 
 func (co *Conn) tsigProvider() TsigProvider {
@@ -56,11 +56,11 @@ type Client struct {
 	// WriteTimeout when non-zero. Can be overridden with net.Dialer.Timeout (see Client.ExchangeWithDialer and
 	// Client.Dialer) or context.Context.Deadline (see ExchangeContext)
 	Timeout      time.Duration
-	DialTimeout  time.Duration     // net.DialTimeout, defaults to 2 seconds, or net.Dialer.Timeout if expiring earlier - overridden by Timeout when that value is non-zero
-	ReadTimeout  time.Duration     // net.Conn.SetReadTimeout value for connections, defaults to 2 seconds - overridden by Timeout when that value is non-zero
-	WriteTimeout time.Duration     // net.Conn.SetWriteTimeout value for connections, defaults to 2 seconds - overridden by Timeout when that value is non-zero
-	TsigSecret   map[string]string // secret(s) for Tsig map[<zonename>]<base64 secret>, zonename must be in canonical form (lowercase, fqdn, see RFC 4034 Section 6.2)
-	TsigProvider TsigProvider      // An implementation of the TsigProvider interface. If defined it replaces TsigSecret and is used for all TSIG operations.
+	DialTimeout  time.Duration        // net.DialTimeout, defaults to 2 seconds, or net.Dialer.Timeout if expiring earlier - overridden by Timeout when that value is non-zero
+	ReadTimeout  time.Duration        // net.Conn.SetReadTimeout value for connections, defaults to 2 seconds - overridden by Timeout when that value is non-zero
+	WriteTimeout time.Duration        // net.Conn.SetWriteTimeout value for connections, defaults to 2 seconds - overridden by Timeout when that value is non-zero
+	TsigSecret   map[string]ByteField // secret(s) for Tsig map[<zonename>]<base64 secret>, zonename must be in canonical form (lowercase, fqdn, see RFC 4034 Section 6.2)
+	TsigProvider TsigProvider         // An implementation of the TsigProvider interface. If defined it replaces TsigSecret and is used for all TSIG operations.
 
 	// SingleInflight previously serialised multiple concurrent queries for the
 	// same Qname, Qtype and Qclass to ensure only one would be in flight at a

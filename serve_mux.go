@@ -28,7 +28,7 @@ func NewServeMux() *ServeMux {
 // DefaultServeMux is the default ServeMux used by Serve.
 var DefaultServeMux = NewServeMux()
 
-func (mux *ServeMux) match(q Name, t uint16) Handler {
+func (mux *ServeMux) match(q Name, t Type) Handler {
 	mux.m.RLock()
 	defer mux.m.RUnlock()
 	if mux.z == nil {

@@ -53,7 +53,7 @@ func (rr *SIG) Sign(k crypto.Signer, m *Msg) ([]byte, error) {
 		return nil, err
 	}
 
-	rr.Signature = toBase64(signature)
+	rr.Signature = BFFromBytes(signature)
 
 	buf = append(buf, signature...)
 	if len(buf) > int(^uint16(0)) {

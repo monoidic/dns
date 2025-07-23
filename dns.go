@@ -1,7 +1,6 @@
 package dns
 
 import (
-	"encoding/hex"
 	"strconv"
 	"strings"
 )
@@ -67,8 +66,8 @@ type RR interface {
 // RR_Header is the header all DNS resource records share.
 type RR_Header struct {
 	Name     Name `dns:"cdomain-name"`
-	Rrtype   uint16
-	Class    uint16
+	Rrtype   Type
+	Class    Class
 	Ttl      uint32
 	Rdlength uint16 // Length of data after header.
 }
@@ -152,7 +151,7 @@ func (rr *RFC3597) fromRFC3597(r RR) error {
 
 	// Can't overflow uint16 as the length of Rdata is validated in (*RFC3597).parse.
 	// We can only get here when rr was constructed with that method.
-	hdr.Rdlength = uint16(hex.DecodedLen(len(rr.Rdata)))
+	hdr.Rdlength = uint16(rr.Rdata.EncodedLen())
 
 	if noRdata(*hdr) {
 		// Dynamic update.
@@ -161,11 +160,8 @@ func (rr *RFC3597) fromRFC3597(r RR) error {
 
 	// rr.pack requires an extra allocation and a copy so we just decode Rdata
 	// manually, it's simpler anyway.
-	msg, err := hex.DecodeString(rr.Rdata)
-	if err != nil {
-		return err
-	}
+	msg := rr.Rdata.Raw()
 
-	_, err = r.unpack(msg, 0)
+	_, err := r.unpack(msg, 0)
 	return err
 }

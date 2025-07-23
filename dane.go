@@ -4,20 +4,20 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/x509"
-	"encoding/hex"
 	"errors"
 )
 
 // CertificateToDANE converts a certificate to a hex string as used in the TLSA or SMIMEA records.
-func CertificateToDANE(selector, matchingType uint8, cert *x509.Certificate) (string, error) {
+func CertificateToDANE(selector, matchingType uint8, cert *x509.Certificate) (ByteField, error) {
 	var data []byte
+	var ret ByteField
 	switch selector {
 	case 0:
 		data = cert.Raw
 	case 1:
 		data = cert.RawSubjectPublicKeyInfo
 	default:
-		return "", errors.New("dns: bad MatchingType or Selector")
+		return ret, errors.New("dns: bad MatchingType or Selector")
 	}
 
 	switch matchingType {
@@ -32,8 +32,9 @@ func CertificateToDANE(selector, matchingType uint8, cert *x509.Certificate) (st
 		h.Write(data)
 		data = h.Sum(nil)
 	default:
-		return "", errors.New("dns: bad MatchingType or Selector")
+		return ret, errors.New("dns: bad MatchingType or Selector")
 	}
 
-	return hex.EncodeToString(data), nil
+	ret = BFFromBytes(data)
+	return ret, nil
 }

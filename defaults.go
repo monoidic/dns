@@ -30,7 +30,7 @@ func (dns *Msg) SetReply(request *Msg) *Msg {
 // SetQuestion creates a question message, it sets the Question
 // section, generates an Id and sets the RecursionDesired (RD)
 // bit to true.
-func (dns *Msg) SetQuestion(z Name, t uint16) *Msg {
+func (dns *Msg) SetQuestion(z Name, t Type) *Msg {
 	dns.Id = Id()
 	dns.RecursionDesired = true
 	dns.Question = make([]Question, 1)
@@ -288,7 +288,7 @@ func ReverseAddr(addr string) (arpa string, err error) {
 
 // String returns the string representation for the type t.
 func (t Type) String() string {
-	if t1, ok := TypeToString[uint16(t)]; ok {
+	if t1, ok := TypeToString[t]; ok {
 		return t1
 	}
 	return "TYPE" + strconv.Itoa(int(t))
@@ -296,7 +296,7 @@ func (t Type) String() string {
 
 // String returns the string representation for the class c.
 func (c Class) String() string {
-	if s, ok := ClassToString[uint16(c)]; ok {
+	if s, ok := ClassToString[c]; ok {
 		// Only emit mnemonics when they are unambiguous, specially ANY is in both.
 		if _, ok := StringToType[s]; !ok {
 			return s

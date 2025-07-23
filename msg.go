@@ -37,16 +37,6 @@ const (
 	// not something a well written implementation should ever do, so we leave them
 	// to trip the maximum compression pointer check.
 	maxCompressionPointers = (maxDomainNameWireOctets+1)/2 - 2
-
-	// This is the maximum length of a domain name in presentation format. The
-	// maximum wire length of a domain name is 255 octets (see above), with the
-	// maximum label length being 63. The wire format requires one extra byte over
-	// the presentation format, reducing the number of octets by 1. Each label in
-	// the name will be separated by a single period, with each octet in the label
-	// expanding to at most 4 bytes (\DDD). If all other labels are of the maximum
-	// length, then the final label can only be 61 octets long to not exceed the
-	// maximum allowed wire length.
-	maxDomainNamePresentationLength = 61*4 + 1 + 63*4 + 1 + 63*4 + 1 + 63*4 + 1
 )
 
 // Errors defined in this package.
@@ -122,7 +112,7 @@ type Msg struct {
 }
 
 // ClassToString is a maps Classes to strings for each CLASS wire type.
-var ClassToString = map[uint16]string{
+var ClassToString = map[Class]string{
 	ClassINET:   "IN",
 	ClassCSNET:  "CS",
 	ClassCHAOS:  "CH",
@@ -387,13 +377,12 @@ func packDomainName(s Name, msg []byte, off int, compression compressionMap, com
 // and len(msg) will be returned as the offset.
 func UnpackDomainName(msg []byte, off int) (ret Name, off1 int, err error) {
 	var buf bytes.Buffer
-	lenmsg := len(msg)
 	budget := maxDomainNameWireOctets
 	ptr := 0 // number of pointers followed
 Loop:
 	for {
-		if off >= lenmsg {
-			return ret, lenmsg, ErrBuf
+		if off >= len(msg) {
+			return ret, len(msg), ErrBuf
 		}
 		c := int(msg[off])
 		off++
@@ -406,11 +395,11 @@ Loop:
 			}
 			// literal string
 			if len(msg[off:]) < c {
-				return ret, lenmsg, ErrBuf
+				return ret, len(msg), ErrBuf
 			}
 			budget -= c + 1 // +1 for the label separator
 			if budget <= 0 {
-				return ret, lenmsg, ErrLongDomain
+				return ret, len(msg), ErrLongDomain
 			}
 			buf.Write(msg[off-1 : off+c])
 			off += c
@@ -420,8 +409,8 @@ Loop:
 			// since that's how many bytes we consumed.
 			// also, don't follow too many pointers --
 			// maybe there's a loop.
-			if off >= lenmsg {
-				return ret, lenmsg, ErrBuf
+			if off >= len(msg) {
+				return ret, len(msg), ErrBuf
 			}
 			c1 := msg[off]
 			off++
@@ -430,7 +419,7 @@ Loop:
 			}
 			ptr++
 			if ptr > maxCompressionPointers {
-				return ret, lenmsg, &Error{err: "too many compression pointers"}
+				return ret, len(msg), &Error{err: "too many compression pointers"}
 			}
 			// pointer should guarantee that it advances and points forwards at least
 			// but the condition on previous three lines guarantees that it's
@@ -438,7 +427,7 @@ Loop:
 			off = (c^0xC0)<<8 | int(c1)
 		default:
 			// 0x80 and 0x40 are reserved
-			return ret, lenmsg, ErrRdata
+			return ret, len(msg), ErrRdata
 		}
 	}
 	if ptr == 0 {
@@ -1134,8 +1123,8 @@ func (q *Question) pack(msg []byte, off int, compression compressionMap, compres
 	if len(msg[off:]) < 4 {
 		return len(msg), ErrBuf
 	}
-	binary.BigEndian.PutUint16(msg[off+0:], q.Qtype)
-	binary.BigEndian.PutUint16(msg[off+2:], q.Qclass)
+	binary.BigEndian.PutUint16(msg[off+0:], uint16(q.Qtype))
+	binary.BigEndian.PutUint16(msg[off+2:], uint16(q.Qclass))
 	off += 4
 	return off, nil
 }
@@ -1153,8 +1142,8 @@ func unpackQuestion(msg []byte, off int) (Question, int, error) {
 	if len(msg[off:]) < 4 {
 		return q, len(msg), ErrBuf
 	}
-	q.Qtype = binary.BigEndian.Uint16(msg[off+0:])
-	q.Qclass = binary.BigEndian.Uint16(msg[off+2:])
+	q.Qtype = Type(binary.BigEndian.Uint16(msg[off+0:]))
+	q.Qclass = Class(binary.BigEndian.Uint16(msg[off+2:]))
 	off += 4
 
 	return q, off, nil

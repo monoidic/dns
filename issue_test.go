@@ -3,7 +3,6 @@ package dns
 // Tests that solve that an specific issue.
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -36,9 +35,9 @@ func TestNSEC3MixedNextDomain(t *testing.T) {
 	if err := m.Unpack(mb); err != nil {
 		t.Fatalf("expected to unpack message. err: %s", err)
 	}
-	in := strings.ToUpper(rr.(*NSEC3).NextDomain)
+	in := rr.(*NSEC3).NextDomain
 	out := m.Answer[0].(*NSEC3).NextDomain
 	if in != out {
-		t.Fatalf("expected round trip to produce NextDomain `%s`, instead `%s`", in, out)
+		t.Fatalf("expected round trip to produce NextDomain `%s`, instead `%s`", in.Base32(), out.Base32())
 	}
 }

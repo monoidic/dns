@@ -635,33 +635,33 @@ func (s *SVCBIPv4Hint) copy() SVCBKeyValue {
 //	e.ECH = []byte{0xfe, 0x08, ...}
 //	h.Value = append(h.Value, e)
 type SVCBECHConfig struct {
-	ECH []byte // Specifically ECHConfigList including the redundant length prefix
+	ECH ByteField `dns:"base64"` // Specifically ECHConfigList including the redundant length prefix
 }
 
 func (*SVCBECHConfig) Key() SVCBKey     { return SVCB_ECHCONFIG }
-func (s *SVCBECHConfig) String() string { return toBase64(s.ECH) }
-func (s *SVCBECHConfig) len() int       { return len(s.ECH) }
+func (s *SVCBECHConfig) String() string { return s.ECH.Base64() }
+func (s *SVCBECHConfig) len() int       { return s.ECH.EncodedLen() }
 
 func (s *SVCBECHConfig) pack() ([]byte, error) {
-	return slices.Clone(s.ECH), nil
+	return s.ECH.Raw(), nil
 }
 
 func (s *SVCBECHConfig) copy() SVCBKeyValue {
-	return &SVCBECHConfig{slices.Clone(s.ECH)}
+	return &SVCBECHConfig{s.ECH}
 }
 
 func (s *SVCBECHConfig) unpack(b []byte) error {
-	s.ECH = slices.Clone(b)
+	s.ECH = BFFromBytes(b)
 	return nil
 }
 
 func (s *SVCBECHConfig) parse(b string) error {
-	x, err := fromBase64([]byte(b))
+	var err error
+	s.ECH, err = BFFromBase64(b)
 	if err != nil {
-		return errors.New("bad svcbech: bad base64 ech")
+		err = errors.New("bad svcbech: bad base64 ech")
 	}
-	s.ECH = x
-	return nil
+	return err
 }
 
 // SVCBIPv6Hint pair suggests an IPv6 address which may be used to open connections

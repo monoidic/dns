@@ -77,7 +77,7 @@ func TestPackUnpack(t *testing.T) {
 	out.Answer = make([]RR, 1)
 	key := &DNSKEY{Flags: 257, Protocol: 3, Algorithm: RSASHA1}
 	key.Hdr = RR_Header{Name: mustParseName("miek.nl."), Rrtype: TypeDNSKEY, Class: ClassINET, Ttl: 3600}
-	key.PublicKey = "AwEAAaHIwpx3w4VHKi6i1LHnTaWeHCL154Jug0Rtc9ji5qwPXpBo6A5sRv7cSsPQKPIwxLpyCrbJ4mr2L0EPOdvP6z6YfljK2ZmTbogU9aSU2fiq/4wjxbdkLyoDVgtO+JsxNN4bjr4WcWhsmk1Hg93FV9ZpkWb0Tbad8DFqNDzr//kZ"
+	key.PublicKey = check1(BFFromBase64("AwEAAaHIwpx3w4VHKi6i1LHnTaWeHCL154Jug0Rtc9ji5qwPXpBo6A5sRv7cSsPQKPIwxLpyCrbJ4mr2L0EPOdvP6z6YfljK2ZmTbogU9aSU2fiq/4wjxbdkLyoDVgtO+JsxNN4bjr4WcWhsmk1Hg93FV9ZpkWb0Tbad8DFqNDzr//kZ"))
 
 	out.Answer[0] = key
 	msg, err := out.Pack()
@@ -92,7 +92,7 @@ func TestPackUnpack(t *testing.T) {
 	sig := &RRSIG{
 		TypeCovered: TypeDNSKEY, Algorithm: RSASHA1, Labels: 2,
 		OrigTtl: 3600, Expiration: 4000, Inception: 4000, KeyTag: 34641, SignerName: key.Hdr.Name,
-		Signature: "AwEAAaHIwpx3w4VHKi6i1LHnTaWeHCL154Jug0Rtc9ji5qwPXpBo6A5sRv7cSsPQKPIwxLpyCrbJ4mr2L0EPOdvP6z6YfljK2ZmTbogU9aSU2fiq/4wjxbdkLyoDVgtO+JsxNN4bjr4WcWhsmk1Hg93FV9ZpkWb0Tbad8DFqNDzr//kZ",
+		Signature: check1(BFFromBase64("AwEAAaHIwpx3w4VHKi6i1LHnTaWeHCL154Jug0Rtc9ji5qwPXpBo6A5sRv7cSsPQKPIwxLpyCrbJ4mr2L0EPOdvP6z6YfljK2ZmTbogU9aSU2fiq/4wjxbdkLyoDVgtO+JsxNN4bjr4WcWhsmk1Hg93FV9ZpkWb0Tbad8DFqNDzr//kZ")),
 	}
 	sig.Hdr = RR_Header{Name: key.Hdr.Name, Rrtype: TypeRRSIG, Class: ClassINET, Ttl: 3600}
 
@@ -214,13 +214,13 @@ func TestToRFC3597(t *testing.T) {
 	a := testRR("miek.nl. IN A 10.0.1.1")
 	x := new(RFC3597)
 	x.ToRFC3597(a)
-	if x.String() != `miek.nl.	3600	CLASS1	TYPE1	\# 4 0a000101` {
+	if x.String() != `miek.nl.	3600	CLASS1	TYPE1	\# 4 0A000101` {
 		t.Errorf("string mismatch, got: %s", x)
 	}
 
 	b := testRR("miek.nl. IN MX 10 mx.miek.nl.")
 	x.ToRFC3597(b)
-	if x.String() != `miek.nl.	3600	CLASS1	TYPE15	\# 14 000a026d78046d69656b026e6c00` {
+	if x.String() != `miek.nl.	3600	CLASS1	TYPE15	\# 14 000A026D78046D69656B026E6C00` {
 		t.Errorf("string mismatch, got: %s", x)
 	}
 }
@@ -268,12 +268,12 @@ func TestRdataOverflow(t *testing.T) {
 	rr.Hdr.Name = mustParseName(".")
 	rr.Hdr.Class = ClassINET
 	rr.Hdr.Rrtype = 65280
-	rr.Rdata = hex.EncodeToString(make([]byte, 0xFFFF))
+	rr.Rdata = BFFromBytes(make([]byte, 0xFFFF))
 	buf := make([]byte, 0xFFFF*2)
 	if _, err := PackRR(rr, buf, 0, nil, false); err != nil {
 		t.Fatalf("maximum size rrdata pack failed: %v", err)
 	}
-	rr.Rdata += "00"
+	rr.Rdata = BFFromBytes(append(rr.Rdata.Raw(), 0))
 	if _, err := PackRR(rr, buf, 0, nil, false); err != ErrRdata {
 		t.Fatalf("oversize rrdata pack didn't return ErrRdata - instead: %v", err)
 	}
@@ -371,7 +371,7 @@ func TestTKEY(t *testing.T) {
 
 	// Now add some bytes to this and make sure we can encode OtherData properly
 	tkey := rr.(*TKEY)
-	tkey.OtherData = "abcd"
+	tkey.OtherData = check1(BFFromHex("abcd"))
 	tkey.OtherLen = 2
 	offset, packErr = PackRR(tkey, msg, 0, nil, false)
 	if packErr != nil {

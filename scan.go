@@ -370,11 +370,11 @@ func (zp *ZoneParser) Next() (RR, bool) {
 			case zDirGenerate:
 				st = zExpectDirGenerateBl
 			case zRrtpe:
-				h.Rrtype = l.torc
+				h.Rrtype = Type(l.torc)
 
 				st = zExpectRdata
 			case zClass:
-				h.Class = l.torc
+				h.Class = Class(l.torc)
 
 				st = zExpectAnyNoClassBl
 			case zBlank:
@@ -547,11 +547,11 @@ func (zp *ZoneParser) Next() (RR, bool) {
 					return zp.setParseError("missing TTL with no previous value", l)
 				}
 
-				h.Rrtype = l.torc
+				h.Rrtype = Type(l.torc)
 
 				st = zExpectRdata
 			case zClass:
-				h.Class = l.torc
+				h.Class = Class(l.torc)
 
 				st = zExpectAnyNoClassBl
 			case zString:
@@ -585,11 +585,11 @@ func (zp *ZoneParser) Next() (RR, bool) {
 		case zExpectAnyNoTTL:
 			switch l.value {
 			case zClass:
-				h.Class = l.torc
+				h.Class = Class(l.torc)
 
 				st = zExpectRrtypeBl
 			case zRrtpe:
-				h.Rrtype = l.torc
+				h.Rrtype = Type(l.torc)
 
 				st = zExpectRdata
 			default:
@@ -611,7 +611,7 @@ func (zp *ZoneParser) Next() (RR, bool) {
 
 				st = zExpectRrtypeBl
 			case zRrtpe:
-				h.Rrtype = l.torc
+				h.Rrtype = Type(l.torc)
 
 				st = zExpectRdata
 			default:
@@ -628,7 +628,7 @@ func (zp *ZoneParser) Next() (RR, bool) {
 				return zp.setParseError("unknown RR type", l)
 			}
 
-			h.Rrtype = l.torc
+			h.Rrtype = Type(l.torc)
 
 			st = zExpectRdata
 		case zExpectRdata:
@@ -889,7 +889,7 @@ func (zl *zlexer) Next() (lex, bool) {
 					tokenUpper := strings.ToUpper(l.token)
 					if t, ok := StringToType[tokenUpper]; ok {
 						l.value = zRrtpe
-						l.torc = t
+						l.torc = uint16(t)
 
 						zl.rrtype = true
 					} else if strings.HasPrefix(tokenUpper, "TYPE") {
@@ -908,7 +908,7 @@ func (zl *zlexer) Next() (lex, bool) {
 
 					if t, ok := StringToClass[tokenUpper]; ok {
 						l.value = zClass
-						l.torc = t
+						l.torc = uint16(t)
 					} else if strings.HasPrefix(tokenUpper, "CLASS") {
 						t, ok := classToInt(l.token)
 						if !ok {
@@ -1029,7 +1029,7 @@ func (zl *zlexer) Next() (lex, bool) {
 							zl.rrtype = true
 
 							l.value = zRrtpe
-							l.torc = t
+							l.torc = uint16(t)
 						}
 					}
 

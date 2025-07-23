@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	tsigSecret  = map[string]string{"axfr.": "so6ZGir4GPAqINNh9U5c3A=="}
+	tsigSecret  = map[string]ByteField{"axfr.": check1(BFFromBase64("so6ZGir4GPAqINNh9U5c3A=="))}
 	xfrSoa      = testRR(`miek.nl.	0	IN	SOA	linode.atoom.net. miek.miek.nl. 2009032802 21600 7200 604800 3600`)
 	xfrA        = testRR(`x.miek.nl.	1792	IN	A	10.0.0.1`)
 	xfrMX       = testRR(`miek.nl.	1800	IN	MX	1	x.miek.nl.`)

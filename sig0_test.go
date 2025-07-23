@@ -33,7 +33,7 @@ func TestSIG0(t *testing.T) {
 			t.Errorf("failed to generate key for %q: %v", algstr, err)
 			continue
 		}
-		now := uint32(time.Now().Unix())
+		now := Time(time.Now().Unix())
 		sigrr := new(SIG)
 		sigrr.Hdr.Name = mustParseName(".")
 		sigrr.Hdr.Rrtype = TypeSIG

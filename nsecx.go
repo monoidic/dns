@@ -2,19 +2,12 @@ package dns
 
 import (
 	"crypto/sha1"
-	"encoding/hex"
-	"strings"
 )
 
 // HashName hashes a string (label) according to RFC 5155. It returns the hashed string in uppercase.
-func HashName(label Name, ha uint8, iter uint16, salt string) string {
+func HashName(label Name, ha uint8, iter uint16, salt []byte) []byte {
 	if ha != SHA1 {
-		return ""
-	}
-
-	wireSalt, err := hex.DecodeString(salt)
-	if err != nil {
-		return ""
+		return nil
 	}
 
 	name := label.Canonical().ToWire()
@@ -22,29 +15,32 @@ func HashName(label Name, ha uint8, iter uint16, salt string) string {
 	s := sha1.New()
 	// k = 0
 	s.Write(name)
-	s.Write(wireSalt)
+	s.Write(salt)
 	nsec3 := s.Sum(nil)
 
 	// k > 0
 	for k := uint16(0); k < iter; k++ {
 		s.Reset()
 		s.Write(nsec3)
-		s.Write(wireSalt)
+		s.Write(salt)
 		nsec3 = s.Sum(nsec3[:0])
 	}
 
-	return toBase32(nsec3)
+	return nsec3
 }
 
 // Cover returns true if a name is covered by the NSEC3 record.
 func (rr *NSEC3) Cover(name Name) bool {
-	nameHash := HashName(name, rr.Hash, rr.Iterations, rr.Salt)
+	nameHash := BFFromBytes(HashName(name, rr.Hash, rr.Iterations, rr.Salt.Raw()))
 	owner := rr.Hdr.Name
 	labels := owner.SplitRaw()
 	if len(labels) < 2 {
 		return false
 	}
-	ownerHash := string(labels[0])
+	ownerHash, err := BFFromBase32(string(labels[0]))
+	if err != nil {
+		return false
+	}
 	ownerZone, _ := NameFromLabels(labels[1:])
 	if !IsSubDomain(ownerZone, name) { // name is outside owner zone
 		return false
@@ -56,27 +52,30 @@ func (rr *NSEC3) Cover(name Name) bool {
 	if ownerHash == nextHash && nameHash != ownerHash { // empty interval
 		return true
 	}
-	if ownerHash > nextHash { // end of zone
-		if nameHash > ownerHash { // covered since there is nothing after ownerHash
+	if ownerHash.raw > nextHash.raw { // end of zone
+		if nameHash.raw > ownerHash.raw { // covered since there is nothing after ownerHash
 			return true
 		}
-		return nameHash < nextHash // if nameHash is before beginning of zone it is covered
+		return nameHash.raw < nextHash.raw // if nameHash is before beginning of zone it is covered
 	}
-	if nameHash < ownerHash { // nameHash is before ownerHash, not covered
+	if nameHash.raw < ownerHash.raw { // nameHash is before ownerHash, not covered
 		return false
 	}
-	return nameHash < nextHash // if nameHash is before nextHash is it covered (between ownerHash and nextHash)
+	return nameHash.raw < nextHash.raw // if nameHash is before nextHash is it covered (between ownerHash and nextHash)
 }
 
 // Match returns true if a name matches the NSEC3 record
 func (rr *NSEC3) Match(name Name) bool {
-	nameHash := HashName(name, rr.Hash, rr.Iterations, rr.Salt)
+	nameHash := BFFromBytes(HashName(name, rr.Hash, rr.Iterations, rr.Salt.Raw()))
 	owner := rr.Hdr.Name
 	labels := owner.SplitRaw()
 	if len(labels) < 2 {
 		return false
 	}
-	ownerHash := strings.ToUpper(string(labels[0]))
+	ownerHash, err := BFFromBase32(string(labels[0]))
+	if err != nil {
+		return false
+	}
 	ownerZone, err := NameFromLabels(labels[1:])
 	if err != nil {
 		panic(err)

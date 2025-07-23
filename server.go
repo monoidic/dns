@@ -72,7 +72,7 @@ type response struct {
 	hijacked       bool // connection has been hijacked by handler
 	tsigTimersOnly bool
 	tsigStatus     error
-	tsigRequestMAC string
+	tsigRequestMAC ByteField
 	tsigProvider   TsigProvider
 	udp            net.PacketConn // i/o connection if UDP was used
 	tcp            net.Conn       // i/o connection if TCP was used
@@ -225,7 +225,7 @@ type Server struct {
 	// An implementation of the TsigProvider interface. If defined it replaces TsigSecret and is used for all TSIG operations.
 	TsigProvider TsigProvider
 	// Secret(s) for Tsig map[<zonename>]<base64 secret>. The zonename must be in canonical form (lowercase, fqdn, see RFC 4034 Section 6.2).
-	TsigSecret map[string]string
+	TsigSecret map[string]ByteField
 	// If NotifyStartedFunc is set it is called once the server has started listening.
 	NotifyStartedFunc func()
 	// DecorateReader is optional, allows customization of the process that reads raw DNS messages.
@@ -671,7 +671,7 @@ func (srv *Server) serveDNS(m []byte, w *response) {
 	w.tsigStatus = nil
 	if w.tsigProvider != nil {
 		if t := req.IsTsig(); t != nil {
-			w.tsigStatus = TsigVerifyWithProvider(m, w.tsigProvider, "", false)
+			w.tsigStatus = TsigVerifyWithProvider(m, w.tsigProvider, ByteField{}, false)
 			w.tsigTimersOnly = false
 			w.tsigRequestMAC = t.MAC
 		}

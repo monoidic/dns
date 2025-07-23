@@ -19,11 +19,11 @@ func newTsig(algo Name) *Msg {
 
 func TestTsig(t *testing.T) {
 	m := newTsig(HmacSHA256)
-	buf, _, err := TsigGenerate(m, "pRZgBrBvI4NAHZYhxmhs/Q==", "", false)
+	buf, _, err := TsigGenerate(m, check1(BFFromBase64("pRZgBrBvI4NAHZYhxmhs/Q==")), ByteField{}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = TsigVerify(buf, "pRZgBrBvI4NAHZYhxmhs/Q==", "", false)
+	err = TsigVerify(buf, check1(BFFromBase64("pRZgBrBvI4NAHZYhxmhs/Q==")), ByteField{}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,13 +31,13 @@ func TestTsig(t *testing.T) {
 	// TSIG accounts for ID substitution. This means if the message ID is
 	// changed by a forwarder, we should still be able to verify the TSIG.
 	m = newTsig(HmacSHA256)
-	buf, _, err = TsigGenerate(m, "pRZgBrBvI4NAHZYhxmhs/Q==", "", false)
+	buf, _, err = TsigGenerate(m, check1(BFFromBase64("pRZgBrBvI4NAHZYhxmhs/Q==")), ByteField{}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	binary.BigEndian.PutUint16(buf[0:2], 42)
-	err = TsigVerify(buf, "pRZgBrBvI4NAHZYhxmhs/Q==", "", false)
+	err = TsigVerify(buf, check1(BFFromBase64("pRZgBrBvI4NAHZYhxmhs/Q==")), ByteField{}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,11 +45,11 @@ func TestTsig(t *testing.T) {
 
 func TestTsigCase(t *testing.T) {
 	m := newTsig(mustParseName(strings.ToUpper(HmacSHA256.String())))
-	buf, _, err := TsigGenerate(m, "pRZgBrBvI4NAHZYhxmhs/Q==", "", false)
+	buf, _, err := TsigGenerate(m, check1(BFFromBase64("pRZgBrBvI4NAHZYhxmhs/Q==")), ByteField{}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = TsigVerify(buf, "pRZgBrBvI4NAHZYhxmhs/Q==", "", false)
+	err = TsigVerify(buf, check1(BFFromBase64("pRZgBrBvI4NAHZYhxmhs/Q==")), ByteField{}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestTsigErrorResponse(t *testing.T) {
 	for _, rcode := range []uint16{RcodeBadSig, RcodeBadKey} {
 		m := newTsig(mustParseName(strings.ToUpper(HmacSHA256.String())))
 		m.IsTsig().Error = rcode
-		buf, _, err := TsigGenerate(m, "pRZgBrBvI4NAHZYhxmhs/Q==", "", false)
+		buf, _, err := TsigGenerate(m, check1(BFFromBase64("pRZgBrBvI4NAHZYhxmhs/Q==")), ByteField{}, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -70,7 +70,7 @@ func TestTsigErrorResponse(t *testing.T) {
 		}
 
 		mTsig := m.IsTsig()
-		if mTsig.MAC != "" {
+		if mTsig.MAC.EncodedLen() != 0 {
 			t.Error("Expected empty MAC")
 		}
 		if mTsig.MACSize != 0 {
@@ -88,7 +88,7 @@ func TestTsigBadTimeResponse(t *testing.T) {
 	m.IsTsig().Error = RcodeBadTime
 	m.IsTsig().TimeSigned = clientTime
 
-	buf, _, err := TsigGenerate(m, "pRZgBrBvI4NAHZYhxmhs/Q==", "", false)
+	buf, _, err := TsigGenerate(m, check1(BFFromBase64("pRZgBrBvI4NAHZYhxmhs/Q==")), ByteField{}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,11 +99,11 @@ func TestTsigBadTimeResponse(t *testing.T) {
 	}
 
 	mTsig := m.IsTsig()
-	if mTsig.MAC == "" {
+	if mTsig.MAC.EncodedLen() == 0 {
 		t.Error("Expected non-empty MAC")
 	}
-	if int(mTsig.MACSize) != len(mTsig.MAC)/2 {
-		t.Errorf("Expected MACSize %v, got %v", len(mTsig.MAC)/2, mTsig.MACSize)
+	if int(mTsig.MACSize) != mTsig.MAC.EncodedLen() {
+		t.Errorf("Expected MACSize %v, got %v", mTsig.MAC.EncodedLen(), mTsig.MACSize)
 	}
 
 	if mTsig.TimeSigned != clientTime {
@@ -119,10 +119,11 @@ const (
 		"%012x" + // placeholder for the "time signed" field
 		"012c00208cf23e0081d915478a182edcea7ff48ad102948e6c7ef8e887536957d1fa5616c60000000000"
 	// A secret (in base64 format) with which the TSIG in wireMsg will be validated
-	testSecret = "NoTCJU+DMqFWywaPyxSijrDEA/eC3nK0xi3AMEZuPVk="
 	// the 'time signed' field value that would make the TSIG RR valid with testSecret
 	timeSigned uint64 = 1594855491
 )
+
+var testSecret = check1(BFFromBase64("NoTCJU+DMqFWywaPyxSijrDEA/eC3nK0xi3AMEZuPVk="))
 
 func TestTsigErrors(t *testing.T) {
 	// Helper shortcut to build wire-format test message.
@@ -136,23 +137,23 @@ func TestTsigErrors(t *testing.T) {
 	}
 
 	// the signature is valid but 'time signed' is too far from the "current time".
-	if err := tsigVerify(buildMsgData(timeSigned), tsigHMACProvider(testSecret), "", false, timeSigned+301); err != ErrTime {
+	if err := tsigVerify(buildMsgData(timeSigned), tsigHMACProvider(testSecret), ByteField{}, false, timeSigned+301); err != ErrTime {
 		t.Fatalf("expected an error '%v' but got '%v'", ErrTime, err)
 	}
-	if err := tsigVerify(buildMsgData(timeSigned), tsigHMACProvider(testSecret), "", false, timeSigned-301); err != ErrTime {
+	if err := tsigVerify(buildMsgData(timeSigned), tsigHMACProvider(testSecret), ByteField{}, false, timeSigned-301); err != ErrTime {
 		t.Fatalf("expected an error '%v' but got '%v'", ErrTime, err)
 	}
 
 	// the signature is invalid and 'time signed' is too far.
 	// the signature should be checked first, so we should see ErrSig.
-	if err := tsigVerify(buildMsgData(timeSigned+301), tsigHMACProvider(testSecret), "", false, timeSigned); err != ErrSig {
+	if err := tsigVerify(buildMsgData(timeSigned+301), tsigHMACProvider(testSecret), ByteField{}, false, timeSigned); err != ErrSig {
 		t.Fatalf("expected an error '%v' but got '%v'", ErrSig, err)
 	}
 
 	// tweak the algorithm name in the wire data, resulting in the "unknown algorithm" error.
 	msgData := buildMsgData(timeSigned)
 	copy(msgData[67:], "bogus")
-	if err := tsigVerify(msgData, tsigHMACProvider(testSecret), "", false, timeSigned); err != ErrKeyAlg {
+	if err := tsigVerify(msgData, tsigHMACProvider(testSecret), ByteField{}, false, timeSigned); err != ErrKeyAlg {
 		t.Fatalf("expected an error '%v' but got '%v'", ErrKeyAlg, err)
 	}
 
@@ -161,14 +162,14 @@ func TestTsigErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := tsigVerify(msgData, tsigHMACProvider(testSecret), "", false, timeSigned); err != ErrNoSig {
+	if err := tsigVerify(msgData, tsigHMACProvider(testSecret), ByteField{}, false, timeSigned); err != ErrNoSig {
 		t.Fatalf("expected an error '%v' but got '%v'", ErrNoSig, err)
 	}
 
 	// replace the test TSIG with a bogus one with large "other data", which would cause overflow in TsigVerify.
 	// The overflow should be caught without disruption.
-	tsig.OtherData = strings.Repeat("00", 4096)
-	tsig.OtherLen = uint16(len(tsig.OtherData) / 2)
+	tsig.OtherData = BFFromBytes(make([]byte, 4096))
+	tsig.OtherLen = uint16(tsig.OtherData.EncodedLen())
 	msg := new(Msg)
 	if err = msg.Unpack(msgData); err != nil {
 		t.Fatal(err)
@@ -177,9 +178,9 @@ func TestTsigErrors(t *testing.T) {
 	if msgData, err = msg.Pack(); err != nil {
 		t.Fatal(err)
 	}
-	err = tsigVerify(msgData, tsigHMACProvider(testSecret), "", false, timeSigned)
-	if err == nil || !strings.Contains(err.Error(), "overflow") {
-		t.Errorf("expected error to contain %q, but got %v", "overflow", err)
+	err = tsigVerify(msgData, tsigHMACProvider(testSecret), ByteField{}, false, timeSigned)
+	if err == nil || !strings.Contains(err.Error(), "buffer size too small") {
+		t.Errorf("expected error to contain %q, but got %v", "buffer size too small", err)
 	}
 }
 
@@ -203,15 +204,15 @@ func TestTsigGenerate(t *testing.T) {
 	}{
 		{
 			"with request MAC", "3684c225", "",
-			"c110e3f62694755c10761dc8717462431ee34340b7c9d1eee09449150757c5b1",
+			"C110E3F62694755C10761DC8717462431EE34340B7C9D1EEE09449150757C5B1",
 		},
 		{
 			"no request MAC", "", "",
-			"385449a425c6d52b9bf2c65c0726eefa0ad8084cdaf488f24547e686605b9610",
+			"385449A425C6D52B9BF2C65C0726EEFA0AD8084CDAF488F24547E686605B9610",
 		},
 		{
 			"with other data", "3684c225", "666f6f",
-			"15b91571ca80b3b410a77e2b44f8cc4f35ace22b26020138439dd94803e23b5d",
+			"15B91571CA80B3B410A77E2B44F8CC4F35ACE22B26020138439DD94803E23B5D",
 		},
 	}
 	for _, tc := range tests {
@@ -220,7 +221,7 @@ func TestTsigGenerate(t *testing.T) {
 			// Build TSIG for signing from the template
 			testTSIG := tsig
 			testTSIG.OtherLen = uint16(len(tc.otherData) / 2)
-			testTSIG.OtherData = tc.otherData
+			testTSIG.OtherData = check1(BFFromHex(tc.otherData))
 			req := &Msg{
 				MsgHdr:   MsgHdr{Opcode: OpcodeUpdate},
 				Question: []Question{{Name: mustParseName("example.com."), Qtype: TypeSOA, Qclass: ClassINET}},
@@ -228,12 +229,12 @@ func TestTsigGenerate(t *testing.T) {
 			}
 
 			// Call generate, and check the returned MAC against the expected value
-			msgData, mac, err := TsigGenerate(req, testSecret, tc.requestMAC, false)
+			msgData, mac, err := TsigGenerate(req, testSecret, check1(BFFromHex(tc.requestMAC)), false)
 			if err != nil {
 				t.Error(err)
 			}
-			if mac != tc.expectedMAC {
-				t.Fatalf("MAC doesn't match: expected '%s', but got '%s'", tc.expectedMAC, mac)
+			if mac.Hex() != tc.expectedMAC {
+				t.Fatalf("MAC doesn't match: expected '%s', but got '%s'", tc.expectedMAC, mac.Hex())
 			}
 
 			// Retrieve the TSIG to be sent out, confirm the MAC in it
@@ -241,13 +242,13 @@ func TestTsigGenerate(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			if outTSIG.MAC != tc.expectedMAC {
-				t.Fatalf("MAC doesn't match: expected '%s', but got '%s'", tc.expectedMAC, outTSIG.MAC)
+			if outTSIG.MAC.Hex() != tc.expectedMAC {
+				t.Fatalf("MAC doesn't match: expected '%s', but got '%s'", tc.expectedMAC, outTSIG.MAC.Hex())
 			}
 			// Confirm other fields of MAC.
 			// RDLENGTH should be valid as stripTsig succeeded, so we exclude it from comparison
 			outTSIG.MACSize = 0
-			outTSIG.MAC = ""
+			outTSIG.MAC = ByteField{}
 			testTSIG.Hdr.Rdlength = outTSIG.Hdr.Rdlength
 			if *outTSIG != testTSIG {
 				t.Fatalf("TSIG RR doesn't match: expected '%v', but got '%v'", *outTSIG, testTSIG)
@@ -264,11 +265,11 @@ func TestTSIGHMAC224And384(t *testing.T) {
 	}{
 		{
 			HmacSHA224, "hVEkQuAqnTmBuRrT9KF1Udr91gOMGWPw9LaTtw==",
-			"d6daf9ea189e48bc38f9aed63d6cc4140cdfa38a7a333ee2eefdbd31",
+			"D6DAF9EA189E48BC38F9AED63D6CC4140CDFA38A7A333EE2EEFDBD31",
 		},
 		{
 			HmacSHA384, "Qjer2TL2lAdpq9w6Gjs98/ClCQx/L3vtgVHCmrZ8l/oKEPjqUUMFO18gMCRwd5H4",
-			"89a48936d29187870c325cbdba5ad71609bd038d0459d6010c844d659c570e881d3650e4fe7310be53ebe5178d0d1001",
+			"89A48936D29187870C325CBDBA5AD71609BD038D0459D6010C844D659C570E881D3650E4FE7310BE53EBE5178D0D1001",
 		},
 	}
 	for _, tc := range tests {
@@ -289,14 +290,14 @@ func TestTSIGHMAC224And384(t *testing.T) {
 			}
 
 			// Confirm both Generate and Verify recognize the algorithm and handle it correctly
-			msgData, mac, err := TsigGenerate(req, tc.secret, "", false)
+			msgData, mac, err := TsigGenerate(req, check1(BFFromBase64(tc.secret)), ByteField{}, false)
 			if err != nil {
 				t.Error(err)
 			}
-			if mac != tc.expectedMAC {
-				t.Fatalf("MAC doesn't match: expected '%s' but got '%s'", tc.expectedMAC, mac)
+			if mac.Hex() != tc.expectedMAC {
+				t.Fatalf("MAC doesn't match: expected '%s' but got '%s'", tc.expectedMAC, mac.Hex())
 			}
-			if err = tsigVerify(msgData, tsigHMACProvider(tc.secret), "", false, timeSigned); err != nil {
+			if err = tsigVerify(msgData, tsigHMACProvider(check1(BFFromBase64(tc.secret))), ByteField{}, false, timeSigned); err != nil {
 				t.Error(err)
 			}
 		})
@@ -362,13 +363,13 @@ func TestTsigGenerateProvider(t *testing.T) {
 				Extra:    []RR{&tsig},
 			}
 
-			_, mac, err := TsigGenerateWithProvider(req, new(testProvider), "", false)
+			_, mac, err := TsigGenerateWithProvider(req, new(testProvider), ByteField{}, false)
 			if err != table.err {
 				t.Fatalf("error doesn't match: expected '%s' but got '%s'", table.err, err)
 			}
 			expectedMAC := hex.EncodeToString(table.mac)
-			if mac != expectedMAC {
-				t.Fatalf("MAC doesn't match: expected '%s' but got '%s'", table.mac, expectedMAC)
+			if mac.Hex() != expectedMAC {
+				t.Fatalf("MAC doesn't match: expected '%s' but got '%s'", expectedMAC, mac.Hex())
 			}
 		})
 	}
@@ -405,11 +406,11 @@ func TestTsigVerifyProvider(t *testing.T) {
 			}
 
 			provider := &testProvider{true}
-			msgData, _, err := TsigGenerateWithProvider(req, provider, "", false)
+			msgData, _, err := TsigGenerateWithProvider(req, provider, ByteField{}, false)
 			if err != nil {
 				t.Error(err)
 			}
-			if err = tsigVerify(msgData, provider, "", false, timeSigned); err != table.err {
+			if err = tsigVerify(msgData, provider, ByteField{}, false, timeSigned); err != table.err {
 				t.Fatalf("error doesn't match: expected '%s' but got '%s'", table.err, err)
 			}
 		})

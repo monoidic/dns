@@ -94,7 +94,7 @@ func (r *PrivateRR) isDuplicate(r2 RR) bool { return false }
 
 // PrivateHandle registers a private resource record type. It requires
 // string and numeric representation of private RR type and generator function as argument.
-func PrivateHandle(rtypestr string, rtype uint16, generator func() PrivateRdata) {
+func PrivateHandle(rtypestr string, rtype Type, generator func() PrivateRdata) {
 	rtypestr = strings.ToUpper(rtypestr)
 
 	TypeToRR[rtype] = func() RR { return &PrivateRR{RR_Header{}, generator(), generator} }
@@ -103,7 +103,7 @@ func PrivateHandle(rtypestr string, rtype uint16, generator func() PrivateRdata)
 }
 
 // PrivateHandleRemove removes definitions required to support private RR type.
-func PrivateHandleRemove(rtype uint16) {
+func PrivateHandleRemove(rtype Type) {
 	rtypestr, ok := TypeToString[rtype]
 	if ok {
 		delete(TypeToRR, rtype)

@@ -3,7 +3,6 @@
 package dns
 
 import (
-	"encoding/hex"
 	"net"
 	"slices"
 	"strconv"
@@ -11,7 +10,7 @@ import (
 )
 
 // TypeToRR is a map of constructors for each RR type.
-var TypeToRR = map[uint16]func() RR{
+var TypeToRR = map[Type]func() RR{
 	TypeA:          func() RR { return new(A) },
 	TypeAAAA:       func() RR { return new(AAAA) },
 	TypeAFSDB:      func() RR { return new(AFSDB) },
@@ -95,7 +94,7 @@ var TypeToRR = map[uint16]func() RR{
 }
 
 // TypeToString is a map of strings for each RR type.
-var TypeToString = map[uint16]string{
+var TypeToString = map[Type]string{
 	TypeA:          "A",
 	TypeAAAA:       "AAAA",
 	TypeAFSDB:      "AFSDB",
@@ -339,7 +338,7 @@ func (rr *CERT) len(off int, compression map[Name]struct{}) int {
 	l += 2 // Type
 	l += 2 // KeyTag
 	l++    // Algorithm
-	l += base64StringDecodedLen(rr.Certificate)
+	l += rr.Certificate.EncodedLen()
 	return l
 }
 
@@ -351,7 +350,7 @@ func (rr *CNAME) len(off int, compression map[Name]struct{}) int {
 
 func (rr *DHCID) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
-	l += base64StringDecodedLen(rr.Digest)
+	l += rr.Digest.EncodedLen()
 	return l
 }
 
@@ -366,7 +365,7 @@ func (rr *DNSKEY) len(off int, compression map[Name]struct{}) int {
 	l += 2 // Flags
 	l++    // Protocol
 	l++    // Algorithm
-	l += base64StringDecodedLen(rr.PublicKey)
+	l += rr.PublicKey.EncodedLen()
 	return l
 }
 
@@ -375,13 +374,13 @@ func (rr *DS) len(off int, compression map[Name]struct{}) int {
 	l += 2 // KeyTag
 	l++    // Algorithm
 	l++    // DigestType
-	l += len(rr.Digest) / 2
+	l += rr.Digest.EncodedLen()
 	return l
 }
 
 func (rr *EID) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
-	l += len(rr.Endpoint) / 2
+	l += rr.Endpoint.EncodedLen()
 	return l
 }
 
@@ -423,8 +422,8 @@ func (rr *HIP) len(off int, compression map[Name]struct{}) int {
 	l++    // HitLength
 	l++    // PublicKeyAlgorithm
 	l += 2 // PublicKeyLength
-	l += len(rr.Hit) / 2
-	l += base64StringDecodedLen(rr.PublicKey)
+	l += rr.Hit.EncodedLen()
+	l += rr.PublicKey.EncodedLen()
 	for _, x := range rr.RendezvousServers {
 		l += domainNameLen(x, off+l, compression, false)
 	}
@@ -444,7 +443,7 @@ func (rr *IPSECKEY) len(off int, compression map[Name]struct{}) int {
 	case IPSECGatewayHost:
 		l += domainNameLen(rr.GatewayHost, off+l, compression, false)
 	}
-	l += base64StringDecodedLen(rr.PublicKey)
+	l += rr.PublicKey.EncodedLen()
 	return l
 }
 
@@ -561,7 +560,7 @@ func (rr *NID) len(off int, compression map[Name]struct{}) int {
 
 func (rr *NIMLOC) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
-	l += len(rr.Locator) / 2
+	l += rr.Locator.EncodedLen()
 	return l
 }
 
@@ -589,13 +588,13 @@ func (rr *NSEC3PARAM) len(off int, compression map[Name]struct{}) int {
 	l++    // Flags
 	l += 2 // Iterations
 	l++    // SaltLength
-	l += len(rr.Salt) / 2
+	l += rr.Salt.EncodedLen()
 	return l
 }
 
 func (rr *NULL) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
-	l += len(rr.Data)
+	l += rr.Data.EncodedLen()
 	return l
 }
 
@@ -606,7 +605,7 @@ func (rr *NXNAME) len(off int, compression map[Name]struct{}) int {
 
 func (rr *OPENPGPKEY) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
-	l += base64StringDecodedLen(rr.PublicKey)
+	l += rr.PublicKey.EncodedLen()
 	return l
 }
 
@@ -632,7 +631,7 @@ func (rr *RESINFO) len(off int, compression map[Name]struct{}) int {
 
 func (rr *RFC3597) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
-	l += len(rr.Rdata) / 2
+	l += rr.Rdata.EncodedLen()
 	return l
 }
 
@@ -641,7 +640,7 @@ func (rr *RKEY) len(off int, compression map[Name]struct{}) int {
 	l += 2 // Flags
 	l++    // Protocol
 	l++    // Algorithm
-	l += base64StringDecodedLen(rr.PublicKey)
+	l += rr.PublicKey.EncodedLen()
 	return l
 }
 
@@ -662,7 +661,7 @@ func (rr *RRSIG) len(off int, compression map[Name]struct{}) int {
 	l += 4 // Inception
 	l += 2 // KeyTag
 	l += domainNameLen(rr.SignerName, off+l, compression, false)
-	l += base64StringDecodedLen(rr.Signature)
+	l += rr.Signature.EncodedLen()
 	return l
 }
 
@@ -678,7 +677,7 @@ func (rr *SMIMEA) len(off int, compression map[Name]struct{}) int {
 	l++ // Usage
 	l++ // Selector
 	l++ // MatchingType
-	l += len(rr.Certificate) / 2
+	l += rr.Certificate.EncodedLen()
 	return l
 }
 
@@ -713,7 +712,7 @@ func (rr *SSHFP) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l++ // Algorithm
 	l++ // Type
-	l += len(rr.FingerPrint) / 2
+	l += rr.FingerPrint.EncodedLen()
 	return l
 }
 
@@ -732,7 +731,7 @@ func (rr *TA) len(off int, compression map[Name]struct{}) int {
 	l += 2 // KeyTag
 	l++    // Algorithm
 	l++    // DigestType
-	l += len(rr.Digest) / 2
+	l += rr.Digest.EncodedLen()
 	return l
 }
 
@@ -751,9 +750,9 @@ func (rr *TKEY) len(off int, compression map[Name]struct{}) int {
 	l += 2 // Mode
 	l += 2 // Error
 	l += 2 // KeySize
-	l += len(rr.Key) / 2
+	l += rr.Key.EncodedLen()
 	l += 2 // OtherLen
-	l += len(rr.OtherData) / 2
+	l += rr.OtherData.EncodedLen()
 	return l
 }
 
@@ -762,7 +761,7 @@ func (rr *TLSA) len(off int, compression map[Name]struct{}) int {
 	l++ // Usage
 	l++ // Selector
 	l++ // MatchingType
-	l += len(rr.Certificate) / 2
+	l += rr.Certificate.EncodedLen()
 	return l
 }
 
@@ -772,11 +771,11 @@ func (rr *TSIG) len(off int, compression map[Name]struct{}) int {
 	l += 6 // TimeSigned
 	l += 2 // Fudge
 	l += 2 // MACSize
-	l += len(rr.MAC) / 2
+	l += rr.MAC.EncodedLen()
 	l += 2 // OrigId
 	l += 2 // Error
 	l += 2 // OtherLen
-	l += len(rr.OtherData) / 2
+	l += rr.OtherData.EncodedLen()
 	return l
 }
 
@@ -817,7 +816,7 @@ func (rr *ZONEMD) len(off int, compression map[Name]struct{}) int {
 	l += 4 // Serial
 	l++    // Scheme
 	l++    // Hash
-	l += len(rr.Digest) / 2
+	l += rr.Digest.EncodedLen()
 	return l
 }
 
@@ -1432,7 +1431,7 @@ func (rr *CSYNC) String() string {
 func (rr *DHCID) String() string {
 	var b strings.Builder
 	b.WriteString(rr.Hdr.String())
-	b.WriteString(rr.Digest)
+	b.WriteString(rr.Digest.Base64())
 	return b.String()
 }
 
@@ -1452,7 +1451,7 @@ func (rr *DNSKEY) String() string {
 	b.WriteByte(' ')
 	b.WriteString(strconv.FormatInt(int64(rr.Algorithm), 10))
 	b.WriteByte(' ')
-	b.WriteString(rr.PublicKey)
+	b.WriteString(rr.PublicKey.Base64())
 	return b.String()
 }
 
@@ -1465,14 +1464,14 @@ func (rr *DS) String() string {
 	b.WriteByte(' ')
 	b.WriteString(strconv.FormatInt(int64(rr.DigestType), 10))
 	b.WriteByte(' ')
-	b.WriteString(strings.ToUpper(rr.Digest))
+	b.WriteString(rr.Digest.Hex())
 	return b.String()
 }
 
 func (rr *EID) String() string {
 	var b strings.Builder
 	b.WriteString(rr.Hdr.String())
-	b.WriteString(strings.ToUpper(rr.Endpoint))
+	b.WriteString(rr.Endpoint.Hex())
 	return b.String()
 }
 
@@ -1612,7 +1611,7 @@ func (rr *MX) String() string {
 func (rr *NIMLOC) String() string {
 	var b strings.Builder
 	b.WriteString(rr.Hdr.String())
-	b.WriteString(strings.ToUpper(rr.Locator))
+	b.WriteString(rr.Locator.Hex())
 	return b.String()
 }
 
@@ -1651,7 +1650,7 @@ func (rr *NSEC) String() string {
 func (rr *NULL) String() string {
 	var b strings.Builder
 	b.WriteString(rr.Hdr.String())
-	b.WriteString(hex.EncodeToString([]byte(rr.Data)))
+	b.WriteString(rr.Data.Hex())
 	return b.String()
 }
 
@@ -1662,7 +1661,7 @@ func (rr *NXNAME) String() string {
 func (rr *OPENPGPKEY) String() string {
 	var b strings.Builder
 	b.WriteString(rr.Hdr.String())
-	b.WriteString(rr.PublicKey)
+	b.WriteString(rr.PublicKey.Base64())
 	return b.String()
 }
 
@@ -1700,7 +1699,7 @@ func (rr *RKEY) String() string {
 	b.WriteByte(' ')
 	b.WriteString(strconv.FormatInt(int64(rr.Algorithm), 10))
 	b.WriteByte(' ')
-	b.WriteString(rr.PublicKey)
+	b.WriteString(rr.PublicKey.Base64())
 	return b.String()
 }
 
@@ -1710,6 +1709,29 @@ func (rr *RP) String() string {
 	b.WriteString(rr.Mbox.String())
 	b.WriteByte(' ')
 	b.WriteString(rr.Txt.String())
+	return b.String()
+}
+
+func (rr *RRSIG) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.TypeCovered.String())
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Algorithm), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Labels), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.OrigTtl), 10))
+	b.WriteByte(' ')
+	b.WriteString(rr.Expiration.String())
+	b.WriteByte(' ')
+	b.WriteString(rr.Inception.String())
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.KeyTag), 10))
+	b.WriteByte(' ')
+	b.WriteString(rr.SignerName.String())
+	b.WriteByte(' ')
+	b.WriteString(rr.Signature.Base64())
 	return b.String()
 }
 
@@ -1768,7 +1790,7 @@ func (rr *SSHFP) String() string {
 	b.WriteByte(' ')
 	b.WriteString(strconv.FormatInt(int64(rr.Type), 10))
 	b.WriteByte(' ')
-	b.WriteString(strings.ToUpper(rr.FingerPrint))
+	b.WriteString(rr.FingerPrint.Hex())
 	return b.String()
 }
 
@@ -1797,7 +1819,7 @@ func (rr *TA) String() string {
 	b.WriteByte(' ')
 	b.WriteString(strconv.FormatInt(int64(rr.DigestType), 10))
 	b.WriteByte(' ')
-	b.WriteString(strings.ToUpper(rr.Digest))
+	b.WriteString(rr.Digest.Hex())
 	return b.String()
 }
 
@@ -1819,7 +1841,7 @@ func (rr *TLSA) String() string {
 	b.WriteByte(' ')
 	b.WriteString(strconv.FormatInt(int64(rr.MatchingType), 10))
 	b.WriteByte(' ')
-	b.WriteString(strings.ToUpper(rr.Certificate))
+	b.WriteString(rr.Certificate.Hex())
 	return b.String()
 }
 
@@ -1871,6 +1893,6 @@ func (rr *ZONEMD) String() string {
 	b.WriteByte(' ')
 	b.WriteString(strconv.FormatInt(int64(rr.Hash), 10))
 	b.WriteByte(' ')
-	b.WriteString(strings.ToUpper(rr.Digest))
+	b.WriteString(rr.Digest.Hex())
 	return b.String()
 }

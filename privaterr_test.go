@@ -7,7 +7,10 @@ import (
 	"github.com/monoidic/dns"
 )
 
-const TypeISBN uint16 = 0xFF00
+const (
+	TypeISBN    dns.Type = 0xFF00
+	TypeVERSION dns.Type = 0xFF01
+)
 
 // A crazy new RR type :)
 type ISBN struct {
@@ -97,8 +100,6 @@ func TestPrivateByteSlice(t *testing.T) {
 	}
 }
 
-const TypeVERSION uint16 = 0xFF01
-
 type VERSION struct {
 	x string
 }
@@ -135,7 +136,7 @@ func (rd *VERSION) Copy(dest dns.PrivateRdata) error {
 }
 
 func (rd *VERSION) Len() int {
-	return len([]byte(rd.x))
+	return len(rd.x)
 }
 
 var smallzone = `$ORIGIN example.org.

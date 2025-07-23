@@ -95,7 +95,7 @@ func TestCrashNSEC(t *testing.T) {
 			Rdlength: 0xb,
 		},
 		NextDomain: root,
-		TypeBitMap: []uint16{
+		TypeBitMap: []Type{
 			0x2302, 0x2303, 0x230a, 0x230b,
 			0x2312, 0x2313, 0x231a, 0x231b,
 			0x2322, 0x2323,
@@ -132,10 +132,10 @@ func TestCrashNSEC3(t *testing.T) {
 		Flags:      0x30,
 		Iterations: 0x3030,
 		SaltLength: 0x0,
-		Salt:       "",
+		Salt:       ByteField{},
 		HashLength: 0x0,
-		NextDomain: "",
-		TypeBitMap: []uint16{
+		NextDomain: ByteField{},
+		TypeBitMap: []Type{
 			0x2302, 0x2303, 0x230a, 0x230b,
 		},
 	}

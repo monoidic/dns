@@ -1320,7 +1320,7 @@ func TestServerReuseaddr(t *testing.T) {
 }
 
 func TestServerRoundtripTsig(t *testing.T) {
-	secret := map[string]string{"test.": "so6ZGir4GPAqINNh9U5c3A=="}
+	secret := map[string]ByteField{"test.": check1(BFFromBase64("so6ZGir4GPAqINNh9U5c3A=="))}
 
 	s, addrstr, _, err := RunLocalUDPServer(":0", func(srv *Server) {
 		srv.TsigSecret = secret

@@ -5,7 +5,6 @@ import (
 	"encoding/base32"
 	"encoding/base64"
 	"encoding/binary"
-	"encoding/hex"
 	"net"
 	"net/netip"
 	"slices"
@@ -80,8 +79,8 @@ func unpackHeader(msg []byte, off int) (rr RR_Header, off1 int, truncmsg []byte,
 		return hdr, len(msg), msg, ErrBuf
 	}
 
-	hdr.Rrtype = binary.BigEndian.Uint16(msg[off+0:])
-	hdr.Class = binary.BigEndian.Uint16(msg[off+2:])
+	hdr.Rrtype = Type(binary.BigEndian.Uint16(msg[off+0:]))
+	hdr.Class = Class(binary.BigEndian.Uint16(msg[off+2:]))
 	hdr.Ttl = binary.BigEndian.Uint32(msg[off+4:])
 	hdr.Rdlength = binary.BigEndian.Uint16(msg[off+8:])
 	off += 10
@@ -101,8 +100,8 @@ func (hdr RR_Header) packHeader(msg []byte, off int, compression compressionMap,
 	if len(msg[off:]) < 10 {
 		return len(msg), ErrBuf
 	}
-	binary.BigEndian.PutUint16(msg[off+0:], hdr.Rrtype)
-	binary.BigEndian.PutUint16(msg[off+2:], hdr.Class)
+	binary.BigEndian.PutUint16(msg[off+0:], uint16(hdr.Rrtype))
+	binary.BigEndian.PutUint16(msg[off+2:], uint16(hdr.Class))
 	binary.BigEndian.PutUint32(msg[off+4:], hdr.Ttl)
 	binary.BigEndian.PutUint16(msg[off+8:], 0) // The RDLENGTH field will be set later in packRR.
 	off += 10
@@ -123,23 +122,6 @@ func truncateMsgFromRdlength(msg []byte, off int, rdlength uint16) (truncmsg []b
 
 var base32HexNoPadEncoding = base32.HexEncoding.WithPadding(base32.NoPadding)
 
-func fromBase32(s []byte) (buf []byte, err error) {
-	for i, b := range s {
-		if b >= 'a' && b <= 'z' {
-			s[i] = b - ('a' - 'A')
-		}
-	}
-	buflen := base32HexNoPadEncoding.DecodedLen(len(s))
-	buf = make([]byte, buflen)
-	n, err := base32HexNoPadEncoding.Decode(buf, s)
-	buf = buf[:n]
-	return
-}
-
-func toBase32(b []byte) string {
-	return base32HexNoPadEncoding.EncodeToString(b)
-}
-
 func fromBase64(s []byte) (buf []byte, err error) {
 	buflen := base64.StdEncoding.DecodedLen(len(s))
 	buf = make([]byte, buflen)
@@ -149,16 +131,6 @@ func fromBase64(s []byte) (buf []byte, err error) {
 }
 
 func toBase64(b []byte) string { return base64.StdEncoding.EncodeToString(b) }
-
-// base64StringDecodedLen returns the exact length in bytes of the decoded data
-// represented by the base64 string s.
-func base64StringDecodedLen(s string) int {
-	n := len(s)
-	for n > 0 && s[n-1] == '=' {
-		n--
-	}
-	return base64.RawStdEncoding.DecodedLen(n)
-}
 
 // dynamicUpdate returns true if the Rdlength is zero.
 func noRdata(h RR_Header) bool { return h.Rdlength == 0 }
@@ -185,6 +157,11 @@ func unpackUint16(msg []byte, off int) (i uint16, off1 int, err error) {
 	return binary.BigEndian.Uint16(msg[off:]), off + 2, nil
 }
 
+func unpackType(msg []byte, off int) (i Type, off1 int, err error) {
+	ii, off1, err := unpackUint16(msg, off)
+	return Type(ii), off1, err
+}
+
 func packUint16(i uint16, msg []byte, off int) (off1 int, err error) {
 	if len(msg[off:]) < 2 {
 		return len(msg), &Error{err: "overflow packing uint16"}
@@ -198,6 +175,11 @@ func unpackUint32(msg []byte, off int) (i uint32, off1 int, err error) {
 		return 0, len(msg), &Error{err: "overflow unpacking uint32"}
 	}
 	return binary.BigEndian.Uint32(msg[off:]), off + 4, nil
+}
+
+func unpackTime(msg []byte, off int) (i Time, off1 int, err error) {
+	ii, off1, err := unpackUint32(msg, off)
+	return Time(ii), off1, err
 }
 
 func packUint32(i uint32, msg []byte, off int) (off1 int, err error) {
@@ -262,89 +244,22 @@ func unpackString(msg []byte, off int) (TxtString, int, error) {
 
 }
 
-func unpackStringBase32(msg []byte, off, end int) (string, int, error) {
-	if end > len(msg) {
-		return "", len(msg), &Error{err: "overflow unpacking base32"}
+func packByteField(bf ByteField, msg []byte, off int) (int, error) {
+	if len(msg[off:]) < bf.EncodedLen() {
+		return len(msg), ErrBuf
 	}
-	s := toBase32(msg[off:end])
-	return s, end, nil
-}
 
-func packStringBase32(s string, msg []byte, off int) (int, error) {
-	b32, err := fromBase32([]byte(s))
-	if err != nil {
-		return len(msg), err
-	}
-	if off+len(b32) > len(msg) {
-		return len(msg), &Error{err: "overflow packing base32"}
-	}
-	copy(msg[off:off+len(b32)], b32)
-	off += len(b32)
+	off += copy(msg[off:], bf.Raw())
 	return off, nil
 }
 
-func unpackStringBase64(msg []byte, off, end int) (string, int, error) {
-	// Rest of the RR is base64 encoded value, so we don't need an explicit length
-	// to be set. Thus far all RR's that have base64 encoded fields have those as their
-	// last one. What we do need is the end of the RR!
-	if end > len(msg) {
-		return "", len(msg), &Error{err: "overflow unpacking base64"}
+func unpackByteField(msg []byte, off, end int) (ByteField, int, error) {
+	var ret ByteField
+	if len(msg) < end || len(msg) < off {
+		return ret, len(msg), ErrBuf
 	}
-	s := toBase64(msg[off:end])
-	return s, end, nil
-}
-
-func packStringBase64(s string, msg []byte, off int) (int, error) {
-	b64, err := fromBase64([]byte(s))
-	if err != nil {
-		return len(msg), err
-	}
-	if off+len(b64) > len(msg) {
-		return len(msg), &Error{err: "overflow packing base64"}
-	}
-	copy(msg[off:off+len(b64)], b64)
-	off += len(b64)
-	return off, nil
-}
-
-func unpackStringHex(msg []byte, off, end int) (string, int, error) {
-	// Rest of the RR is hex encoded value, so we don't need an explicit length
-	// to be set. NSEC and TSIG have hex fields with a length field.
-	// What we do need is the end of the RR!
-	if end > len(msg) {
-		return "", len(msg), &Error{err: "overflow unpacking hex"}
-	}
-
-	s := hex.EncodeToString(msg[off:end])
-	return s, end, nil
-}
-
-func packStringHex(s string, msg []byte, off int) (int, error) {
-	h, err := hex.DecodeString(s)
-	if err != nil {
-		return len(msg), err
-	}
-	if off+len(h) > len(msg) {
-		return len(msg), &Error{err: "overflow packing hex"}
-	}
-	copy(msg[off:off+len(h)], h)
-	off += len(h)
-	return off, nil
-}
-
-func unpackStringAny(msg []byte, off, end int) (string, int, error) {
-	if end > len(msg) {
-		return "", len(msg), &Error{err: "overflow unpacking anything"}
-	}
-	return string(msg[off:end]), end, nil
-}
-
-func packStringAny(s string, msg []byte, off int) (int, error) {
-	if off+len(s) > len(msg) {
-		return len(msg), &Error{err: "overflow packing anything"}
-	}
-	off += copy(msg[off:off+len(s)], s)
-	return off, nil
+	ret = BFFromBytes(msg[off:end])
+	return ret, end, nil
 }
 
 func unpackDataOpt(msg []byte, off int) ([]EDNS0, int, error) {
@@ -406,8 +321,8 @@ func unpackStringOctet(msg []byte, off int) (string, int, error) {
 	return s, len(msg), nil
 }
 
-func unpackDataNsec(msg []byte, off int) ([]uint16, int, error) {
-	var nsec []uint16
+func unpackDataNsec(msg []byte, off int) ([]Type, int, error) {
+	var nsec []Type
 	length, window, lastwindow := 0, 0, -1
 	for off < len(msg) {
 		if off+2 > len(msg) {
@@ -436,28 +351,28 @@ func unpackDataNsec(msg []byte, off int) ([]uint16, int, error) {
 		for j, b := range msg[off : off+length] {
 			// Check the bits one by one, and set the type
 			if b&0x80 == 0x80 {
-				nsec = append(nsec, uint16(window*256+j*8+0))
+				nsec = append(nsec, Type(window*256+j*8+0))
 			}
 			if b&0x40 == 0x40 {
-				nsec = append(nsec, uint16(window*256+j*8+1))
+				nsec = append(nsec, Type(window*256+j*8+1))
 			}
 			if b&0x20 == 0x20 {
-				nsec = append(nsec, uint16(window*256+j*8+2))
+				nsec = append(nsec, Type(window*256+j*8+2))
 			}
 			if b&0x10 == 0x10 {
-				nsec = append(nsec, uint16(window*256+j*8+3))
+				nsec = append(nsec, Type(window*256+j*8+3))
 			}
 			if b&0x8 == 0x8 {
-				nsec = append(nsec, uint16(window*256+j*8+4))
+				nsec = append(nsec, Type(window*256+j*8+4))
 			}
 			if b&0x4 == 0x4 {
-				nsec = append(nsec, uint16(window*256+j*8+5))
+				nsec = append(nsec, Type(window*256+j*8+5))
 			}
 			if b&0x2 == 0x2 {
-				nsec = append(nsec, uint16(window*256+j*8+6))
+				nsec = append(nsec, Type(window*256+j*8+6))
 			}
 			if b&0x1 == 0x1 {
-				nsec = append(nsec, uint16(window*256+j*8+7))
+				nsec = append(nsec, Type(window*256+j*8+7))
 			}
 		}
 		off += length
@@ -468,12 +383,12 @@ func unpackDataNsec(msg []byte, off int) ([]uint16, int, error) {
 
 // typeBitMapLen is a helper function which computes the "maximum" length of
 // a the NSEC Type BitMap field.
-func typeBitMapLen(bitmap []uint16) int {
+func typeBitMapLen(bitmap []Type) int {
 	if len(bitmap) == 0 {
 		return 0
 	}
 	var l int
-	var lastwindow, lastlength uint16
+	var lastwindow, lastlength Type
 	for _, t := range bitmap {
 		window := t / 256
 		length := (t-window*256)/8 + 1
@@ -492,7 +407,7 @@ func typeBitMapLen(bitmap []uint16) int {
 	return l
 }
 
-func packDataNsec(bitmap []uint16, msg []byte, off int) (int, error) {
+func packDataNsec(bitmap []Type, msg []byte, off int) (int, error) {
 	if len(bitmap) == 0 {
 		return off, nil
 	}
@@ -506,7 +421,7 @@ func packDataNsec(bitmap []uint16, msg []byte, off int) (int, error) {
 	for i := range toZero {
 		toZero[i] = 0
 	}
-	var lastwindow, lastlength uint16
+	var lastwindow, lastlength Type
 	for _, t := range bitmap {
 		window := t / 256
 		length := (t-window*256)/8 + 1

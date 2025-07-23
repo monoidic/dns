@@ -32,13 +32,11 @@ var skipString = map[string]struct{}{
 	"AMTRELAY":   {}, // TODO(monoidic)
 	"IPSECKEY":   {}, // TODO(monoidic)
 	"CERT":       {},
-	"HINFO":      {}, // TODO(monoidic)
 	"L64":        {},
 	"NID":        {},
 	"TKEY":       {},
 	"TSIG":       {},
 	"HIP":        {},
-	"ISDN":       {}, // TODO(monoidic)
 	"LOC":        {},
 	"NAPTR":      {},
 	"NSEC3":      {}, // TODO(monoidic)
@@ -46,7 +44,6 @@ var skipString = map[string]struct{}{
 	"RFC3597":    {}, // TODO(monoidic)
 	"RRSIG":      {}, // TODO(monoidic)
 	"SMIMEA":     {},
-	"UINFO":      {}, // TODO(monoidic)
 }
 
 var packageHdr = `
@@ -205,8 +202,6 @@ func main() {
 					o("for _, x := range rr.%s { l += domainNameLen(x, off+l, compression, true) }\n")
 				case `dns:"domain-name"`:
 					o("for _, x := range rr.%s { l += domainNameLen(x, off+l, compression, false) }\n")
-				case `dns:"txt"`:
-					o("for _, x := range rr.%s { l += escapedNameLen(x) + 1 }\n")
 				case `dns:"apl"`:
 					o("for _, x := range rr.%s { l += x.len() }\n")
 				case `dns:"pairs"`:
@@ -244,8 +239,6 @@ func main() {
 				o("if rr.%s.IsValid() { l += net.IPv4len }\n")
 			case `dns:"aaaa"`:
 				o("if rr.%s.IsValid() { l += net.IPv6len }\n")
-			case `dns:"txt"`:
-				o("for _, t := range rr.%s { l += len(t) + 1 }\n")
 			case `dns:"uint48"`, `dns:"eui48"`:
 				o("l += 6 // %s\n")
 			case `dns:"ipsechost"`:
@@ -268,7 +261,9 @@ func main() {
 					l += domainNameLen(rr.%s, off+l, compression, false)
 				}
 				`)
-			case `dns:"eui64"`, `dns:"amtrelaytype"`:
+			case `dns:"lenoctet"`:
+				o("l += escapedNameLen(rr.%s) + 1\n")
+			case `dns:"eui64"`, `dns:"amtrelaytype"`, `dns:"baretxt"`:
 				fallthrough
 			case "":
 				switch ft := st.Field(i).Type().(type) {
@@ -282,8 +277,6 @@ func main() {
 						o("l += 4 // %s\n")
 					case types.Uint64:
 						o("l += 8 // %s\n")
-					case types.String:
-						o("l += escapedNameLen(rr.%s) + 1\n")
 					default:
 						log.Panicln(name, st.Field(i).Name())
 					}
@@ -291,6 +284,8 @@ func main() {
 					switch ft.Obj().Name() {
 					case "Name":
 						o("l += domainNameLen(rr.%s, off+l, compression, false)\n")
+					case "TxtString", "TxtStrings":
+						o("l += rr.%s.EncodedLen()\n")
 					default:
 						log.Panicln(name, st.Field(i).Name())
 					}
@@ -394,8 +389,6 @@ func main() {
 				o("b.WriteString(hex.EncodeToString([]byte(rr.%s)))\n")
 			case `dns:"octet"`:
 				o("b.WriteString(sprintTxtOctet(rr.%s))\n")
-			case `dns:"txt"`:
-				o("b.WriteString(sprintTxt(rr.%s))\n")
 			case `dns:"nsec"`:
 				o(`	for _, t := range rr.%s {
 	b.WriteByte(' ')
@@ -408,6 +401,8 @@ func main() {
 				o("b.WriteString(euiToString(rr.%s, 64))\n")
 			case `dns:"hex"`:
 				o("b.WriteString(strings.ToUpper(rr.%s))\n")
+			case `dns:"base64"`:
+				o("b.WriteString(rr.%s)\n")
 			case `dns:"pairs"`:
 				o(`for _, e := range rr.%s {
 	b.WriteByte(' ')
@@ -425,6 +420,8 @@ func main() {
 	b.WriteString(p.str())
 }
 `)
+			case `dns:"baretxt"`:
+				o("b.WriteString(rr.%s.BareString())\n")
 			default:
 				foundTag = false
 			}
@@ -439,8 +436,6 @@ func main() {
 				switch ft.Kind() {
 				case types.Uint16, types.Uint8, types.Uint32:
 					o("b.WriteString(strconv.FormatInt(int64(rr.%s), 10))\n")
-				case types.String:
-					o("b.WriteString(rr.%s)\n")
 				default:
 					foundTag = false
 				}
@@ -463,10 +458,10 @@ func main() {
 				continue
 			}
 
-			switch s := st.Field(i).Type().String(); s {
+			switch s := st.Field(i).Type().(*types.Named).Obj().Name(); s {
 			case "net/netip.Addr":
 				o2("if rr.%s.IsValid() {b.WriteString(rr.%s.String())}\n")
-			case "github.com/monoidic/dns.Name":
+			case "Name", "TxtString", "TxtStrings":
 				o("b.WriteString(rr.%s.String())\n")
 			default:
 				log.Panicln(st, field, s)

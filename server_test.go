@@ -23,7 +23,7 @@ func HelloServer(w ResponseWriter, req *Msg) {
 	m.SetReply(req)
 
 	m.Extra = make([]RR, 1)
-	m.Extra[0] = &TXT{Hdr: RR_Header{Name: m.Question[0].Name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"Hello world"}}
+	m.Extra[0] = &TXT{Hdr: RR_Header{Name: m.Question[0].Name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: mustParseTxts("Hello world")}
 	w.WriteMsg(m)
 }
 
@@ -33,7 +33,7 @@ func HelloServerBadID(w ResponseWriter, req *Msg) {
 	m.Id++
 
 	m.Extra = make([]RR, 1)
-	m.Extra[0] = &TXT{Hdr: RR_Header{Name: m.Question[0].Name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"Hello world"}}
+	m.Extra[0] = &TXT{Hdr: RR_Header{Name: m.Question[0].Name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: mustParseTxts("Hello world")}
 	w.WriteMsg(m)
 }
 
@@ -43,7 +43,7 @@ func HelloServerBadThenGoodID(w ResponseWriter, req *Msg) {
 	m.Id++
 
 	m.Extra = make([]RR, 1)
-	m.Extra[0] = &TXT{Hdr: RR_Header{Name: m.Question[0].Name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"Hello world"}}
+	m.Extra[0] = &TXT{Hdr: RR_Header{Name: m.Question[0].Name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: mustParseTxts("Hello world")}
 	w.WriteMsg(m)
 
 	m.Id--
@@ -56,7 +56,7 @@ func HelloServerEchoAddrPort(w ResponseWriter, req *Msg) {
 
 	remoteAddr := w.RemoteAddr().String()
 	m.Extra = make([]RR, 1)
-	m.Extra[0] = &TXT{Hdr: RR_Header{Name: m.Question[0].Name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{remoteAddr}}
+	m.Extra[0] = &TXT{Hdr: RR_Header{Name: m.Question[0].Name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: mustParseTxts(remoteAddr)}
 	w.WriteMsg(m)
 }
 
@@ -65,7 +65,7 @@ func AnotherHelloServer(w ResponseWriter, req *Msg) {
 	m.SetReply(req)
 
 	m.Extra = make([]RR, 1)
-	m.Extra[0] = &TXT{Hdr: RR_Header{Name: m.Question[0].Name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"Hello example"}}
+	m.Extra[0] = &TXT{Hdr: RR_Header{Name: m.Question[0].Name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: mustParseTxts("Hello example")}
 	w.WriteMsg(m)
 }
 
@@ -207,7 +207,7 @@ func TestServing(t *testing.T) {
 			if err != nil || len(r.Extra) == 0 {
 				t.Fatal("failed to exchange miek.nl", err)
 			}
-			txt := r.Extra[0].(*TXT).Txt[0]
+			txt := r.Extra[0].(*TXT).Txt.SplitStr()[0]
 			if txt != "Hello world" {
 				t.Error("unexpected result for miek.nl", txt, "!= Hello world")
 			}
@@ -217,7 +217,7 @@ func TestServing(t *testing.T) {
 			if err != nil {
 				t.Fatal("failed to exchange example.com", err)
 			}
-			txt = r.Extra[0].(*TXT).Txt[0]
+			txt = r.Extra[0].(*TXT).Txt.SplitStr()[0]
 			if txt != "Hello example" {
 				t.Error("unexpected result for example.com", txt, "!= Hello example")
 			}
@@ -232,10 +232,10 @@ func TestServing(t *testing.T) {
 				t.Fatalf("no txt record in %s", r)
 			}
 			txtRR := r.Extra[0].(*TXT)
-			if len(txtRR.Txt) == 0 {
+			if len(txtRR.Txt.Split()) == 0 {
 				t.Fatalf("no txt data in %s", txtRR)
 			}
-			txt = txtRR.Txt[0]
+			txt = txtRR.Txt.SplitStr()[0]
 			if txt != "Hello example" {
 				t.Error("unexpected result for example.com", txt, "!= Hello example")
 			}
@@ -333,7 +333,7 @@ func TestServingTLS(t *testing.T) {
 	if err != nil || len(r.Extra) == 0 {
 		t.Fatal("failed to exchange miek.nl", err)
 	}
-	txt := r.Extra[0].(*TXT).Txt[0]
+	txt := r.Extra[0].(*TXT).Txt.SplitStr()[0]
 	if txt != "Hello world" {
 		t.Error("unexpected result for miek.nl", txt, "!= Hello world")
 	}
@@ -343,7 +343,7 @@ func TestServingTLS(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed to exchange example.com", err)
 	}
-	txt = r.Extra[0].(*TXT).Txt[0]
+	txt = r.Extra[0].(*TXT).Txt.SplitStr()[0]
 	if txt != "Hello example" {
 		t.Error("unexpected result for example.com", txt, "!= Hello example")
 	}
@@ -358,10 +358,10 @@ func TestServingTLS(t *testing.T) {
 		t.Fatalf("no txt in %s", r)
 	}
 	txtRR := r.Extra[0].(*TXT)
-	if len(txtRR.Txt) == 0 {
+	if len(txtRR.Txt.Split()) == 0 {
 		t.Fatalf("no data in txt RR %s", txtRR)
 	}
-	txt = txtRR.Txt[0]
+	txt = txtRR.Txt.SplitStr()[0]
 	if txt != "Hello example" {
 		t.Error("unexpected result for example.com", txt, "!= Hello example")
 	}
@@ -388,7 +388,7 @@ func TestServingTLSConnectionState(t *testing.T) {
 				t.Errorf("TLS connection state available: %t, expected: %t", tlsFound, tlsExpected)
 			}
 			m.Extra = make([]RR, 1)
-			m.Extra[0] = &TXT{Hdr: RR_Header{Name: m.Question[0].Name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{handlerResponse}}
+			m.Extra[0] = &TXT{Hdr: RR_Header{Name: m.Question[0].Name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: mustParseTxts(handlerResponse)}
 			w.WriteMsg(m)
 		}
 	}
@@ -479,7 +479,7 @@ func TestServingListenAndServe(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed to exchange example.com", err)
 	}
-	txt := r.Extra[0].(*TXT).Txt[0]
+	txt := r.Extra[0].(*TXT).Txt.SplitStr()[0]
 	if txt != "Hello example" {
 		t.Error("unexpected result for example.com", txt, "!= Hello example")
 	}
@@ -516,7 +516,7 @@ func TestServingListenAndServeTLS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	txt := r.Extra[0].(*TXT).Txt[0]
+	txt := r.Extra[0].(*TXT).Txt.SplitStr()[0]
 	if txt != "Hello example" {
 		t.Error("unexpected result for example.com", txt, "!= Hello example")
 	}
@@ -581,7 +581,7 @@ func HelloServerCompress(w ResponseWriter, req *Msg) {
 	m := new(Msg)
 	m.SetReply(req)
 	m.Extra = make([]RR, 1)
-	m.Extra[0] = &TXT{Hdr: RR_Header{Name: m.Question[0].Name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"Hello world"}}
+	m.Extra[0] = &TXT{Hdr: RR_Header{Name: m.Question[0].Name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: mustParseTxts("Hello world")}
 	m.Compress = true
 	w.WriteMsg(m)
 }
@@ -752,7 +752,7 @@ func checkInProgressQueriesAtShutdownServer(t *testing.T, srv *Server, addr stri
 		m := new(Msg)
 		m.SetReply(req)
 		m.Extra = make([]RR, 1)
-		m.Extra[0] = &TXT{Hdr: RR_Header{Name: m.Question[0].Name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"Hello world"}}
+		m.Extra[0] = &TXT{Hdr: RR_Header{Name: m.Question[0].Name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: mustParseTxts("Hello world")}
 
 		if err := w.WriteMsg(m); err != nil {
 			errOnce.Do(func() {

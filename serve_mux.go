@@ -36,7 +36,7 @@ func (mux *ServeMux) match(q Name, t uint16) Handler {
 	}
 
 	var handler Handler
-	for _, name := range q.Canonical().SubNames() {
+	for name := range q.Canonical().SubNamesIt {
 		if h, ok := mux.z[name]; ok {
 			if t != TypeDS {
 				return h

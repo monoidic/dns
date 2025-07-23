@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -347,12 +348,8 @@ type CNAME struct {
 // HINFO RR. See RFC 1034.
 type HINFO struct {
 	Hdr RR_Header
-	Cpu string
-	Os  string
-}
-
-func (rr *HINFO) String() string {
-	return rr.Hdr.String() + sprintTxt([]string{rr.Cpu, rr.Os})
+	Cpu TxtString
+	Os  TxtString
 }
 
 // MB RR. See RFC 1035.
@@ -409,18 +406,14 @@ type AFSDB struct {
 // X25 RR. See RFC 1183, Section 3.1.
 type X25 struct {
 	Hdr         RR_Header
-	PSDNAddress string
+	PSDNAddress TxtString `dns:"baretxt"`
 }
 
 // ISDN RR. See RFC 1183, Section 3.2.
 type ISDN struct {
 	Hdr        RR_Header
-	Address    string
-	SubAddress string
-}
-
-func (rr *ISDN) String() string {
-	return rr.Hdr.String() + sprintTxt([]string{rr.Address, rr.SubAddress})
+	Address    TxtString
+	SubAddress TxtString
 }
 
 // RT RR. See RFC 1183, Section 3.3.
@@ -464,7 +457,7 @@ type SOA struct {
 // TXT RR. See RFC 1035.
 type TXT struct {
 	Hdr RR_Header
-	Txt []string `dns:"txt"`
+	Txt TxtStrings
 }
 
 func sprintName(s string) string {
@@ -557,10 +550,6 @@ func sprintTxt(txt []string) string {
 	return out.String()
 }
 
-func singleSprintTxt(txt string) string {
-	return sprintTxt([]string{txt})
-}
-
 func writeTXTStringByte(s *strings.Builder, b byte) {
 	if b < ' ' || b > '~' {
 		s.WriteString(escapeByte(b))
@@ -634,13 +623,13 @@ func nextByte(s string, offset int) (byte, int) {
 // SPF RR. See RFC 4408, Section 3.1.1.
 type SPF struct {
 	Hdr RR_Header
-	Txt []string `dns:"txt"`
+	Txt TxtStrings
 }
 
 // AVC RR. See https://www.iana.org/assignments/dns-parameters/AVC/avc-completed-template.
 type AVC struct {
 	Hdr RR_Header
-	Txt []string `dns:"txt"`
+	Txt TxtStrings
 }
 
 // SRV RR. See RFC 2782.
@@ -657,9 +646,9 @@ type NAPTR struct {
 	Hdr         RR_Header
 	Order       uint16
 	Preference  uint16
-	Flags       string
-	Service     string
-	Regexp      string
+	Flags       TxtString
+	Service     TxtString
+	Regexp      string `dns:"lenoctet"`
 	Replacement Name
 }
 
@@ -667,8 +656,7 @@ func (rr *NAPTR) String() string {
 	return rr.Hdr.String() +
 		strconv.Itoa(int(rr.Order)) + " " +
 		strconv.Itoa(int(rr.Preference)) + " " +
-		"\"" + rr.Flags + "\" " +
-		"\"" + rr.Service + "\" " +
+		TxtStringsFromArr([]TxtString{rr.Flags, rr.Service}).String() + " " +
 		"\"" + rr.Regexp + "\" " +
 		rr.Replacement.String()
 }
@@ -728,9 +716,9 @@ type PX struct {
 // GPOS RR. See RFC 1712.
 type GPOS struct {
 	Hdr       RR_Header
-	Longitude string
-	Latitude  string
-	Altitude  string
+	Longitude TxtString `dns:"baretxt"`
+	Latitude  TxtString `dns:"baretxt"`
+	Altitude  TxtString `dns:"baretxt"`
 }
 
 // LOC RR. See RFC 1876.
@@ -1183,7 +1171,7 @@ func (rr *HIP) String() string {
 // NINFO RR. See https://www.iana.org/assignments/dns-parameters/NINFO/ninfo-completed-template.
 type NINFO struct {
 	Hdr    RR_Header
-	ZSData []string `dns:"txt"`
+	ZSData TxtStrings
 }
 
 // NID RR. See RFC 6742.
@@ -1244,8 +1232,8 @@ type EUI64 struct {
 type CAA struct {
 	Hdr   RR_Header
 	Flag  uint8
-	Tag   string
-	Value string `dns:"octet"`
+	Tag   TxtString `dns:"baretxt"`
+	Value string    `dns:"octet"`
 }
 
 // UID RR. Deprecated, IANA-Reserved.
@@ -1263,10 +1251,8 @@ type GID struct {
 // UINFO RR. Deprecated, IANA-Reserved.
 type UINFO struct {
 	Hdr   RR_Header
-	Uinfo string
+	Uinfo TxtString
 }
-
-func (rr *UINFO) String() string { return rr.Hdr.String() + sprintTxt([]string{rr.Uinfo}) }
 
 // EID RR. See http://ana-3.lcs.mit.edu/~jnc/nimrod/dns.txt.
 type EID struct {
@@ -1313,7 +1299,7 @@ type ZONEMD struct {
 // RESINFO RR. See RFC 9606.
 type RESINFO struct {
 	Hdr RR_Header
-	Txt []string `dns:"txt"`
+	Txt TxtStrings
 }
 
 // APL RR. See RFC 3123.
@@ -1590,16 +1576,19 @@ func (n Name) Concat(names ...Name) (Name, error) {
 }
 
 func (n Name) SubNames() []Name {
-	var ret []Name
+	return slices.Collect(n.SubNamesIt)
+}
 
+func (n Name) SubNamesIt(yield func(Name) bool) {
 	var off int
 	for off < len(n.encoded)-1 {
-		ret = append(ret, Name{encoded: n.encoded[off:]})
+		name := Name{encoded: n.encoded[off:]}
+		if !yield(name) {
+			return
+		}
 		labelLen := int(n.encoded[off])
 		off += labelLen + 1
 	}
-
-	return ret
 }
 
 func mustParseName(s string) Name {
@@ -1627,6 +1616,7 @@ func escapeLabel(s []byte) string {
 }
 
 type TxtString struct {
+	// single encoded txt string, without length prefix (added separately)
 	encoded string
 }
 
@@ -1691,6 +1681,23 @@ func TxtFromString(s string) (TxtString, error) {
 	return ret, err
 }
 
+func mustParseTxt(s string) TxtString {
+	ret, err := TxtFromString(s)
+	if err != nil {
+		panic(err)
+	}
+	return ret
+}
+
+func mustParseTxts(arr ...string) TxtStrings {
+	txts := make([]TxtString, len(arr))
+	for i, v := range arr {
+		txts[i] = mustParseTxt(v)
+	}
+
+	return TxtStringsFromArr(txts)
+}
+
 func TxtFromBytes(b []byte) (TxtString, error) {
 	var ret TxtString
 	if len(b) > 255 {
@@ -1711,6 +1718,85 @@ func (t TxtString) ToWire() []byte {
 	return ret
 }
 
-func (t TxtString) String() string {
+func (t TxtString) BareString() string {
 	return deserializeTxt([]byte(t.encoded))
+}
+
+func (t TxtString) String() string {
+	var b strings.Builder
+	b.WriteByte('"')
+	b.WriteString(t.BareString())
+	b.WriteByte('"')
+	return b.String()
+}
+
+type TxtStrings struct {
+	// length prefix encoded TxtStrings
+	encoded string
+}
+
+func TxtStringsFromArr(arr []TxtString) TxtStrings {
+	buflen := len(arr)
+	for _, e := range arr {
+		buflen += len(e.encoded)
+	}
+
+	buf := make([]byte, buflen)
+
+	var off int
+	for _, e := range arr {
+		buf[off] = byte(len(e.encoded))
+		off++
+		off += copy(buf[off:], []byte(e.encoded))
+	}
+
+	return TxtStrings{encoded: string(buf)}
+}
+
+func (t TxtStrings) EncodedLen() int {
+	return len(t.encoded)
+}
+
+func (t TxtStrings) Split() []TxtString {
+	return slices.Collect((t.SplitIt))
+}
+
+func (t TxtStrings) SplitStr() []string {
+	return slices.Collect(t.SplitStrIt)
+}
+
+func (t TxtStrings) SplitStrIt(yield func(string) bool) {
+	for e := range t.SplitIt {
+		if !yield(e.BareString()) {
+			return
+		}
+	}
+}
+
+func (t TxtStrings) SplitIt(yield func(TxtString) bool) {
+	var off int
+	for off < len(t.encoded) {
+		txtLen := int(t.encoded[off])
+		off++
+		e := TxtString{t.encoded[off : off+txtLen]}
+		if !yield(e) {
+			return
+		}
+		off += txtLen
+	}
+}
+
+func (t TxtStrings) String() string {
+	var b strings.Builder
+
+	var i int
+	for e := range t.SplitIt {
+		if i > 0 {
+			b.WriteByte(' ')
+		}
+		i++
+		b.WriteString(e.String())
+	}
+
+	return b.String()
 }

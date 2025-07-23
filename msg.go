@@ -323,7 +323,9 @@ func packDomainName(s Name, msg []byte, off int, compression compressionMap, com
 	}
 
 	nameLen := s.EncodedLen()
-	for i, subname := range s.SubNames() {
+	i := -1
+	for subname := range s.SubNamesIt {
+		i++
 		thisLen := subname.EncodedLen()
 		calcOff := off + nameLen - thisLen
 		ptr, foundPtr := compression.find(subname)
@@ -453,36 +455,47 @@ Loop:
 	return ret, off1, err
 }
 
-func packTxt(txt []string, msg []byte, offset int) (int, error) {
-	if len(txt) == 0 {
-		if offset >= len(msg) {
-			return offset, ErrBuf
-		}
-		msg[offset] = 0
-		return offset, nil
+func packTxt(txt TxtStrings, msg []byte, off int) (int, error) {
+	if len(msg[off:]) < len(txt.encoded) {
+		return len(msg), ErrBuf
 	}
-	var err error
-	for _, s := range txt {
-		offset, err = packTxtString(s, msg, offset)
-		if err != nil {
-			return offset, err
-		}
-	}
-	return offset, nil
+	off += copy(msg[off:], []byte(txt.encoded))
+	return off, nil
 }
 
-func packTxtString(s string, msg []byte, offset int) (int, error) {
-	lenByteOffset := offset
-	offset, err := packOctetString(s, msg, offset+1)
-	if err != nil {
-		return offset, err
+func packLenOctet(s string, msg []byte, off int) (int, error) {
+	if len(s) > 255 {
+		return len(msg), ErrTxt
 	}
-	l := offset - lenByteOffset - 1
-	if l > 255 {
-		return offset, &Error{err: "string exceeded 255 bytes in txt"}
+	if len(msg[off:]) < 1 {
+		return len(msg), ErrBuf
 	}
-	msg[lenByteOffset] = byte(l)
-	return offset, nil
+	msg[off] = byte(len(s))
+	off++
+	return packOctetString(s, msg, off)
+}
+
+func unpackLenOctet(msg []byte, off int) (string, int, error) {
+	if len(msg[off:]) < 1 {
+		return "", len(msg), ErrBuf
+	}
+	strLen := int(msg[off])
+	off++
+	if len(msg[off:]) < strLen {
+		return "", len(msg), ErrBuf
+	}
+	return unpackStringOctet(msg[:off+strLen], off)
+}
+
+func packTxtString(s TxtString, msg []byte, off int) (int, error) {
+	if len(msg[off:]) < s.EncodedLen() {
+		return len(msg), ErrBuf
+	}
+
+	msg[off] = byte(len(s.encoded))
+	off++
+	off += copy(msg[off:], []byte(s.encoded))
+	return off, nil
 }
 
 func packOctetString(s string, msg []byte, offset int) (int, error) {
@@ -516,16 +529,23 @@ func packOctetString(s string, msg []byte, offset int) (int, error) {
 	return offset, nil
 }
 
-func unpackTxt(msg []byte, off0 int) (ss []string, off int, err error) {
+func unpackTxt(msg []byte, off0 int) (ss TxtStrings, off int, err error) {
 	off = off0
-	var s string
-	for off < len(msg) && err == nil {
-		s, off, err = unpackString(msg, off)
-		if err == nil {
-			ss = append(ss, s)
+	for off < len(msg) {
+		if len(msg[off:]) < 1 {
+			return ss, len(msg), ErrBuf
 		}
+
+		txtLen := int(msg[off])
+		off++
+		if len(msg[off:]) < txtLen {
+			return ss, len(msg), ErrBuf
+		}
+		off += txtLen
 	}
-	return
+
+	ss.encoded = string(msg[off0:off])
+	return ss, off, nil
 }
 
 // Helpers for dealing with escaped bytes
@@ -1053,7 +1073,7 @@ func escapedNameLen(s string) int {
 }
 
 func compressionLenSearch(c map[Name]struct{}, s Name, msgOff int) (int, bool) {
-	for _, name := range s.SubNames() {
+	for name := range s.SubNamesIt {
 		off := s.EncodedLen() - name.EncodedLen()
 		if _, ok := c[name]; ok {
 			return off, true

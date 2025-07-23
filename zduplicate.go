@@ -97,7 +97,7 @@ func (r1 *AVC) isDuplicate(_r2 RR) bool {
 		return false
 	}
 	_ = r2
-	if !slices.Equal(r1.Txt, r2.Txt) {
+	if r1.Txt != r2.Txt {
 		return false
 	}
 	return true
@@ -735,7 +735,7 @@ func (r1 *NINFO) isDuplicate(_r2 RR) bool {
 		return false
 	}
 	_ = r2
-	if !slices.Equal(r1.ZSData, r2.ZSData) {
+	if r1.ZSData != r2.ZSData {
 		return false
 	}
 	return true
@@ -921,7 +921,7 @@ func (r1 *RESINFO) isDuplicate(_r2 RR) bool {
 		return false
 	}
 	_ = r2
-	if !slices.Equal(r1.Txt, r2.Txt) {
+	if r1.Txt != r2.Txt {
 		return false
 	}
 	return true
@@ -1119,7 +1119,7 @@ func (r1 *SPF) isDuplicate(_r2 RR) bool {
 		return false
 	}
 	_ = r2
-	if !slices.Equal(r1.Txt, r2.Txt) {
+	if r1.Txt != r2.Txt {
 		return false
 	}
 	return true
@@ -1320,7 +1320,7 @@ func (r1 *TXT) isDuplicate(_r2 RR) bool {
 		return false
 	}
 	_ = r2
-	if !slices.Equal(r1.Txt, r2.Txt) {
+	if r1.Txt != r2.Txt {
 		return false
 	}
 	return true

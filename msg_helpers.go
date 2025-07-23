@@ -245,41 +245,21 @@ func packUint64(i uint64, msg []byte, off int) (off1 int, err error) {
 	return off, nil
 }
 
-func unpackString(msg []byte, off int) (string, int, error) {
+func unpackString(msg []byte, off int) (TxtString, int, error) {
+	var ret TxtString
 	if len(msg[off:]) < 1 {
-		return "", off, &Error{err: "overflow unpacking txt"}
+		return ret, off, &Error{err: "overflow unpacking txt"}
 	}
 	l := int(msg[off])
 	off++
 	if len(msg[off:]) < l {
-		return "", off, &Error{err: "overflow unpacking txt"}
+		return ret, off, &Error{err: "overflow unpacking txt"}
 	}
-	var s strings.Builder
-	consumed := 0
-	for i, b := range msg[off : off+l] {
-		switch {
-		case b == '"' || b == '\\':
-			if consumed == 0 {
-				s.Grow(l * 2)
-			}
-			s.Write(msg[off+consumed : off+i])
-			s.WriteByte('\\')
-			s.WriteByte(b)
-			consumed = i + 1
-		case b < ' ' || b > '~': // unprintable
-			if consumed == 0 {
-				s.Grow(l * 2)
-			}
-			s.Write(msg[off+consumed : off+i])
-			s.WriteString(escapeByte(b))
-			consumed = i + 1
-		}
-	}
-	if consumed == 0 { // no escaping needed
-		return string(msg[off : off+l]), off + l, nil
-	}
-	s.Write(msg[off+consumed : off+l])
-	return s.String(), off + l, nil
+
+	ret.encoded = string(msg[off : off+l])
+	off += l
+	return ret, off, nil
+
 }
 
 func unpackStringBase32(msg []byte, off, end int) (string, int, error) {

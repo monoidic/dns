@@ -322,16 +322,14 @@ func (rr *APL) len(off int, compression map[Name]struct{}) int {
 
 func (rr *AVC) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
-	for _, x := range rr.Txt {
-		l += escapedNameLen(x) + 1
-	}
+	l += rr.Txt.EncodedLen()
 	return l
 }
 
 func (rr *CAA) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l++ // Flag
-	l += escapedNameLen(rr.Tag) + 1
+	l += rr.Tag.EncodedLen()
 	l += escapedNameLen(rr.Value)
 	return l
 }
@@ -407,16 +405,16 @@ func (rr *GID) len(off int, compression map[Name]struct{}) int {
 
 func (rr *GPOS) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
-	l += escapedNameLen(rr.Longitude) + 1
-	l += escapedNameLen(rr.Latitude) + 1
-	l += escapedNameLen(rr.Altitude) + 1
+	l += rr.Longitude.EncodedLen()
+	l += rr.Latitude.EncodedLen()
+	l += rr.Altitude.EncodedLen()
 	return l
 }
 
 func (rr *HINFO) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
-	l += escapedNameLen(rr.Cpu) + 1
-	l += escapedNameLen(rr.Os) + 1
+	l += rr.Cpu.EncodedLen()
+	l += rr.Os.EncodedLen()
 	return l
 }
 
@@ -452,8 +450,8 @@ func (rr *IPSECKEY) len(off int, compression map[Name]struct{}) int {
 
 func (rr *ISDN) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
-	l += escapedNameLen(rr.Address) + 1
-	l += escapedNameLen(rr.SubAddress) + 1
+	l += rr.Address.EncodedLen()
+	l += rr.SubAddress.EncodedLen()
 	return l
 }
 
@@ -547,8 +545,8 @@ func (rr *NAPTR) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // Order
 	l += 2 // Preference
-	l += escapedNameLen(rr.Flags) + 1
-	l += escapedNameLen(rr.Service) + 1
+	l += rr.Flags.EncodedLen()
+	l += rr.Service.EncodedLen()
 	l += escapedNameLen(rr.Regexp) + 1
 	l += domainNameLen(rr.Replacement, off+l, compression, false)
 	return l
@@ -569,9 +567,7 @@ func (rr *NIMLOC) len(off int, compression map[Name]struct{}) int {
 
 func (rr *NINFO) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
-	for _, x := range rr.ZSData {
-		l += escapedNameLen(x) + 1
-	}
+	l += rr.ZSData.EncodedLen()
 	return l
 }
 
@@ -630,9 +626,7 @@ func (rr *PX) len(off int, compression map[Name]struct{}) int {
 
 func (rr *RESINFO) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
-	for _, x := range rr.Txt {
-		l += escapedNameLen(x) + 1
-	}
+	l += rr.Txt.EncodedLen()
 	return l
 }
 
@@ -702,9 +696,7 @@ func (rr *SOA) len(off int, compression map[Name]struct{}) int {
 
 func (rr *SPF) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
-	for _, x := range rr.Txt {
-		l += escapedNameLen(x) + 1
-	}
+	l += rr.Txt.EncodedLen()
 	return l
 }
 
@@ -790,9 +782,7 @@ func (rr *TSIG) len(off int, compression map[Name]struct{}) int {
 
 func (rr *TXT) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
-	for _, x := range rr.Txt {
-		l += escapedNameLen(x) + 1
-	}
+	l += rr.Txt.EncodedLen()
 	return l
 }
 
@@ -804,7 +794,7 @@ func (rr *UID) len(off int, compression map[Name]struct{}) int {
 
 func (rr *UINFO) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
-	l += escapedNameLen(rr.Uinfo) + 1
+	l += rr.Uinfo.EncodedLen()
 	return l
 }
 
@@ -818,7 +808,7 @@ func (rr *URI) len(off int, compression map[Name]struct{}) int {
 
 func (rr *X25) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
-	l += escapedNameLen(rr.PSDNAddress) + 1
+	l += rr.PSDNAddress.EncodedLen()
 	return l
 }
 
@@ -867,7 +857,7 @@ func (rr *APL) copy() RR {
 }
 
 func (rr *AVC) copy() RR {
-	return &AVC{rr.Hdr, slices.Clone(rr.Txt)}
+	return &AVC{rr.Hdr, rr.Txt}
 }
 
 func (rr *CAA) copy() RR {
@@ -1085,7 +1075,7 @@ func (rr *NIMLOC) copy() RR {
 }
 
 func (rr *NINFO) copy() RR {
-	return &NINFO{rr.Hdr, slices.Clone(rr.ZSData)}
+	return &NINFO{rr.Hdr, rr.ZSData}
 }
 
 func (rr *NS) copy() RR {
@@ -1163,7 +1153,7 @@ func (rr *PX) copy() RR {
 }
 
 func (rr *RESINFO) copy() RR {
-	return &RESINFO{rr.Hdr, slices.Clone(rr.Txt)}
+	return &RESINFO{rr.Hdr, rr.Txt}
 }
 
 func (rr *RFC3597) copy() RR {
@@ -1231,7 +1221,7 @@ func (rr *SOA) copy() RR {
 }
 
 func (rr *SPF) copy() RR {
-	return &SPF{rr.Hdr, slices.Clone(rr.Txt)}
+	return &SPF{rr.Hdr, rr.Txt}
 }
 
 func (rr *SRV) copy() RR {
@@ -1321,7 +1311,7 @@ func (rr *TSIG) copy() RR {
 }
 
 func (rr *TXT) copy() RR {
-	return &TXT{rr.Hdr, slices.Clone(rr.Txt)}
+	return &TXT{rr.Hdr, rr.Txt}
 }
 
 func (rr *UID) copy() RR {
@@ -1404,7 +1394,7 @@ func (rr *APL) String() string {
 func (rr *AVC) String() string {
 	var b strings.Builder
 	b.WriteString(rr.Hdr.String())
-	b.WriteString(sprintTxt(rr.Txt))
+	b.WriteString(rr.Txt.String())
 	return b.String()
 }
 
@@ -1413,7 +1403,7 @@ func (rr *CAA) String() string {
 	b.WriteString(rr.Hdr.String())
 	b.WriteString(strconv.FormatInt(int64(rr.Flag), 10))
 	b.WriteByte(' ')
-	b.WriteString(rr.Tag)
+	b.WriteString(rr.Tag.BareString())
 	b.WriteByte(' ')
 	b.WriteString(sprintTxtOctet(rr.Value))
 	return b.String()
@@ -1510,11 +1500,29 @@ func (rr *GID) String() string {
 func (rr *GPOS) String() string {
 	var b strings.Builder
 	b.WriteString(rr.Hdr.String())
-	b.WriteString(rr.Longitude)
+	b.WriteString(rr.Longitude.BareString())
 	b.WriteByte(' ')
-	b.WriteString(rr.Latitude)
+	b.WriteString(rr.Latitude.BareString())
 	b.WriteByte(' ')
-	b.WriteString(rr.Altitude)
+	b.WriteString(rr.Altitude.BareString())
+	return b.String()
+}
+
+func (rr *HINFO) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.Cpu.String())
+	b.WriteByte(' ')
+	b.WriteString(rr.Os.String())
+	return b.String()
+}
+
+func (rr *ISDN) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.Address.String())
+	b.WriteByte(' ')
+	b.WriteString(rr.SubAddress.String())
 	return b.String()
 }
 
@@ -1611,7 +1619,7 @@ func (rr *NIMLOC) String() string {
 func (rr *NINFO) String() string {
 	var b strings.Builder
 	b.WriteString(rr.Hdr.String())
-	b.WriteString(sprintTxt(rr.ZSData))
+	b.WriteString(rr.ZSData.String())
 	return b.String()
 }
 
@@ -1679,7 +1687,7 @@ func (rr *PX) String() string {
 func (rr *RESINFO) String() string {
 	var b strings.Builder
 	b.WriteString(rr.Hdr.String())
-	b.WriteString(sprintTxt(rr.Txt))
+	b.WriteString(rr.Txt.String())
 	return b.String()
 }
 
@@ -1736,7 +1744,7 @@ func (rr *SOA) String() string {
 func (rr *SPF) String() string {
 	var b strings.Builder
 	b.WriteString(rr.Hdr.String())
-	b.WriteString(sprintTxt(rr.Txt))
+	b.WriteString(rr.Txt.String())
 	return b.String()
 }
 
@@ -1818,7 +1826,7 @@ func (rr *TLSA) String() string {
 func (rr *TXT) String() string {
 	var b strings.Builder
 	b.WriteString(rr.Hdr.String())
-	b.WriteString(sprintTxt(rr.Txt))
+	b.WriteString(rr.Txt.String())
 	return b.String()
 }
 
@@ -1826,6 +1834,13 @@ func (rr *UID) String() string {
 	var b strings.Builder
 	b.WriteString(rr.Hdr.String())
 	b.WriteString(strconv.FormatInt(int64(rr.Uid), 10))
+	return b.String()
+}
+
+func (rr *UINFO) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.Uinfo.String())
 	return b.String()
 }
 
@@ -1843,7 +1858,7 @@ func (rr *URI) String() string {
 func (rr *X25) String() string {
 	var b strings.Builder
 	b.WriteString(rr.Hdr.String())
-	b.WriteString(rr.PSDNAddress)
+	b.WriteString(rr.PSDNAddress.BareString())
 	return b.String()
 }
 

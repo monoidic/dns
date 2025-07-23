@@ -33,38 +33,49 @@ func endingToString(c *zlexer, errstr string) (string, *ParseError) {
 
 // A remainder of the rdata with embedded spaces, split on unquoted whitespace
 // and return the parsed string slice or an error
-func endingToTxtSlice(c *zlexer, errstr string) ([]string, *ParseError) {
+func endingToTxtStrings(c *zlexer, errstr string) (TxtStrings, *ParseError) {
+	var ret TxtStrings
 	// Get the remaining data until we see a zNewline
 	l, _ := c.Next()
 	if l.err {
-		return nil, &ParseError{err: errstr, lex: l}
+		return ret, &ParseError{err: errstr, lex: l}
 	}
 
 	// Build the slice
-	s := make([]string, 0)
+	var s []TxtString
 	quote := false
 	empty := false
 	for l.value != zNewline && l.value != zEOF {
 		if l.err {
-			return nil, &ParseError{err: errstr, lex: l}
+			return ret, &ParseError{err: errstr, lex: l}
 		}
 		switch l.value {
 		case zString:
 			empty = false
 			// split up tokens that are larger than 255 into 255-chunks
-			sx := []string{}
+			var sx []TxtString
 			p := 0
 			for {
 				i, ok := escapedStringOffset(l.token[p:], 255)
 				if !ok {
-					return nil, &ParseError{err: errstr, lex: l}
+					return ret, &ParseError{err: errstr, lex: l}
 				}
+				var tokenStr string
+				var earlyBreak bool
 				if i != -1 && p+i != len(l.token) {
-					sx = append(sx, l.token[p:p+i])
+					tokenStr = l.token[p : p+i]
 				} else {
-					sx = append(sx, l.token[p:])
-					break
+					tokenStr = l.token[p:]
+					earlyBreak = true
+				}
 
+				txt, err := TxtFromString(tokenStr)
+				if err != nil {
+					return ret, &ParseError{err: errstr, lex: l}
+				}
+				sx = append(sx, txt)
+				if earlyBreak {
+					break
 				}
 				p += i
 			}
@@ -72,25 +83,26 @@ func endingToTxtSlice(c *zlexer, errstr string) ([]string, *ParseError) {
 		case zBlank:
 			if quote {
 				// zBlank can only be seen in between txt parts.
-				return nil, &ParseError{err: errstr, lex: l}
+				return ret, &ParseError{err: errstr, lex: l}
 			}
 		case zQuote:
 			if empty && quote {
-				s = append(s, "")
+				s = append(s, TxtString{})
 			}
 			quote = !quote
 			empty = true
 		default:
-			return nil, &ParseError{err: errstr, lex: l}
+			return ret, &ParseError{err: errstr, lex: l}
 		}
 		l, _ = c.Next()
 	}
 
 	if quote {
-		return nil, &ParseError{err: errstr, lex: l}
+		return ret, &ParseError{err: errstr, lex: l}
 	}
 
-	return s, nil
+	ret = TxtStringsFromArr(s)
+	return ret, nil
 }
 
 func (rr *A) parse(c *zlexer, o string) *ParseError {
@@ -194,47 +206,76 @@ func (rr *MG) parse(c *zlexer, o string) *ParseError {
 }
 
 func (rr *HINFO) parse(c *zlexer, o string) *ParseError {
-	chunks, e := endingToTxtSlice(c, "bad HINFO Fields")
+	txts, e := endingToTxtStrings(c, "bad HINFO Fields")
 	if e != nil {
 		return e
 	}
+	chunks := txts.Split()
 
 	if ln := len(chunks); ln == 0 {
 		return nil
 	} else if ln == 1 {
 		// Can we split it?
-		if out := strings.Fields(chunks[0]); len(out) > 1 {
-			chunks = out
+		if out := strings.Fields(chunks[0].BareString()); len(out) > 1 {
+			ret := make([]TxtString, len(out))
+			for i, e := range out {
+				// must be valid, split from existing valid txtstring
+				ret[i] = mustParseTxt(e)
+			}
+			chunks = ret
 		} else {
-			chunks = append(chunks, "")
+			chunks = append(chunks, TxtString{})
 		}
 	}
 
 	rr.Cpu = chunks[0]
-	rr.Os = strings.Join(chunks[1:], " ")
+	chunkStrings := make([]string, len(chunks[1:]))
+	for i, e := range chunks[1:] {
+		chunkStrings[i] = e.BareString()
+	}
+	var err error
+	rr.Os, err = TxtFromString(strings.Join(chunkStrings, " "))
+	if err != nil {
+		return &ParseError{err: "invalid HINFO OS"}
+	}
 	return nil
 }
 
 // according to RFC 1183 the parsing is identical to HINFO, so just use that code.
 func (rr *ISDN) parse(c *zlexer, o string) *ParseError {
-	chunks, e := endingToTxtSlice(c, "bad ISDN Fields")
+	txt, e := endingToTxtStrings(c, "bad ISDN Fields")
 	if e != nil {
 		return e
 	}
+	chunks := txt.Split()
 
 	if ln := len(chunks); ln == 0 {
 		return nil
 	} else if ln == 1 {
 		// Can we split it?
-		if out := strings.Fields(chunks[0]); len(out) > 1 {
-			chunks = out
+		if out := strings.Fields(chunks[0].BareString()); len(out) > 1 {
+			ret := make([]TxtString, len(out))
+			for i, e := range out {
+				// must be valid, split from existing valid txtstring
+				ret[i] = mustParseTxt(e)
+			}
+			chunks = ret
+
 		} else {
-			chunks = append(chunks, "")
+			chunks = append(chunks, TxtString{})
 		}
 	}
 
 	rr.Address = chunks[0]
-	rr.SubAddress = strings.Join(chunks[1:], " ")
+	var err error
+	chunkStrings := make([]string, len(chunks[1:]))
+	for i, e := range chunks[1:] {
+		chunkStrings[i] = e.BareString()
+	}
+	rr.SubAddress, err = TxtFromString(strings.Join(chunkStrings, " "))
+	if err != nil {
+		return &ParseError{err: "invalid ISDN subaddress"}
+	}
 
 	return nil
 }
@@ -340,10 +381,11 @@ func (rr *AFSDB) parse(c *zlexer, o string) *ParseError {
 
 func (rr *X25) parse(c *zlexer, o string) *ParseError {
 	l, _ := c.Next()
-	if l.err {
+	var err error
+	rr.PSDNAddress, err = TxtFromString(l.token)
+	if l.err || err != nil {
 		return &ParseError{err: "bad X25 PSDNAddress", lex: l}
 	}
-	rr.PSDNAddress = l.token
 	return slurpRemainder(c)
 }
 
@@ -504,15 +546,16 @@ func (rr *NAPTR) parse(c *zlexer, o string) *ParseError {
 		return &ParseError{err: "bad NAPTR Flags", lex: l}
 	}
 	l, _ = c.Next() // Either String or Quote
+	var err error
 	switch l.value {
 	case zString:
-		rr.Flags = l.token
+		rr.Flags, err = TxtFromString(l.token)
 		l, _ = c.Next() // _QUOTE
-		if l.value != zQuote {
+		if l.value != zQuote || err != nil {
 			return &ParseError{err: "bad NAPTR Flags", lex: l}
 		}
 	case zQuote:
-		rr.Flags = ""
+		//rr.Flags = ""
 	default:
 		return &ParseError{err: "bad NAPTR Flags", lex: l}
 	}
@@ -526,13 +569,13 @@ func (rr *NAPTR) parse(c *zlexer, o string) *ParseError {
 	l, _ = c.Next() // Either String or Quote
 	switch l.value {
 	case zString:
-		rr.Service = l.token
+		rr.Service, err = TxtFromString(l.token)
 		l, _ = c.Next() // _QUOTE
-		if l.value != zQuote {
+		if l.value != zQuote || err != nil {
 			return &ParseError{err: "bad NAPTR Service", lex: l}
 		}
 	case zQuote:
-		rr.Service = ""
+		//rr.Service = ""
 	default:
 		return &ParseError{err: "bad NAPTR Service", lex: l}
 	}
@@ -833,7 +876,7 @@ func (rr *CSYNC) parse(c *zlexer, o string) *ParseError {
 	}
 	rr.Flags = uint16(j)
 
-	rr.TypeBitMap = make([]uint16, 0)
+	rr.TypeBitMap = []uint16{}
 	var (
 		k  uint16
 		ok bool
@@ -1001,7 +1044,7 @@ func (rr *NSEC) parse(c *zlexer, o string) *ParseError {
 	}
 	rr.NextDomain = name
 
-	rr.TypeBitMap = make([]uint16, 0)
+	rr.TypeBitMap = []uint16{}
 	var (
 		k  uint16
 		ok bool
@@ -1066,7 +1109,7 @@ func (rr *NSEC3) parse(c *zlexer, o string) *ParseError {
 	rr.HashLength = 20 // Fix for NSEC3 (sha1 160 bits)
 	rr.NextDomain = l.token
 
-	rr.TypeBitMap = make([]uint16, 0)
+	rr.TypeBitMap = []uint16{}
 	var (
 		k  uint16
 		ok bool
@@ -1397,21 +1440,30 @@ func (rr *GPOS) parse(c *zlexer, o string) *ParseError {
 	if e != nil || l.err {
 		return &ParseError{err: "bad GPOS Longitude", lex: l}
 	}
-	rr.Longitude = l.token
+	rr.Longitude, e = TxtFromString(l.token)
+	if e != nil {
+		return &ParseError{err: "bad GPOS Longitude", lex: l}
+	}
 	c.Next() // zBlank
 	l, _ = c.Next()
 	_, e1 := strconv.ParseFloat(l.token, 64)
 	if e1 != nil || l.err {
 		return &ParseError{err: "bad GPOS Latitude", lex: l}
 	}
-	rr.Latitude = l.token
+	rr.Latitude, e = TxtFromString(l.token)
+	if e != nil {
+		return &ParseError{err: "bad GPOS Latitude", lex: l}
+	}
 	c.Next() // zBlank
 	l, _ = c.Next()
 	_, e2 := strconv.ParseFloat(l.token, 64)
 	if e2 != nil || l.err {
 		return &ParseError{err: "bad GPOS Altitude", lex: l}
 	}
-	rr.Altitude = l.token
+	rr.Altitude, e = TxtFromString(l.token)
+	if e != nil {
+		return &ParseError{err: "bad GPOS Altitude", lex: l}
+	}
 	return slurpRemainder(c)
 }
 
@@ -1568,7 +1620,7 @@ func (rr *RFC3597) parse(c *zlexer, o string) *ParseError {
 }
 
 func (rr *SPF) parse(c *zlexer, o string) *ParseError {
-	s, e := endingToTxtSlice(c, "bad SPF Txt")
+	s, e := endingToTxtStrings(c, "bad SPF Txt")
 	if e != nil {
 		return e
 	}
@@ -1577,7 +1629,7 @@ func (rr *SPF) parse(c *zlexer, o string) *ParseError {
 }
 
 func (rr *AVC) parse(c *zlexer, o string) *ParseError {
-	s, e := endingToTxtSlice(c, "bad AVC Txt")
+	s, e := endingToTxtStrings(c, "bad AVC Txt")
 	if e != nil {
 		return e
 	}
@@ -1587,7 +1639,7 @@ func (rr *AVC) parse(c *zlexer, o string) *ParseError {
 
 func (rr *TXT) parse(c *zlexer, o string) *ParseError {
 	// no zBlank reading here, because all this rdata is TXT
-	s, e := endingToTxtSlice(c, "bad TXT Txt")
+	s, e := endingToTxtStrings(c, "bad TXT Txt")
 	if e != nil {
 		return e
 	}
@@ -1597,7 +1649,7 @@ func (rr *TXT) parse(c *zlexer, o string) *ParseError {
 
 // identical to setTXT
 func (rr *NINFO) parse(c *zlexer, o string) *ParseError {
-	s, e := endingToTxtSlice(c, "bad NINFO ZSData")
+	s, e := endingToTxtStrings(c, "bad NINFO ZSData")
 	if e != nil {
 		return e
 	}
@@ -1607,7 +1659,7 @@ func (rr *NINFO) parse(c *zlexer, o string) *ParseError {
 
 // Uses the same format as TXT
 func (rr *RESINFO) parse(c *zlexer, o string) *ParseError {
-	s, e := endingToTxtSlice(c, "bad RESINFO Resinfo")
+	s, e := endingToTxtStrings(c, "bad RESINFO Resinfo")
 	if e != nil {
 		return e
 	}
@@ -1631,10 +1683,11 @@ func (rr *URI) parse(c *zlexer, o string) *ParseError {
 	rr.Weight = uint16(i)
 
 	c.Next() // zBlank
-	s, e2 := endingToTxtSlice(c, "bad URI Target")
+	uri, e2 := endingToTxtStrings(c, "bad URI Target")
 	if e2 != nil {
 		return e2
 	}
+	s := uri.SplitStr()
 	if len(s) != 1 {
 		return &ParseError{err: "bad URI Target", lex: l}
 	}
@@ -1742,10 +1795,11 @@ func (rr *GID) parse(c *zlexer, o string) *ParseError {
 }
 
 func (rr *UINFO) parse(c *zlexer, o string) *ParseError {
-	s, e := endingToTxtSlice(c, "bad UINFO Uinfo")
+	uinfo, e := endingToTxtStrings(c, "bad UINFO Uinfo")
 	if e != nil {
 		return e
 	}
+	s := uinfo.Split()
 	if ln := len(s); ln == 0 {
 		return nil
 	}
@@ -1792,13 +1846,18 @@ func (rr *CAA) parse(c *zlexer, o string) *ParseError {
 	if l.value != zString {
 		return &ParseError{err: "bad CAA Tag", lex: l}
 	}
-	rr.Tag = l.token
+	var err error
+	rr.Tag, err = TxtFromString(l.token)
+	if err != nil {
+		return &ParseError{err: "bad CAA Tag", lex: l}
+	}
 
 	c.Next() // zBlank
-	s, e1 := endingToTxtSlice(c, "bad CAA Value")
+	caa, e1 := endingToTxtStrings(c, "bad CAA Value")
 	if e1 != nil {
 		return e1
 	}
+	s := caa.SplitStr()
 	if len(s) != 1 {
 		return &ParseError{err: "bad CAA Value", lex: l}
 	}

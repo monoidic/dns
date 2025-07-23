@@ -178,7 +178,7 @@ func TestUnpackString(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if want := `abcdef\015\\\"ghi\004mmm\127`; want != got {
+	if want := mustParseTxt(`abcdef\015\\\"ghi\004mmm\127`); want != got {
 		t.Errorf("expected %q, got %q", want, got)
 	}
 }
@@ -194,7 +194,7 @@ func BenchmarkUnpackString(b *testing.B) {
 				b.Fatal(err)
 			}
 
-			if want := `abcdef\015\\\"ghi\004mmm`; want != got {
+			if want := mustParseTxt(`abcdef\015\\\"ghi\004mmm`); want != got {
 				b.Errorf("expected %q, got %q", want, got)
 			}
 		}
@@ -209,7 +209,7 @@ func BenchmarkUnpackString(b *testing.B) {
 				b.Fatal(err)
 			}
 
-			if want := "large.example.com"; want != got {
+			if want := mustParseTxt("large.example.com"); want != got {
 				b.Errorf("expected %q, got %q", want, got)
 			}
 		}

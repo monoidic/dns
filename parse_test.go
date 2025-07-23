@@ -140,7 +140,7 @@ func TestTXTEscapeParsing(t *testing.T) {
 			continue
 		}
 
-		txt := sprintTxt(rr.(*TXT).Txt)
+		txt := rr.(*TXT).Txt.String()
 		if txt != s[1] {
 			t.Errorf("mismatch after parsing `%v` TXT record: `%v` != `%v`", s[0], txt, s[1])
 		}
@@ -1051,10 +1051,9 @@ func TestTXT(t *testing.T) {
 	} else if rr, ok := rr.(*TXT); !ok {
 		t.Error("wrong type, record should be of type TXT")
 	} else {
-		if len(rr.Txt) != 1 {
-			t.Error("bad size of TXT value:", len(rr.Txt))
-		} else if rr.Txt[0] != "single value" {
-			t.Error("bad single value")
+		expected := []string{"single value"}
+		if got := rr.Txt.SplitStr(); !slices.Equal(expected, got) {
+			t.Errorf("expected txt to parse to %s, got %s", expected, got)
 		}
 		if rr.String() != `_raop._tcp.local.	60	IN	TXT	"single value"` {
 			t.Error("bad representation of TXT record:", rr.String())
@@ -1071,10 +1070,9 @@ func TestTXT(t *testing.T) {
 	} else if rr, ok := rr.(*TXT); !ok {
 		t.Error("wrong type, record should be of type TXT")
 	} else {
-		if len(rr.Txt) != 4 {
-			t.Error("bad size of TXT multi-value:", len(rr.Txt))
-		} else if rr.Txt[0] != "a=1" || rr.Txt[1] != "b=2" || rr.Txt[2] != "c=3" || rr.Txt[3] != "d=4" {
-			t.Error("bad values in TXT records")
+		expected := []string{"a=1", "b=2", "c=3", "d=4"}
+		if got := rr.Txt.SplitStr(); !slices.Equal(expected, got) {
+			t.Errorf("expected txt to parse to %s, got %s", expected, got)
 		}
 		if rr.String() != `_raop._tcp.local.	60	IN	TXT	"a=1" "b=2" "c=3" "d=4"` {
 			t.Error("bad representation of TXT multi value record:", rr.String())
@@ -1091,10 +1089,9 @@ func TestTXT(t *testing.T) {
 	} else if rr, ok := rr.(*TXT); !ok {
 		t.Error("wrong type, record should be of type TXT")
 	} else {
-		if len(rr.Txt) != 1 {
-			t.Error("bad size of TXT empty-string value:", len(rr.Txt))
-		} else if rr.Txt[0] != "" {
-			t.Error("bad value for empty-string TXT record")
+		expected := []string{""}
+		if got := rr.Txt.SplitStr(); !slices.Equal(expected, got) {
+			t.Errorf("expected txt to parse to %s, got %s", expected, got)
 		}
 		if rr.String() != `_raop._tcp.local.	60	IN	TXT	""` {
 			t.Error("bad representation of empty-string TXT record:", rr.String())
@@ -1112,8 +1109,8 @@ func TestTXT(t *testing.T) {
 	if err != nil {
 		t.Error("failed to parse empty-string TXT record", err)
 	}
-	if rr.(*TXT).Txt[1] != "aaab" {
-		t.Errorf("Txt should have two strings, last one must be 'aaab', but is %s", rr.(*TXT).Txt[1])
+	if got := rr.(*TXT).Txt.Split()[1].BareString(); got != "aaab" {
+		t.Errorf("Txt should have two strings, last one must be 'aaab', but is %s", got)
 	}
 	rrContent := strings.Replace(rr.String(), rr.Header().String(), "", 1)
 	expectedRRContent := `";\\x` + strings.Repeat("a", 252) + `" "aaab"`
@@ -1207,7 +1204,7 @@ func TestParseRRSIGTimestamp(t *testing.T) {
 func TestTxtEqual(t *testing.T) {
 	rr1 := new(TXT)
 	rr1.Hdr = RR_Header{Name: mustParseName("."), Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}
-	rr1.Txt = []string{"a\"a", "\"", "b"}
+	rr1.Txt = mustParseTxts("a\"a", "\"", "b")
 	rr2, _ := NewRR(rr1.String())
 	if rr1.String() != rr2.String() {
 		// This is not an error, but keep this test.
@@ -1216,17 +1213,11 @@ func TestTxtEqual(t *testing.T) {
 }
 
 func TestTxtLong(t *testing.T) {
-	rr1 := new(TXT)
-	rr1.Hdr = RR_Header{Name: mustParseName("."), Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}
-	// Make a long txt record, this breaks when sending the packet,
-	// but not earlier.
-	rr1.Txt = []string{"start-"}
-	for range 200 {
-		rr1.Txt[0] += "start-"
-	}
-	str := rr1.String()
-	if len(str) < len(rr1.Txt[0]) {
-		t.Error("string conversion should work")
+	// supposed to give an error
+	s := strings.Repeat("start-", 201)
+	_, err := TxtFromString(s)
+	if err == nil {
+		t.Error("expected overly long txt to error")
 	}
 }
 
@@ -1386,7 +1377,7 @@ func TestPrintfVerbsRdata(t *testing.T) {
 
 	x, _ = NewRR("www.miek.nl. IN TXT \"first\" \"second\"")
 	txt := x.(*TXT)
-	if !slices.Equal(txt.Txt, []string{"first", "second"}) {
+	if txt.Txt != mustParseTxts("first", "second") {
 		t.Errorf("should be first second")
 	}
 }
@@ -1519,7 +1510,7 @@ func TestPackCAA(t *testing.T) {
 	m := new(Msg)
 	record := new(CAA)
 	record.Hdr = RR_Header{Name: mustParseName("example.com."), Rrtype: TypeCAA, Class: ClassINET, Ttl: 0}
-	record.Tag = "issue"
+	record.Tag = mustParseTxt("issue")
 	record.Value = "symantec.com"
 	record.Flag = 1
 
@@ -1535,7 +1526,7 @@ func TestPackCAA(t *testing.T) {
 		t.Fatalf("incorrect number of answers unpacked")
 	}
 	rr := m.Answer[0].(*CAA)
-	if rr.Tag != "issue" {
+	if rr.Tag.BareString() != "issue" {
 		t.Fatalf("invalid tag for unpacked answer")
 	} else if rr.Value != "symantec.com" {
 		t.Fatalf("invalid value for unpacked answer")

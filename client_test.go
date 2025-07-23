@@ -207,7 +207,7 @@ func TestClientLocalAddress(t *testing.T) {
 	if txt == nil {
 		t.Errorf("invalid TXT response\n%v", txt)
 	}
-	if len(txt.Txt) != 1 || !strings.Contains(txt.Txt[0], ":12345") {
+	if len(txt.Txt.Split()) != 1 || !strings.Contains(txt.Txt.SplitStr()[0], ":12345") {
 		t.Errorf("invalid TXT response\n%v", txt.Txt)
 	}
 }
@@ -385,7 +385,7 @@ func TestClientEDNS0Local(t *testing.T) {
 		m.SetReply(req)
 
 		m.Extra = make([]RR, 1, 2)
-		m.Extra[0] = &TXT{Hdr: RR_Header{Name: m.Question[0].Name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"Hello local edns"}}
+		m.Extra[0] = &TXT{Hdr: RR_Header{Name: m.Question[0].Name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: TxtStringsFromArr([]TxtString{mustParseTxt("Hello local edns")})}
 
 		// If the local options are what we expect, then reflect them back.
 		ec1 := req.Extra[0].(*OPT).Option[0].(*EDNS0_LOCAL).String()
@@ -428,7 +428,7 @@ func TestClientEDNS0Local(t *testing.T) {
 		t.Fatal("failed to get a valid answer")
 	}
 
-	txt := r.Extra[0].(*TXT).Txt[0]
+	txt := r.Extra[0].(*TXT).Txt.SplitStr()[0]
 	if txt != "Hello local edns" {
 		t.Error("Unexpected result for miek.nl", txt, "!= Hello local edns")
 	}

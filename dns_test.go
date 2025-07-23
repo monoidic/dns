@@ -118,7 +118,7 @@ func TestPackUnpack2(t *testing.T) {
 
 	x := new(TXT)
 	x.Hdr = RR_Header{Name: dom, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}
-	x.Txt = []string{"heelalaollo"}
+	x.Txt = mustParseTxts("heelalaollo")
 
 	m.Extra[0] = x
 	m.Answer[0] = rr
@@ -140,11 +140,10 @@ func TestPackUnpack3(t *testing.T) {
 
 	x1 := new(TXT)
 	x1.Hdr = RR_Header{Name: dom, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}
-	x1.Txt = []string{}
 
 	x2 := new(TXT)
 	x2.Hdr = RR_Header{Name: dom, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}
-	x2.Txt = []string{"heelalaollo"}
+	x2.Txt = mustParseTxts("heelalaollo")
 
 	m.Extra[0] = x1
 	m.Extra[1] = x2

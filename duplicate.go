@@ -49,6 +49,6 @@ func isDuplicateGateway(gatewayType uint8, laddr, raddr netip.Addr, lhost, rhost
 	case IPSECGatewayHost:
 		return isDuplicateName(lhost, rhost)
 	default:
-		return false
+		return true
 	}
 }

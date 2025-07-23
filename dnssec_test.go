@@ -116,8 +116,8 @@ func TestSignVerify(t *testing.T) {
 			Class:  ClassINET,
 			Ttl:    3789,
 		},
-		Cpu: "X",
-		Os:  "Y",
+		Cpu: mustParseTxt("X"),
+		Os:  mustParseTxt("Y"),
 	}
 
 	// With this key
@@ -881,8 +881,8 @@ PrivateKey: DSSF3o0s0f+ElWzj9E/Osxw8hLpk55chkmx0LYN5WiY=`
 func TestInvalidRRSet(t *testing.T) {
 	goodRecords := make([]RR, 2)
 	name, _ := NameFromString("name.cloudflare.com.")
-	goodRecords[0] = &TXT{Hdr: RR_Header{Name: name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"Hello world"}}
-	goodRecords[1] = &TXT{Hdr: RR_Header{Name: name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"_o/"}}
+	goodRecords[0] = &TXT{Hdr: RR_Header{Name: name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: mustParseTxts("Hello world")}
+	goodRecords[1] = &TXT{Hdr: RR_Header{Name: name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: mustParseTxts("_o/")}
 
 	// Generate key
 	keyname, _ := NameFromString("cloudflare.com.")
@@ -911,22 +911,22 @@ func TestInvalidRRSet(t *testing.T) {
 	badRecords := make([]RR, 2)
 	name, _ = NameFromString("name.cloudflare.com.")
 	nama, _ := NameFromString("nama.cloudflare.com.")
-	badRecords[0] = &TXT{Hdr: RR_Header{Name: name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"Hello world"}}
-	badRecords[1] = &TXT{Hdr: RR_Header{Name: nama, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"_o/"}}
+	badRecords[0] = &TXT{Hdr: RR_Header{Name: name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: mustParseTxts("Hello world")}
+	badRecords[1] = &TXT{Hdr: RR_Header{Name: nama, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: mustParseTxts("_o/")}
 
 	if IsRRset(badRecords) {
 		t.Fatal("Record set with inconsistent names considered valid")
 	}
 
-	badRecords[0] = &TXT{Hdr: RR_Header{Name: name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"Hello world"}}
+	badRecords[0] = &TXT{Hdr: RR_Header{Name: name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: mustParseTxts("Hello world")}
 	badRecords[1] = &A{Hdr: RR_Header{Name: name, Rrtype: TypeA, Class: ClassINET, Ttl: 0}}
 
 	if IsRRset(badRecords) {
 		t.Fatal("Record set with inconsistent record types considered valid")
 	}
 
-	badRecords[0] = &TXT{Hdr: RR_Header{Name: name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: []string{"Hello world"}}
-	badRecords[1] = &TXT{Hdr: RR_Header{Name: name, Rrtype: TypeTXT, Class: ClassCHAOS, Ttl: 0}, Txt: []string{"_o/"}}
+	badRecords[0] = &TXT{Hdr: RR_Header{Name: name, Rrtype: TypeTXT, Class: ClassINET, Ttl: 0}, Txt: mustParseTxts("Hello world")}
+	badRecords[1] = &TXT{Hdr: RR_Header{Name: name, Rrtype: TypeTXT, Class: ClassCHAOS, Ttl: 0}, Txt: mustParseTxts("_o/")}
 
 	if IsRRset(badRecords) {
 		t.Fatal("Record set with inconsistent record class considered valid")

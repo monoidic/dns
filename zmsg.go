@@ -567,7 +567,7 @@ func (rr *NAPTR) pack(msg []byte, off int, compression compressionMap, compress 
 	if err != nil {
 		return off, err
 	}
-	off, err = packTxtString(rr.Regexp, msg, off)
+	off, err = packLenOctet(rr.Regexp, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -1905,7 +1905,7 @@ func (rr *NAPTR) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("NAPTR.Service: %w", err)
 	}
-	rr.Regexp, off, err = unpackString(msg, off)
+	rr.Regexp, off, err = unpackLenOctet(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("NAPTR.Regexp: %w", err)
 	}

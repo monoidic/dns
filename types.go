@@ -460,52 +460,6 @@ type TXT struct {
 	Txt TxtStrings
 }
 
-func sprintName(s string) string {
-	var dst strings.Builder
-
-	for i := 0; i < len(s); {
-		if s[i] == '.' {
-			if dst.Len() != 0 {
-				dst.WriteByte('.')
-			}
-			i++
-			continue
-		}
-
-		b, n := nextByte(s, i)
-		if n == 0 {
-			// Drop "dangling" incomplete escapes.
-			if dst.Len() == 0 {
-				return s[:i]
-			}
-			break
-		}
-		if isDomainNameLabelSpecial(b) {
-			if dst.Len() == 0 {
-				dst.Grow(len(s) * 2)
-				dst.WriteString(s[:i])
-			}
-			dst.WriteByte('\\')
-			dst.WriteByte(b)
-		} else if b < ' ' || b > '~' { // unprintable, use \DDD
-			if dst.Len() == 0 {
-				dst.Grow(len(s) * 2)
-				dst.WriteString(s[:i])
-			}
-			dst.WriteString(escapeByte(b))
-		} else {
-			if dst.Len() != 0 {
-				dst.WriteByte(b)
-			}
-		}
-		i += n
-	}
-	if dst.Len() == 0 {
-		return s
-	}
-	return dst.String()
-}
-
 func sprintTxtOctet(s string) string {
 	var dst strings.Builder
 	dst.Grow(2 + len(s))

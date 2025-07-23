@@ -76,28 +76,24 @@ func TestSplitN(t *testing.T) {
 func TestSprintName(t *testing.T) {
 	tests := map[string]string{
 		// Non-numeric escaping of special printable characters.
-		" '@;()\"\\..example": `\ \'\@\;\(\)\"\..example`,
-		"\\032\\039\\064\\059\\040\\041\\034\\046\\092.example": `\ \'\@\;\(\)\"\.\\.example`,
+		` '@;()"\..example.`:                            `\ \'\@\;\(\)\"\..example.`,
+		`\032\039\064\059\040\041\034\046\092.example.`: `\ \'\@\;\(\)\"\.\\.example.`,
 
 		// Numeric escaping of nonprintable characters.
-		"\x00\x07\x09\x0a\x1f.\x7f\x80\xad\xef\xff":           `\000\007\009\010\031.\127\128\173\239\255`,
-		"\\000\\007\\009\\010\\031.\\127\\128\\173\\239\\255": `\000\007\009\010\031.\127\128\173\239\255`,
+		"\x00\x07\x09\x0a\x1f.\x7f\x80\xad\xef\xff.": `\000\007\009\010\031.\127\128\173\239\255.`,
+		`\000\007\009\010\031.\127\128\173\239\255.`: `\000\007\009\010\031.\127\128\173\239\255.`,
 
 		// No escaping of other printable characters, at least after a prior escape.
-		";[a-zA-Z0-9_]+/*.~": `\;[a-zA-Z0-9_]+/*.~`,
-		";\\091\\097\\045\\122\\065\\045\\090\\048\\045\\057\\095\\093\\043\\047\\042.\\126": `\;[a-zA-Z0-9_]+/*.~`,
-		// "\\091\\097\\045\\122\\065\\045\\090\\048\\045\\057\\095\\093\\043\\047\\042.\\126": `[a-zA-Z0-9_]+/*.~`,
-
-		// Incomplete "dangling" escapes are dropped regardless of prior escaping.
-		"a\\": `a`,
-		";\\": `\;`,
+		`;[a-zA-Z0-9_]+/*.~.`: `\;[a-zA-Z0-9_]+/*.~.`,
+		`;\091\097\045\122\065\045\090\048\045\057\095\093\043\047\042.\126.`: `\;[a-zA-Z0-9_]+/*.~.`,
+		`\091\097\045\122\065\045\090\048\045\057\095\093\043\047\042.\126.`:  `[a-zA-Z0-9_]+/*.~.`,
 
 		// Escaped dots stay escaped regardless of prior escaping.
-		"a\\.\\046.\\.\\046": `a\.\..\.\.`,
-		"a\\046\\..\\046\\.": `a\.\..\.\.`,
+		`a\.\046.\.\046.`: `a\.\..\.\..`,
+		`a\046\..\046\..`: `a\.\..\.\..`,
 	}
 	for input, want := range tests {
-		got := sprintName(input)
+		got := mustParseName(input).String()
 		if got != want {
 			t.Errorf("input %q: expected %q, got %q", input, want, got)
 		}
@@ -154,21 +150,21 @@ func TestRPStringer(t *testing.T) {
 	}
 }
 
-func BenchmarkSprintName(b *testing.B) {
+func BenchmarkNameSerDeser(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		got := sprintName("abc\\.def\007\"\127@\255\x05\xef\\")
+		got := mustParseName("abc\\.def\007\"W@\xad\x05\xef.").String()
 
-		if want := "abc\\.def\\007\\\"W\\@\\173\\005\\239"; got != want {
+		if want := "abc\\.def\\007\\\"W\\@\\173\\005\\239."; got != want {
 			b.Fatalf("expected %q, got %q", want, got)
 		}
 	}
 }
 
-func BenchmarkSprintName_NoEscape(b *testing.B) {
+func BenchmarkNameSerDeser_NoEscape(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		got := sprintName("large.example.com")
+		got := mustParseName("large.example.com.").String()
 
-		if want := "large.example.com"; got != want {
+		if want := "large.example.com."; got != want {
 			b.Fatalf("expected %q, got %q", want, got)
 		}
 	}

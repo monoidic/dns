@@ -21,28 +21,20 @@ import (
 )
 
 var skipLen = map[string]struct{}{
-	"NSEC":  {},
-	"NSEC3": {},
-	"OPT":   {},
-	"CSYNC": {},
+	"OPT": {},
 }
 
 var skipString = map[string]struct{}{
-	"OPT":        {},
-	"AMTRELAY":   {}, // TODO(monoidic)
-	"IPSECKEY":   {}, // TODO(monoidic)
-	"CERT":       {},
-	"L64":        {},
-	"NID":        {},
-	"TKEY":       {},
-	"TSIG":       {},
-	"HIP":        {},
-	"LOC":        {},
-	"NAPTR":      {},
-	"NSEC3":      {}, // TODO(monoidic)
-	"NSEC3PARAM": {}, // TODO(monoidic)
-	"RFC3597":    {},
-	"SMIMEA":     {},
+	"OPT":      {},
+	"AMTRELAY": {},
+	"IPSECKEY": {},
+	"CERT":     {},
+	"L64":      {},
+	"NID":      {},
+	"TSIG":     {},
+	"LOC":      {},
+	"RFC3597":  {},
+	"SMIMEA":   {},
 }
 
 var packageHdr = `
@@ -194,9 +186,10 @@ func main() {
 		fmt.Fprintf(b, "l := rr.Hdr.len(off, compression)\n")
 		for i := 1; i < st.NumFields(); i++ {
 			o := func(s string) { fmt.Fprintf(b, s, st.Field(i).Name()) }
+			tag := st.Tag(i)
 
 			if _, ok := st.Field(i).Type().(*types.Slice); ok {
-				switch st.Tag(i) {
+				switch tag {
 				case `dns:"-"`:
 					// ignored
 				case `dns:"cdomain-name"`:
@@ -207,18 +200,20 @@ func main() {
 					o("for _, x := range rr.%s { l += x.len() }\n")
 				case `dns:"pairs"`:
 					o("for _, x := range rr.%s { l += 4 + int(x.len()) }\n")
+				case `dns:"nsec"`:
+					o("l += typeBitMapLen(rr.%s)\n")
 				default:
-					log.Panicln(name, st.Field(i).Name(), st.Tag(i))
+					log.Panicln(name, st.Field(i).Name(), tag)
 				}
 				continue
 			}
 
-			if tag := st.Tag(i); strings.HasPrefix(tag, `dns:"size-base64`) || strings.HasPrefix(tag, `dns:"size-hex:`) {
+			if strings.HasPrefix(tag, `dns:"size-`) {
 				o("l += rr.%s.EncodedLen()\n")
 				continue
 			}
 
-			switch st.Tag(i) {
+			switch tag {
 			case `dns:"-"`:
 				// ignored
 			case `dns:"cdomain-name"`:
@@ -253,7 +248,7 @@ func main() {
 				`)
 			case `dns:"lenoctet"`:
 				o("l += escapedNameLen(rr.%s) + 1\n")
-			case `dns:"eui64"`, `dns:"amtrelaytype"`, `dns:"baretxt"`, `dns:"base64"`, `dns:"hex"`:
+			case `dns:"eui64"`, `dns:"amtrelaytype"`, `dns:"baretxt"`, `dns:"base64"`, `dns:"hex"`, `dns:"length"`:
 				fallthrough
 			case "":
 				switch ft := st.Field(i).Type().(type) {
@@ -287,7 +282,7 @@ func main() {
 					log.Panicln(name, st.Field(i).Name())
 				}
 			default:
-				log.Panicln(name, st.Field(i).Name(), st.Tag(i))
+				log.Panicln(name, st.Field(i).Name(), tag)
 			}
 		}
 		fmt.Fprint(b, "return l }\n\n")
@@ -360,19 +355,39 @@ func main() {
 
 		for i := 1; i < numFields; i++ {
 			tag := st.Tag(i)
+			switch tag {
+			case `dns:"length"`:
+				continue
+			}
 			if i > 1 {
+				writeSpace := true
 				switch tag {
-				case `dns:"pairs"`, `dns:"a"`, `dns:"aaaa"`, `dns:"apl"`, `dns:"nsec"`:
-				default:
+				case `dns:"a"`, `dns:"aaaa"`:
+					writeSpace = false
+				}
+				if i == 2 && st.Tag(1) == `dns:"length"` {
+					writeSpace = false
+				}
+				if _, ok := st.Field(i).Type().(*types.Slice); ok {
+					writeSpace = false
+				}
+				if writeSpace {
 					fmt.Fprint(b, "b.WriteByte(' ')\n")
 				}
+			}
 
+			if strings.HasPrefix(tag, `dns:"size-hex:`) && tag != `dns:"size-hex:SaltLength"` {
+				tag = `dns:"hex"`
+			} else if strings.HasPrefix(tag, `dns:"size-base32`) {
+				tag = `dns:"base32"`
+			} else if strings.HasPrefix(tag, `dns:"size-base64`) {
+				tag = `dns:"base64"`
 			}
 			field := st.Field(i).Name()
 			o := func(s string) { fmt.Fprintf(b, s, field) }
 			o2 := func(s string) { fmt.Fprintf(b, s+"\n", field, field) }
 			foundTag := true
-			switch st.Tag(i) {
+			switch tag {
 			case `dns:"a"`, `dns:"aaaa"`:
 				if i > 1 {
 					o2("if rr.%s.IsValid() {b.WriteByte(' ')\nb.WriteString(rr.%s.String())}\n")
@@ -384,7 +399,7 @@ func main() {
 			case `dns:"nsec"`:
 				o(`	for _, t := range rr.%s {
 	b.WriteByte(' ')
-	b.WriteString(Type(t).String())
+	b.WriteString(t.String())
 }
 `)
 			case `dns:"eui48"`:
@@ -393,6 +408,10 @@ func main() {
 				o("b.WriteString(euiToString(rr.%s, 64))\n")
 			case `dns:"hex"`:
 				o("b.WriteString(rr.%s.Hex())\n")
+			case `dns:"size-hex:SaltLength"`:
+				o("b.WriteString(saltToString(rr.%s))\n")
+			case `dns:"base32"`:
+				o("b.WriteString(rr.%s.Base32())\n")
 			case `dns:"base64"`:
 				o("b.WriteString(rr.%s.Base64())\n")
 			case `dns:"pairs"`:
@@ -414,6 +433,8 @@ func main() {
 `)
 			case `dns:"baretxt"`:
 				o("b.WriteString(rr.%s.BareString())\n")
+			case `dns:"lenoctet"`:
+				o("b.WriteByte('\"')\nb.WriteString(rr.%s)\nb.WriteByte('\"')\n")
 			default:
 				foundTag = false
 			}

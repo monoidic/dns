@@ -146,7 +146,7 @@ return off, err
 				o("off, err = packIPSECGateway(rr.GatewayAddr, rr.%s, msg, off, rr.GatewayType, compression, false)\n")
 			case `dns:"lenoctet"`:
 				o("off, err = packLenOctet(rr.%s, msg, off)\n")
-			case "", `dns:"eui64"`, `dns:"baretxt"`, `dns:"hex"`, `dns:"base32"`, `dns:"base64"`:
+			case "", `dns:"eui64"`, `dns:"baretxt"`, `dns:"hex"`, `dns:"base32"`, `dns:"base64"`, `dns:"length"`:
 				matched = false
 			default:
 				log.Panicln(name, st.Field(i).Name(), st.Tag(i))
@@ -270,9 +270,8 @@ return off, err
 				o("rr.GatewayAddr, rr.%s, off, err = unpackIPSECGateway(msg, off, rr.GatewayType)\n")
 			case `dns:"lenoctet"`:
 				o("rr.%s, off, err = unpackLenOctet(msg, off)\n")
-			case `dns:"cdomain-name"`, `dns:"baretxt"`, `dns:"hex"`, `dns:"base32"`, `dns:"base64"`:
+			case `dns:"cdomain-name"`, `dns:"baretxt"`, `dns:"hex"`, `dns:"base32"`, `dns:"base64"`, `dns:"length"`:
 				fallthrough // unpack function is the same as the generic one
-				// TODO(monoidic) disallow compression when unpacking unless cdomain-name is used?
 			case "":
 				switch ft := st.Field(i).Type().(type) {
 				case *types.Basic:

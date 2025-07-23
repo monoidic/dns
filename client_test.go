@@ -410,8 +410,8 @@ func TestClientEDNS0Local(t *testing.T) {
 	m.SetQuestion(name, TypeTXT)
 
 	// Add two local edns options to the query.
-	ec1 := &EDNS0_LOCAL{Code: 1979, Data: []byte{7, 7}}
-	ec2 := &EDNS0_LOCAL{Code: EDNS0LOCALSTART, Data: []byte{6, 1}}
+	ec1 := &EDNS0_LOCAL{Code: 1979, Data: BFFromBytes([]byte{7, 7})}
+	ec2 := &EDNS0_LOCAL{Code: EDNS0LOCALSTART, Data: BFFromBytes([]byte{6, 1})}
 	o := &OPT{Hdr: RR_Header{Name: mustParseName("."), Rrtype: TypeOPT}, Option: []EDNS0{ec1, ec2}}
 	m.Extra = append(m.Extra, o)
 

@@ -348,6 +348,14 @@ func (rr *CNAME) len(off int, compression map[Name]struct{}) int {
 	return l
 }
 
+func (rr *CSYNC) len(off int, compression map[Name]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += 4 // Serial
+	l += 2 // Flags
+	l += typeBitMapLen(rr.TypeBitMap)
+	return l
+}
+
 func (rr *DHCID) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += rr.Digest.EncodedLen()
@@ -579,6 +587,26 @@ func (rr *NS) len(off int, compression map[Name]struct{}) int {
 func (rr *NSAPPTR) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += domainNameLen(rr.Ptr, off+l, compression, false)
+	return l
+}
+
+func (rr *NSEC) len(off int, compression map[Name]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l += domainNameLen(rr.NextDomain, off+l, compression, false)
+	l += typeBitMapLen(rr.TypeBitMap)
+	return l
+}
+
+func (rr *NSEC3) len(off int, compression map[Name]struct{}) int {
+	l := rr.Hdr.len(off, compression)
+	l++    // Hash
+	l++    // Flags
+	l += 2 // Iterations
+	l++    // SaltLength
+	l += rr.Salt.EncodedLen()
+	l++ // HashLength
+	l += rr.NextDomain.EncodedLen()
+	l += typeBitMapLen(rr.TypeBitMap)
 	return l
 }
 
@@ -1423,7 +1451,7 @@ func (rr *CSYNC) String() string {
 	b.WriteString(strconv.FormatInt(int64(rr.Flags), 10))
 	for _, t := range rr.TypeBitMap {
 		b.WriteByte(' ')
-		b.WriteString(Type(t).String())
+		b.WriteString(t.String())
 	}
 	return b.String()
 }
@@ -1513,6 +1541,21 @@ func (rr *HINFO) String() string {
 	b.WriteString(rr.Cpu.String())
 	b.WriteByte(' ')
 	b.WriteString(rr.Os.String())
+	return b.String()
+}
+
+func (rr *HIP) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.PublicKeyAlgorithm), 10))
+	b.WriteByte(' ')
+	b.WriteString(rr.Hit.Hex())
+	b.WriteByte(' ')
+	b.WriteString(rr.PublicKey.Base64())
+	for _, d := range rr.RendezvousServers {
+		b.WriteByte(' ')
+		b.WriteString(d.String())
+	}
 	return b.String()
 }
 
@@ -1608,6 +1651,25 @@ func (rr *MX) String() string {
 	return b.String()
 }
 
+func (rr *NAPTR) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Order), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Preference), 10))
+	b.WriteByte(' ')
+	b.WriteString(rr.Flags.String())
+	b.WriteByte(' ')
+	b.WriteString(rr.Service.String())
+	b.WriteByte(' ')
+	b.WriteByte('"')
+	b.WriteString(rr.Regexp)
+	b.WriteByte('"')
+	b.WriteByte(' ')
+	b.WriteString(rr.Replacement.String())
+	return b.String()
+}
+
 func (rr *NIMLOC) String() string {
 	var b strings.Builder
 	b.WriteString(rr.Hdr.String())
@@ -1642,8 +1704,40 @@ func (rr *NSEC) String() string {
 	b.WriteString(rr.NextDomain.String())
 	for _, t := range rr.TypeBitMap {
 		b.WriteByte(' ')
-		b.WriteString(Type(t).String())
+		b.WriteString(t.String())
 	}
+	return b.String()
+}
+
+func (rr *NSEC3) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Hash), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Flags), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Iterations), 10))
+	b.WriteByte(' ')
+	b.WriteString(saltToString(rr.Salt))
+	b.WriteByte(' ')
+	b.WriteString(rr.NextDomain.Base32())
+	for _, t := range rr.TypeBitMap {
+		b.WriteByte(' ')
+		b.WriteString(t.String())
+	}
+	return b.String()
+}
+
+func (rr *NSEC3PARAM) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(strconv.FormatInt(int64(rr.Hash), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Flags), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Iterations), 10))
+	b.WriteByte(' ')
+	b.WriteString(saltToString(rr.Salt))
 	return b.String()
 }
 
@@ -1829,6 +1923,25 @@ func (rr *TALINK) String() string {
 	b.WriteString(rr.PreviousName.String())
 	b.WriteByte(' ')
 	b.WriteString(rr.NextName.String())
+	return b.String()
+}
+
+func (rr *TKEY) String() string {
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
+	b.WriteString(rr.Algorithm.String())
+	b.WriteByte(' ')
+	b.WriteString(rr.Inception.String())
+	b.WriteByte(' ')
+	b.WriteString(rr.Expiration.String())
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Mode), 10))
+	b.WriteByte(' ')
+	b.WriteString(strconv.FormatInt(int64(rr.Error), 10))
+	b.WriteByte(' ')
+	b.WriteString(rr.Key.Hex())
+	b.WriteByte(' ')
+	b.WriteString(rr.OtherData.Hex())
 	return b.String()
 }
 

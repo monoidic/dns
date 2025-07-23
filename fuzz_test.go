@@ -29,9 +29,9 @@ func TestPackDataOpt(t *testing.T) {
 			name: "overflow",
 			args: args{
 				option: []EDNS0{
-					&EDNS0_LOCAL{Code: 0x3030, Data: []uint8{}},
-					&EDNS0_LOCAL{Code: 0x3030, Data: []uint8{0x30}},
-					&EDNS0_LOCAL{Code: 0x3030, Data: []uint8{}},
+					&EDNS0_LOCAL{Code: 0x3030},
+					&EDNS0_LOCAL{Code: 0x3030, Data: BFFromBytes([]uint8{0x30})},
+					&EDNS0_LOCAL{Code: 0x3030},
 					&EDNS0_SUBNET{
 						Code: 0x0, Family: 0x2,
 						SourceNetmask: 0x0, SourceScope: 0x30,

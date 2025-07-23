@@ -620,8 +620,8 @@ func TestRFC6605P256(t *testing.T) {
 	exPriv := `Private-key-format: v1.2
 Algorithm: 13 (ECDSAP256SHA256)
 PrivateKey: GU6SnQ/Ou+xC5RumuIUIuJZteXT2z0O/ok1s38Et6mQ=`
-	rrDNSKEY := testRR(exDNSKEY)
-	priv, err := rrDNSKEY.(*DNSKEY).NewPrivateKey(exPriv)
+	rrDNSKEY := testRR(exDNSKEY).(*DNSKEY)
+	priv, err := rrDNSKEY.NewPrivateKey(exPriv)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -630,7 +630,7 @@ PrivateKey: GU6SnQ/Ou+xC5RumuIUIuJZteXT2z0O/ok1s38Et6mQ=`
              b4c8c1fe2e7477127b27115656ad6256f424625bf5c1
              e2770ce6d6e37df61d17 )`
 	rrDS := testRR(exDS)
-	ourDS := rrDNSKEY.(*DNSKEY).ToDS(SHA256)
+	ourDS := rrDNSKEY.ToDS(SHA256)
 	if !reflect.DeepEqual(ourDS, rrDS.(*DS)) {
 		t.Errorf("DS record differs:\n%v\n%v", ourDS, rrDS.(*DS))
 	}
@@ -641,8 +641,8 @@ PrivateKey: GU6SnQ/Ou+xC5RumuIUIuJZteXT2z0O/ok1s38Et6mQ=`
                 qx6wLYqmh+l9oCKTN6qIc+bw6ya+KJ8oMz0YP107epXA
                 yGmt+3SNruPFKG7tZoLBLlUzGGus7ZwmwWep666VCw== )`
 	rrA := testRR(exA)
-	rrRRSIG := testRR(exRRSIG)
-	if err := rrRRSIG.(*RRSIG).Verify(rrDNSKEY.(*DNSKEY), []RR{rrA}); err != nil {
+	rrRRSIG := testRR(exRRSIG).(*RRSIG)
+	if err := rrRRSIG.Verify(rrDNSKEY, []RR{rrA}); err != nil {
 		t.Errorf("failure to validate the spec RRSIG: %v", err)
 	}
 
@@ -650,9 +650,9 @@ PrivateKey: GU6SnQ/Ou+xC5RumuIUIuJZteXT2z0O/ok1s38Et6mQ=`
 		Hdr: RR_Header{
 			Ttl: rrA.Header().Ttl,
 		},
-		KeyTag:     rrDNSKEY.(*DNSKEY).KeyTag(),
-		SignerName: rrDNSKEY.(*DNSKEY).Hdr.Name,
-		Algorithm:  rrDNSKEY.(*DNSKEY).Algorithm,
+		KeyTag:     rrDNSKEY.KeyTag(),
+		SignerName: rrDNSKEY.Hdr.Name,
+		Algorithm:  rrDNSKEY.Algorithm,
 	}
 	ourRRSIG.Expiration, _ = StringToTime("20100909100439")
 	ourRRSIG.Inception, _ = StringToTime("20100812100439")
@@ -661,15 +661,15 @@ PrivateKey: GU6SnQ/Ou+xC5RumuIUIuJZteXT2z0O/ok1s38Et6mQ=`
 		t.Fatal(err)
 	}
 
-	if err = ourRRSIG.Verify(rrDNSKEY.(*DNSKEY), []RR{rrA}); err != nil {
+	if err = ourRRSIG.Verify(rrDNSKEY, []RR{rrA}); err != nil {
 		t.Errorf("failure to validate our RRSIG: %v", err)
 	}
 
 	// Signatures are randomized
-	rrRRSIG.(*RRSIG).Signature = ByteField{}
+	rrRRSIG.Signature = ByteField{}
 	ourRRSIG.Signature = ByteField{}
-	if !reflect.DeepEqual(ourRRSIG, rrRRSIG.(*RRSIG)) {
-		t.Fatalf("RRSIG record differs:\n%v\n%v", ourRRSIG, rrRRSIG.(*RRSIG))
+	if !reflect.DeepEqual(ourRRSIG, rrRRSIG) {
+		t.Fatalf("RRSIG record differs:\n%v\n%v", ourRRSIG, rrRRSIG)
 	}
 }
 

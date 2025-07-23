@@ -2,7 +2,6 @@ package dns
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
@@ -260,22 +259,18 @@ type EDNS0 interface {
 //	e.Nsid = "AA"
 //	o.Option = append(o.Option, e)
 type EDNS0_NSID struct {
-	Code uint16 // always EDNS0NSID
-	Nsid string // string needs to be hex encoded
+	Code uint16    // always EDNS0NSID
+	Nsid ByteField `dns:"hex"`
 }
 
 func (e *EDNS0_NSID) pack() ([]byte, error) {
-	h, err := hex.DecodeString(e.Nsid)
-	if err != nil {
-		return nil, err
-	}
-	return h, nil
+	return e.Nsid.Raw(), nil
 }
 
 // Option implements the EDNS0 interface.
 func (e *EDNS0_NSID) Option() uint16        { return EDNS0NSID } // Option returns the option code.
-func (e *EDNS0_NSID) unpack(b []byte) error { e.Nsid = hex.EncodeToString(b); return nil }
-func (e *EDNS0_NSID) String() string        { return e.Nsid }
+func (e *EDNS0_NSID) unpack(b []byte) error { e.Nsid = BFFromBytes(b); return nil }
+func (e *EDNS0_NSID) String() string        { return e.Nsid.Hex() }
 func (e *EDNS0_NSID) copy() EDNS0           { return &EDNS0_NSID{e.Code, e.Nsid} }
 
 // EDNS0_SUBNET is the subnet option that is used to give the remote nameserver
@@ -429,22 +424,18 @@ func (e *EDNS0_SUBNET) copy() EDNS0 {
 //
 // There is no guarantee that the Cookie string has a specific length.
 type EDNS0_COOKIE struct {
-	Code   uint16 // always EDNS0COOKIE
-	Cookie string // hex encoded cookie data
+	Code   uint16    // always EDNS0COOKIE
+	Cookie ByteField `dns:"hex"`
 }
 
 func (e *EDNS0_COOKIE) pack() ([]byte, error) {
-	h, err := hex.DecodeString(e.Cookie)
-	if err != nil {
-		return nil, err
-	}
-	return h, nil
+	return e.Cookie.Raw(), nil
 }
 
 // Option implements the EDNS0 interface.
 func (e *EDNS0_COOKIE) Option() uint16        { return EDNS0COOKIE }
-func (e *EDNS0_COOKIE) unpack(b []byte) error { e.Cookie = hex.EncodeToString(b); return nil }
-func (e *EDNS0_COOKIE) String() string        { return e.Cookie }
+func (e *EDNS0_COOKIE) unpack(b []byte) error { e.Cookie = BFFromBytes(b); return nil }
+func (e *EDNS0_COOKIE) String() string        { return e.Cookie.Hex() }
 func (e *EDNS0_COOKIE) copy() EDNS0           { return &EDNS0_COOKIE{e.Code, e.Cookie} }
 
 // The EDNS0_UL (Update Lease) (draft RFC) option is used to tell the server to set
@@ -683,26 +674,26 @@ func (e *EDNS0_EXPIRE) String() (s string) {
 //	o.Option = append(o.Option, e)
 type EDNS0_LOCAL struct {
 	Code uint16
-	Data []byte
+	Data ByteField `dns:"hex"`
 }
 
 // Option implements the EDNS0 interface.
 func (e *EDNS0_LOCAL) Option() uint16 { return e.Code }
 
 func (e *EDNS0_LOCAL) String() string {
-	return strconv.FormatInt(int64(e.Code), 10) + ":0x" + hex.EncodeToString(e.Data)
+	return strconv.FormatInt(int64(e.Code), 10) + ":0x" + e.Data.Hex()
 }
 
 func (e *EDNS0_LOCAL) copy() EDNS0 {
-	return &EDNS0_LOCAL{e.Code, slices.Clone(e.Data)}
+	return &EDNS0_LOCAL{e.Code, e.Data}
 }
 
 func (e *EDNS0_LOCAL) pack() ([]byte, error) {
-	return slices.Clone(e.Data), nil
+	return e.Data.Raw(), nil
 }
 
 func (e *EDNS0_LOCAL) unpack(b []byte) error {
-	e.Data = slices.Clone(b)
+	e.Data = BFFromBytes(b)
 	return nil
 }
 
@@ -761,15 +752,15 @@ func (e *EDNS0_TCP_KEEPALIVE) copy() EDNS0 { return &EDNS0_TCP_KEEPALIVE{e.Code,
 // value of padding SHOULD be 0x0 but other values MAY be used, for instance if
 // compression is applied before encryption which may break signatures.
 type EDNS0_PADDING struct {
-	Padding []byte
+	Padding ByteField
 }
 
 // Option implements the EDNS0 interface.
 func (e *EDNS0_PADDING) Option() uint16        { return EDNS0PADDING }
-func (e *EDNS0_PADDING) pack() ([]byte, error) { return slices.Clone(e.Padding), nil }
-func (e *EDNS0_PADDING) unpack(b []byte) error { e.Padding = slices.Clone(b); return nil }
-func (e *EDNS0_PADDING) String() string        { return fmt.Sprintf("%0X", e.Padding) }
-func (e *EDNS0_PADDING) copy() EDNS0           { return &EDNS0_PADDING{slices.Clone(e.Padding)} }
+func (e *EDNS0_PADDING) pack() ([]byte, error) { return e.Padding.Raw(), nil }
+func (e *EDNS0_PADDING) unpack(b []byte) error { e.Padding = BFFromBytes(b); return nil }
+func (e *EDNS0_PADDING) String() string        { return e.Padding.Hex() }
+func (e *EDNS0_PADDING) copy() EDNS0           { return &EDNS0_PADDING{e.Padding} }
 
 // Extended DNS Error Codes (RFC 8914).
 const (

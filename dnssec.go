@@ -14,7 +14,7 @@ import (
 	"encoding/asn1"
 	"encoding/binary"
 	"math/big"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -583,16 +583,6 @@ func (k *DNSKEY) publicKeyED25519() ed25519.PublicKey {
 	return keybuf
 }
 
-type wireSlice [][]byte
-
-func (p wireSlice) Len() int      { return len(p) }
-func (p wireSlice) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
-func (p wireSlice) Less(i, j int) bool {
-	_, ioff, _ := UnpackDomainName(p[i], 0)
-	_, joff, _ := UnpackDomainName(p[j], 0)
-	return bytes.Compare(p[i][ioff+10:], p[j][joff+10:]) < 0
-}
-
 func Canonicalize(r1 RR) {
 	// 6.2. Canonical RR Form. (3) - domain rdata to lowercase.
 	//   NS, MD, MF, CNAME, SOA, MB, MG, MR, PTR,
@@ -656,7 +646,7 @@ func Canonicalize(r1 RR) {
 
 // Return the raw signature data.
 func rawSignatureData(rrset []RR, s *RRSIG) (buf []byte, err error) {
-	wires := make(wireSlice, len(rrset))
+	wires := make([][]byte, len(rrset))
 	for i, r := range rrset {
 		r1 := r.copy()
 		h := r1.Header()
@@ -665,7 +655,7 @@ func rawSignatureData(rrset []RR, s *RRSIG) (buf []byte, err error) {
 		// 6.2. Canonical RR Form. (4) - wildcards
 		if len(labels) > int(s.Labels) {
 			// Wildcard
-			joinLabels := append([][]byte{[]byte("*")}, labels[len(labels)-int(s.Labels):]...)
+			joinLabels := append([][]byte{{'*'}}, labels[len(labels)-int(s.Labels):]...)
 			h.Name, err = NameFromLabels(joinLabels)
 			if err != nil {
 				return nil, err
@@ -674,7 +664,7 @@ func rawSignatureData(rrset []RR, s *RRSIG) (buf []byte, err error) {
 		// RFC 4034: 6.2.  Canonical RR Form. (2) - domain name to lowercase
 		Canonicalize(r1)
 		// 6.2. Canonical RR Form. (5) - origTTL
-		wire := make([]byte, Len(r1)+1) // +1 to be safe(r)
+		wire := make([]byte, Len(r1))
 		off, err := PackRR(r1, wire, 0, nil, false)
 		if err != nil {
 			return nil, err
@@ -682,7 +672,11 @@ func rawSignatureData(rrset []RR, s *RRSIG) (buf []byte, err error) {
 		wire = wire[:off]
 		wires[i] = wire
 	}
-	sort.Sort(wires)
+	slices.SortFunc(wires, func(l, r []byte) int {
+		_, loff, _ := UnpackDomainName(l, 0)
+		_, roff, _ := UnpackDomainName(r, 0)
+		return bytes.Compare(l[loff+10:], r[roff+10:])
+	})
 	for i, wire := range wires {
 		if i > 0 && bytes.Equal(wire, wires[i-1]) {
 			continue

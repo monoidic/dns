@@ -94,7 +94,9 @@ func main() {
 		fmt.Fprintf(b, "func (r1 *%s) isDuplicate(_r2 RR) bool {\n", name)
 		fmt.Fprintf(b, "r2, ok := _r2.(*%s)\n", name)
 		fmt.Fprint(b, "if !ok { return false }\n")
-		fmt.Fprint(b, "_ = r2\n")
+		if st.NumFields() == 1 {
+			fmt.Fprint(b, "_ = r2\n")
+		}
 	loop:
 		for i := 1; i < st.NumFields(); i++ {
 			field := st.Field(i).Name()

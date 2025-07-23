@@ -38,33 +38,32 @@ const (
 	TypeMR    Type = 9
 	TypeNULL  Type = 10
 	// TypeWKS  Type = 11
-	TypePTR     Type = 12
-	TypeHINFO   Type = 13
-	TypeMINFO   Type = 14
-	TypeMX      Type = 15
-	TypeTXT     Type = 16
-	TypeRP      Type = 17
-	TypeAFSDB   Type = 18
-	TypeX25     Type = 19
-	TypeISDN    Type = 20
-	TypeRT      Type = 21
-	TypeNSAPPTR Type = 23
+	TypePTR   Type = 12
+	TypeHINFO Type = 13
+	TypeMINFO Type = 14
+	TypeMX    Type = 15
+	TypeTXT   Type = 16
+	TypeRP    Type = 17
+	TypeAFSDB Type = 18
+	TypeX25   Type = 19
+	TypeISDN  Type = 20
+	TypeRT    Type = 21
 	// TypeNSAP    Type = 22
-	// TypeNSAPPTR Type = 23
-	TypeSIG    Type = 24
-	TypeKEY    Type = 25
-	TypePX     Type = 26
-	TypeGPOS   Type = 27
-	TypeAAAA   Type = 28
-	TypeLOC    Type = 29
-	TypeNXT    Type = 30
-	TypeEID    Type = 31
-	TypeNIMLOC Type = 32
-	TypeSRV    Type = 33
-	TypeATMA   Type = 34
-	TypeNAPTR  Type = 35
-	TypeKX     Type = 36
-	TypeCERT   Type = 37
+	TypeNSAPPTR Type = 23
+	TypeSIG     Type = 24
+	TypeKEY     Type = 25
+	TypePX      Type = 26
+	TypeGPOS    Type = 27
+	TypeAAAA    Type = 28
+	TypeLOC     Type = 29
+	TypeNXT     Type = 30
+	TypeEID     Type = 31
+	TypeNIMLOC  Type = 32
+	TypeSRV     Type = 33
+	TypeATMA    Type = 34
+	TypeNAPTR   Type = 35
+	TypeKX      Type = 36
+	TypeCERT    Type = 37
 	// TypeA6 Type = 38
 	TypeDNAME Type = 39
 	// TypeSINK Type = 40
@@ -653,15 +652,6 @@ type NAPTR struct {
 	Replacement Name
 }
 
-func (rr *NAPTR) String() string {
-	return rr.Hdr.String() +
-		strconv.Itoa(int(rr.Order)) + " " +
-		strconv.Itoa(int(rr.Preference)) + " " +
-		TxtStringsFromArr([]TxtString{rr.Flags, rr.Service}).String() + " " +
-		"\"" + rr.Regexp + "\" " +
-		rr.Replacement.String()
-}
-
 // CERT RR. See RFC 4398.
 type CERT struct {
 	Hdr         RR_Header
@@ -832,13 +822,6 @@ type NSEC struct {
 	TypeBitMap []Type `dns:"nsec"`
 }
 
-func (rr *NSEC) len(off int, compression map[Name]struct{}) int {
-	l := rr.Hdr.len(off, compression)
-	l += domainNameLen(rr.NextDomain, off+l, compression, false)
-	l += typeBitMapLen(rr.TypeBitMap)
-	return l
-}
-
 // DLV RR. See RFC 4431.
 type DLV struct{ DS }
 
@@ -988,31 +971,11 @@ type NSEC3 struct {
 	Hash       uint8
 	Flags      uint8
 	Iterations uint16
-	SaltLength uint8
+	SaltLength uint8     `dns:"length"`
 	Salt       ByteField `dns:"size-hex:SaltLength"`
-	HashLength uint8
+	HashLength uint8     `dns:"length"`
 	NextDomain ByteField `dns:"size-base32:HashLength"`
 	TypeBitMap []Type    `dns:"nsec"`
-}
-
-func (rr *NSEC3) String() string {
-	s := rr.Hdr.String()
-	s += strconv.Itoa(int(rr.Hash)) +
-		" " + strconv.Itoa(int(rr.Flags)) +
-		" " + strconv.Itoa(int(rr.Iterations)) +
-		" " + saltToString(rr.Salt) +
-		" " + rr.NextDomain.Base32()
-	for _, t := range rr.TypeBitMap {
-		s += " " + Type(t).String()
-	}
-	return s
-}
-
-func (rr *NSEC3) len(off int, compression map[Name]struct{}) int {
-	l := rr.Hdr.len(off, compression)
-	l += 6 + rr.Salt.EncodedLen() + rr.NextDomain.EncodedLen()
-	l += typeBitMapLen(rr.TypeBitMap)
-	return l
 }
 
 // NSEC3PARAM RR. See RFC 5155.
@@ -1021,17 +984,8 @@ type NSEC3PARAM struct {
 	Hash       uint8
 	Flags      uint8
 	Iterations uint16
-	SaltLength uint8
+	SaltLength uint8     `dns:"length"`
 	Salt       ByteField `dns:"size-hex:SaltLength"`
-}
-
-func (rr *NSEC3PARAM) String() string {
-	s := rr.Hdr.String()
-	s += strconv.Itoa(int(rr.Hash)) +
-		" " + strconv.Itoa(int(rr.Flags)) +
-		" " + strconv.Itoa(int(rr.Iterations)) +
-		" " + saltToString(rr.Salt)
-	return s
 }
 
 // TKEY RR. See RFC 2930.
@@ -1042,25 +996,10 @@ type TKEY struct {
 	Expiration Time
 	Mode       uint16
 	Error      uint16
-	KeySize    uint16
+	KeySize    uint16    `dns:"length"`
 	Key        ByteField `dns:"size-hex:KeySize"`
-	OtherLen   uint16
+	OtherLen   uint16    `dns:"length"`
 	OtherData  ByteField `dns:"size-hex:OtherLen"`
-}
-
-// TKEY has no official presentation format, but this will suffice.
-func (rr *TKEY) String() string {
-	s := rr.Hdr.String() +
-		" " + rr.Algorithm.String() +
-		" " + rr.Inception.String() +
-		" " + rr.Expiration.String() +
-		" " + strconv.Itoa(int(rr.Mode)) +
-		" " + strconv.Itoa(int(rr.Error)) +
-		" " + strconv.Itoa(int(rr.KeySize)) +
-		" " + rr.Key.Hex() +
-		" " + strconv.Itoa(int(rr.OtherLen)) +
-		" " + rr.OtherData.Hex()
-	return s
 }
 
 // RFC3597 represents an unknown/generic RR. See RFC 3597.
@@ -1136,23 +1075,12 @@ func (rr *SMIMEA) String() string {
 // HIP RR. See RFC 8005.
 type HIP struct {
 	Hdr                RR_Header
-	HitLength          uint8
+	HitLength          uint8 `dns:"length"`
 	PublicKeyAlgorithm uint8
-	PublicKeyLength    uint16
+	PublicKeyLength    uint16    `dns:"length"`
 	Hit                ByteField `dns:"size-hex:HitLength"`
 	PublicKey          ByteField `dns:"size-base64:PublicKeyLength"`
 	RendezvousServers  []Name    `dns:"domain-name"`
-}
-
-func (rr *HIP) String() string {
-	s := rr.Hdr.String() +
-		strconv.Itoa(int(rr.PublicKeyAlgorithm)) +
-		" " + rr.Hit.Hex() +
-		" " + rr.PublicKey.Base64()
-	for _, d := range rr.RendezvousServers {
-		s += " " + d.String()
-	}
-	return s
 }
 
 // NINFO RR. See https://www.iana.org/assignments/dns-parameters/NINFO/ninfo-completed-template.
@@ -1265,13 +1193,6 @@ type CSYNC struct {
 	Serial     uint32
 	Flags      uint16
 	TypeBitMap []Type `dns:"nsec"`
-}
-
-func (rr *CSYNC) len(off int, compression map[Name]struct{}) int {
-	l := rr.Hdr.len(off, compression)
-	l += 4 + 2
-	l += typeBitMapLen(rr.TypeBitMap)
-	return l
 }
 
 // ZONEMD RR, from draft-ietf-dnsop-dns-zone-digest
@@ -1844,6 +1765,10 @@ func (b ByteField) Base64() string {
 
 func (b ByteField) Raw() []byte {
 	return []byte(b.raw)
+}
+
+func (b ByteField) String() string {
+	return b.Hex()
 }
 
 type Time uint32

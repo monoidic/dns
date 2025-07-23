@@ -84,7 +84,7 @@ func (h *RR_Header) String() string {
 	var s strings.Builder
 
 	switch h.Rrtype {
-	case TypeOPT, TypeNULL, TypeTKEY:
+	case TypeOPT, TypeNULL, TypeTKEY, TypeTSIG:
 		// these types have no string representation
 		s.WriteByte(';')
 		// and maybe other things

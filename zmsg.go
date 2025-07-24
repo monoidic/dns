@@ -43,7 +43,7 @@ func (rr *AMTRELAY) pack(msg []byte, off int, compression compressionMap, compre
 	if err != nil {
 		return off, err
 	}
-	off, err = packIPSECGateway(rr.GatewayAddr, rr.GatewayHost, msg, off, rr.GatewayType, compression, false)
+	off, err = packIPSECGateway(rr.GatewayAddr, rr.GatewayHost, msg, off, rr.GatewayType&0x7f, compression)
 	if err != nil {
 		return off, err
 	}
@@ -79,7 +79,7 @@ func (rr *CAA) pack(msg []byte, off int, compression compressionMap, compress bo
 	if err != nil {
 		return off, err
 	}
-	off, err = packOctetString(rr.Value, msg, off)
+	off, err = packTxtString(rr.Value, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -363,7 +363,7 @@ func (rr *IPSECKEY) pack(msg []byte, off int, compression compressionMap, compre
 	if err != nil {
 		return off, err
 	}
-	off, err = packIPSECGateway(rr.GatewayAddr, rr.GatewayHost, msg, off, rr.GatewayType, compression, false)
+	off, err = packIPSECGateway(rr.GatewayAddr, rr.GatewayHost, msg, off, rr.GatewayType&0x7f, compression)
 	if err != nil {
 		return off, err
 	}
@@ -567,7 +567,7 @@ func (rr *NAPTR) pack(msg []byte, off int, compression compressionMap, compress 
 	if err != nil {
 		return off, err
 	}
-	off, err = packLenOctet(rr.Regexp, msg, off)
+	off, err = packTxtString(rr.Regexp, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -1175,7 +1175,7 @@ func (rr *URI) pack(msg []byte, off int, compression compressionMap, compress bo
 	if err != nil {
 		return off, err
 	}
-	off, err = packOctetString(rr.Target, msg, off)
+	off, err = packTxtString(rr.Target, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -1261,7 +1261,7 @@ func (rr *AMTRELAY) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("AMTRELAY.GatewayType: %w", err)
 	}
-	rr.GatewayAddr, rr.GatewayHost, off, err = unpackIPSECGateway(msg, off, rr.GatewayType)
+	rr.GatewayAddr, rr.GatewayHost, off, err = unpackIPSECGateway(msg, off, rr.GatewayType&0x7f)
 	if err != nil {
 		return off, fmt.Errorf("AMTRELAY.GatewayHost: %w", err)
 	}
@@ -1309,7 +1309,7 @@ func (rr *CAA) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("CAA.Tag: %w", err)
 	}
-	rr.Value, off, err = unpackStringOctet(msg, off)
+	rr.Value, off, err = unpackString(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("CAA.Value: %w", err)
 	}
@@ -1650,7 +1650,7 @@ func (rr *IPSECKEY) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("IPSECKEY.Algorithm: %w", err)
 	}
-	rr.GatewayAddr, rr.GatewayHost, off, err = unpackIPSECGateway(msg, off, rr.GatewayType)
+	rr.GatewayAddr, rr.GatewayHost, off, err = unpackIPSECGateway(msg, off, rr.GatewayType&0x7f)
 	if err != nil {
 		return off, fmt.Errorf("IPSECKEY.GatewayHost: %w", err)
 	}
@@ -1899,7 +1899,7 @@ func (rr *NAPTR) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("NAPTR.Service: %w", err)
 	}
-	rr.Regexp, off, err = unpackLenOctet(msg, off)
+	rr.Regexp, off, err = unpackString(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("NAPTR.Regexp: %w", err)
 	}
@@ -2618,7 +2618,7 @@ func (rr *URI) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("URI.Weight: %w", err)
 	}
-	rr.Target, off, err = unpackStringOctet(msg, off)
+	rr.Target, off, err = unpackString(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("URI.Target: %w", err)
 	}

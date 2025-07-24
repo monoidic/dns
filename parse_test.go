@@ -1511,7 +1511,7 @@ func TestPackCAA(t *testing.T) {
 	record := new(CAA)
 	record.Hdr = RR_Header{Name: mustParseName("example.com."), Rrtype: TypeCAA, Class: ClassINET, Ttl: 0}
 	record.Tag = mustParseTxt("issue")
-	record.Value = "symantec.com"
+	record.Value = mustParseTxt("symantec.com")
 	record.Flag = 1
 
 	m.Answer = append(m.Answer, record)
@@ -1528,7 +1528,7 @@ func TestPackCAA(t *testing.T) {
 	rr := m.Answer[0].(*CAA)
 	if rr.Tag.BareString() != "issue" {
 		t.Fatalf("invalid tag for unpacked answer")
-	} else if rr.Value != "symantec.com" {
+	} else if rr.Value.BareString() != "symantec.com" {
 		t.Fatalf("invalid value for unpacked answer")
 	} else if rr.Flag != 1 {
 		t.Fatalf("invalid flag for unpacked answer")

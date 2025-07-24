@@ -18,7 +18,7 @@ import (
 // packDataDomainName.
 
 func unpackDataA(msg []byte, off int) (netip.Addr, int, error) {
-	if off+net.IPv4len > len(msg) {
+	if len(msg[off:]) < net.IPv4len {
 		return netip.Addr{}, len(msg), &Error{err: "overflow unpacking a"}
 	}
 	addr, _ := netip.AddrFromSlice(msg[off : off+net.IPv4len])
@@ -42,7 +42,7 @@ func packDataA(a netip.Addr, msg []byte, off int) (int, error) {
 }
 
 func unpackDataAAAA(msg []byte, off int) (netip.Addr, int, error) {
-	if off+net.IPv6len > len(msg) {
+	if len(msg[off:]) < net.IPv6len {
 		return netip.Addr{}, len(msg), &Error{err: "overflow unpacking aaaa"}
 	}
 	addr, _ := netip.AddrFromSlice(msg[off : off+net.IPv6len])
@@ -667,7 +667,7 @@ func unpackIPSECGateway(msg []byte, off int, gatewayType uint8) (netip.Addr, Nam
 	return retAddr, retName, off, err
 }
 
-func packIPSECGateway(gatewayAddr netip.Addr, gatewayString Name, msg []byte, off int, gatewayType uint8, compression compressionMap, compress bool) (int, error) {
+func packIPSECGateway(gatewayAddr netip.Addr, gatewayString Name, msg []byte, off int, gatewayType uint8, compression compressionMap) (int, error) {
 	var err error
 
 	switch gatewayType {
@@ -677,7 +677,7 @@ func packIPSECGateway(gatewayAddr netip.Addr, gatewayString Name, msg []byte, of
 	case IPSECGatewayIPv6:
 		off, err = packDataAAAA(gatewayAddr, msg, off)
 	case IPSECGatewayHost:
-		off, err = packDomainName(gatewayString, msg, off, compression, compress)
+		off, err = packDomainName(gatewayString, msg, off, compression, false)
 	}
 
 	return off, err

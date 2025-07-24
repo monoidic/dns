@@ -602,7 +602,7 @@ type NAPTR struct {
 	Preference  uint16
 	Flags       TxtString
 	Service     TxtString
-	Regexp      string `dns:"lenoctet"`
+	Regexp      TxtString `dns:"octet"`
 	Replacement Name
 }
 
@@ -701,8 +701,8 @@ func cmToM(x uint8) string {
 }
 
 func (rr *LOC) String() string {
-	s := rr.Hdr.String()
-
+	var b strings.Builder
+	b.WriteString(rr.Hdr.String())
 	lat := rr.Latitude
 	ns := "N"
 	if lat > LOC_EQUATOR {
@@ -715,7 +715,7 @@ func (rr *LOC) String() string {
 	lat = lat % LOC_DEGREES
 	m := lat / LOC_HOURS
 	lat = lat % LOC_HOURS
-	s += fmt.Sprintf("%02d %02d %0.3f %s ", h, m, float64(lat)/1000, ns)
+	b.WriteString(fmt.Sprintf("%02d %02d %0.3f %s ", h, m, float64(lat)/1000, ns))
 
 	lon := rr.Longitude
 	ew := "E"
@@ -729,20 +729,22 @@ func (rr *LOC) String() string {
 	lon = lon % LOC_DEGREES
 	m = lon / LOC_HOURS
 	lon = lon % LOC_HOURS
-	s += fmt.Sprintf("%02d %02d %0.3f %s ", h, m, float64(lon)/1000, ew)
+	b.WriteString(fmt.Sprintf("%02d %02d %0.3f %s ", h, m, float64(lon)/1000, ew))
 
 	alt := float64(rr.Altitude) / 100
 	alt -= LOC_ALTITUDEBASE
 	if rr.Altitude%100 != 0 {
-		s += fmt.Sprintf("%.2fm ", alt)
+		b.WriteString(fmt.Sprintf("%.2fm ", alt))
 	} else {
-		s += fmt.Sprintf("%.0fm ", alt)
+		b.WriteString(fmt.Sprintf("%.0fm ", alt))
 	}
-
-	s += cmToM(rr.Size) + "m "
-	s += cmToM(rr.HorizPre) + "m "
-	s += cmToM(rr.VertPre) + "m"
-	return s
+	b.WriteString(cmToM(rr.Size))
+	b.WriteString("m ")
+	b.WriteString(cmToM(rr.HorizPre))
+	b.WriteString("m ")
+	b.WriteString(cmToM(rr.VertPre))
+	b.WriteByte('m')
+	return b.String()
 }
 
 // SIG RR. See RFC 2535. The SIG RR is identical to RRSIG and nowadays only used for SIG(0), See RFC 2931.
@@ -985,7 +987,7 @@ type URI struct {
 	Hdr      RR_Header
 	Priority uint16
 	Weight   uint16
-	Target   string `dns:"octet"` // rr.Target to be parsed as a sequence of character encoded octets according to RFC 3986
+	Target   TxtString // rr.Target to be parsed as a sequence of character encoded octets according to RFC 3986
 }
 
 // DHCID RR. See RFC 4701.
@@ -1102,7 +1104,7 @@ type CAA struct {
 	Hdr   RR_Header
 	Flag  uint8
 	Tag   TxtString `dns:"baretxt"`
-	Value string    `dns:"octet"`
+	Value TxtString
 }
 
 // UID RR. Deprecated, IANA-Reserved.
@@ -1541,6 +1543,57 @@ func deserializeTxt(buf []byte) string {
 	return b.String()
 }
 
+func deserializeOctet(buf []byte) string {
+	var b strings.Builder
+	for _, c := range buf {
+		if c < ' ' || c > '~' {
+			b.WriteString(escapeByte(c))
+			continue
+		}
+		if c == '"' {
+			b.WriteByte('\\')
+		}
+		b.WriteByte(c)
+	}
+
+	return b.String()
+}
+
+func serializeOctet(s string) ([]byte, error) {
+	var b bytes.Buffer
+
+	ls := len(s)
+	bs := []byte(s)
+
+	for i := 0; i < ls; {
+		c := bs[i]
+		switch c {
+		case '\\':
+			if isDDD(bs[i+1:]) {
+				escaped := dddToByte(bs[i+1:])
+				b.WriteByte(escaped)
+				i += 4 // len(`\234`)
+			} else if len(bs[i:]) > 0 && bs[i+1] == '"' {
+				// special case for `\"`
+				b.WriteByte(bs[i+1])
+				i += 2
+			} else {
+				b.WriteByte(c)
+				i++
+			}
+		default:
+			b.WriteByte(c)
+			i++
+		}
+
+		if b.Len() > maxTxtOctets {
+			return nil, ErrTxt
+		}
+	}
+
+	return b.Bytes(), nil
+}
+
 func TxtFromString(s string) (TxtString, error) {
 	var ret TxtString
 	encoded, err := serializeTxt(s)
@@ -1572,6 +1625,15 @@ func TxtFromBytes(b []byte) (TxtString, error) {
 	return ret, nil
 }
 
+func TxtFromOctet(s string) (TxtString, error) {
+	var ret TxtString
+	buf, err := serializeOctet(s)
+	if err == nil {
+		ret.encoded = string(buf)
+	}
+	return ret, err
+}
+
 func (t TxtString) EncodedLen() int {
 	return len(t.encoded) + 1
 }
@@ -1593,6 +1655,15 @@ func (t TxtString) String() string {
 	b.WriteString(t.BareString())
 	b.WriteByte('"')
 	return b.String()
+}
+
+func (t TxtString) OctetString() string {
+	var b strings.Builder
+	b.WriteByte('"')
+	b.WriteString(deserializeOctet([]byte(t.encoded)))
+	b.WriteByte('"')
+	return b.String()
+	//return deserializeOctet([]byte(t.encoded))
 }
 
 type TxtStrings struct {
@@ -1728,10 +1799,7 @@ func (b ByteField) String() string {
 type Time uint32
 
 func (t Time) String() string {
-	mod := (int64(t)-time.Now().Unix())/year68 - 1
-	if mod < 0 {
-		mod = 0
-	}
+	mod := max((int64(t)-time.Now().Unix())/year68-1, 0)
 	ti := time.Unix(int64(t)-mod*year68, 0).UTC()
 	return ti.Format("20060102150405")
 }

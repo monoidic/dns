@@ -418,7 +418,7 @@ func (rr *X25) parse(c *zlexer, o string) *ParseError {
 	l, _ := c.Next()
 	var err error
 	rr.PSDNAddress, err = TxtFromString(l.token)
-	if l.err || err != nil {
+	if l.err || l.value == zNewline || err != nil {
 		return &ParseError{err: "bad X25 PSDNAddress", lex: l}
 	}
 	return slurpRemainder(c)
@@ -624,13 +624,13 @@ func (rr *NAPTR) parse(c *zlexer, o string) *ParseError {
 	l, _ = c.Next() // Either String or Quote
 	switch l.value {
 	case zString:
-		rr.Regexp = l.token
+		rr.Regexp, err = TxtFromOctet(l.token)
 		l, _ = c.Next() // _QUOTE
-		if l.value != zQuote {
+		if l.value != zQuote || err != nil {
 			return &ParseError{err: "bad NAPTR Regexp", lex: l}
 		}
 	case zQuote:
-		rr.Regexp = ""
+		rr.Regexp = TxtString{}
 	default:
 		return &ParseError{err: "bad NAPTR Regexp", lex: l}
 	}
@@ -1151,7 +1151,7 @@ func (rr *NSEC3) parse(c *zlexer, o string) *ParseError {
 
 	c.Next()
 	l, _ = c.Next()
-	if l.token == "" || l.err {
+	if l.token == "" || l.value == zNewline || l.err {
 		return &ParseError{err: "bad NSEC3 NextDomain", lex: l}
 	}
 	rr.HashLength = 20 // Fix for NSEC3 (sha1 160 bits)
@@ -1297,7 +1297,7 @@ func (rr *SSHFP) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *DNSKEY) parseDNSKEY(c *zlexer, o, typ string) *ParseError {
+func (rr *DNSKEY) parseDNSKEY(c *zlexer, typ string) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 16)
 	if e != nil || l.err {
@@ -1326,12 +1326,12 @@ func (rr *DNSKEY) parseDNSKEY(c *zlexer, o, typ string) *ParseError {
 	return nil
 }
 
-func (rr *DNSKEY) parse(c *zlexer, o string) *ParseError  { return rr.parseDNSKEY(c, o, "DNSKEY") }
-func (rr *KEY) parse(c *zlexer, o string) *ParseError     { return rr.parseDNSKEY(c, o, "KEY") }
-func (rr *CDNSKEY) parse(c *zlexer, o string) *ParseError { return rr.parseDNSKEY(c, o, "CDNSKEY") }
-func (rr *DS) parse(c *zlexer, o string) *ParseError      { return rr.parseDS(c, o, "DS") }
-func (rr *DLV) parse(c *zlexer, o string) *ParseError     { return rr.parseDS(c, o, "DLV") }
-func (rr *CDS) parse(c *zlexer, o string) *ParseError     { return rr.parseDS(c, o, "CDS") }
+func (rr *DNSKEY) parse(c *zlexer, o string) *ParseError  { return rr.parseDNSKEY(c, "DNSKEY") }
+func (rr *KEY) parse(c *zlexer, o string) *ParseError     { return rr.parseDNSKEY(c, "KEY") }
+func (rr *CDNSKEY) parse(c *zlexer, o string) *ParseError { return rr.parseDNSKEY(c, "CDNSKEY") }
+func (rr *DS) parse(c *zlexer, o string) *ParseError      { return rr.parseDS(c, "DS") }
+func (rr *DLV) parse(c *zlexer, o string) *ParseError     { return rr.parseDS(c, "DLV") }
+func (rr *CDS) parse(c *zlexer, o string) *ParseError     { return rr.parseDS(c, "CDS") }
 
 func (rr *IPSECKEY) parse(c *zlexer, o string) *ParseError {
 	l, _ := c.Next()
@@ -1524,7 +1524,7 @@ func (rr *GPOS) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *DS) parseDS(c *zlexer, o, typ string) *ParseError {
+func (rr *DS) parseDS(c *zlexer, typ string) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 16)
 	if e != nil || l.err {
@@ -1744,7 +1744,7 @@ func (rr *URI) parse(c *zlexer, o string) *ParseError {
 	if e2 != nil {
 		return e2
 	}
-	s := uri.SplitStr()
+	s := uri.Split()
 	if len(s) != 1 {
 		return &ParseError{err: "bad URI Target", lex: l}
 	}
@@ -1914,7 +1914,7 @@ func (rr *CAA) parse(c *zlexer, o string) *ParseError {
 	if e1 != nil {
 		return e1
 	}
-	s := caa.SplitStr()
+	s := caa.Split()
 	if len(s) != 1 {
 		return &ParseError{err: "bad CAA Value", lex: l}
 	}

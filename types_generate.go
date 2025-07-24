@@ -218,8 +218,6 @@ func main() {
 				// ignored
 			case `dns:"cdomain-name"`:
 				o("l += domainNameLen(rr.%s, off+l, compression, true)\n")
-			case `dns:"octet"`:
-				o("l += escapedNameLen(rr.%s)\n")
 			case `dns:"a"`:
 				o("if rr.%s.IsValid() { l += net.IPv4len }\n")
 			case `dns:"aaaa"`:
@@ -246,9 +244,9 @@ func main() {
 					l += domainNameLen(rr.%s, off+l, compression, false)
 				}
 				`)
-			case `dns:"lenoctet"`:
-				o("l += escapedNameLen(rr.%s) + 1\n")
-			case `dns:"eui64"`, `dns:"amtrelaytype"`, `dns:"baretxt"`, `dns:"base64"`, `dns:"hex"`, `dns:"length"`:
+			case `dns:"eui64"`, `dns:"amtrelaytype"`, `dns:"baretxt"`:
+				fallthrough
+			case `dns:"base64"`, `dns:"hex"`, `dns:"length"`, `dns:"octet"`:
 				fallthrough
 			case "":
 				switch ft := st.Field(i).Type().(type) {
@@ -395,7 +393,7 @@ func main() {
 					o2("if rr.%s.IsValid() {b.WriteString(rr.%s.String())}\n")
 				}
 			case `dns:"octet"`:
-				o("b.WriteString(sprintTxtOctet(rr.%s))\n")
+				o("b.WriteString(rr.%s.OctetString())\n")
 			case `dns:"nsec"`:
 				o(`	for _, t := range rr.%s {
 	b.WriteByte(' ')
@@ -433,8 +431,6 @@ func main() {
 `)
 			case `dns:"baretxt"`:
 				o("b.WriteString(rr.%s.BareString())\n")
-			case `dns:"lenoctet"`:
-				o("b.WriteByte('\"')\nb.WriteString(rr.%s)\nb.WriteByte('\"')\n")
 			default:
 				foundTag = false
 			}

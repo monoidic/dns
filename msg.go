@@ -452,30 +452,6 @@ func packTxt(txt TxtStrings, msg []byte, off int) (int, error) {
 	return off, nil
 }
 
-func packLenOctet(s string, msg []byte, off int) (int, error) {
-	if len(s) > 255 {
-		return len(msg), ErrTxt
-	}
-	if len(msg[off:]) < 1 {
-		return len(msg), ErrBuf
-	}
-	msg[off] = byte(len(s))
-	off++
-	return packOctetString(s, msg, off)
-}
-
-func unpackLenOctet(msg []byte, off int) (string, int, error) {
-	if len(msg[off:]) < 1 {
-		return "", len(msg), ErrBuf
-	}
-	strLen := int(msg[off])
-	off++
-	if len(msg[off:]) < strLen {
-		return "", len(msg), ErrBuf
-	}
-	return unpackStringOctet(msg[:off+strLen], off)
-}
-
 func packTxtString(s TxtString, msg []byte, off int) (int, error) {
 	if len(msg[off:]) < s.EncodedLen() {
 		return len(msg), ErrBuf
@@ -485,37 +461,6 @@ func packTxtString(s TxtString, msg []byte, off int) (int, error) {
 	off++
 	off += copy(msg[off:], []byte(s.encoded))
 	return off, nil
-}
-
-func packOctetString(s string, msg []byte, offset int) (int, error) {
-	if len(s) == 0 {
-		return offset, nil
-	}
-	if offset >= len(msg) || len(s) > 256*4+1 { /* If all \DDD */
-		return offset, ErrBuf
-	}
-	for i := 0; i < len(s); i++ {
-		if len(msg) <= offset {
-			return offset, ErrBuf
-		}
-		if s[i] == '\\' {
-			i++
-			if i == len(s) {
-				break
-			}
-			// check for \DDD
-			if isDDD(s[i:]) {
-				msg[offset] = dddToByte(s[i:])
-				i += 2
-			} else {
-				msg[offset] = s[i]
-			}
-		} else {
-			msg[offset] = s[i]
-		}
-		offset++
-	}
-	return offset, nil
 }
 
 func unpackTxt(msg []byte, off0 int) (ss TxtStrings, off int, err error) {

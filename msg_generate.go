@@ -141,11 +141,9 @@ return off, err
 			case `dns:"uint48"`, `dns:"eui48"`:
 				o("off, err = packUint48(rr.%s, msg, off)\n")
 			case `dns:"octet"`:
-				o("off, err = packOctetString(rr.%s, msg, off)\n")
+				o("off, err = packTxtString(rr.%s, msg, off)\n")
 			case `dns:"ipsechost"`, `dns:"amtrelayhost"`:
-				o("off, err = packIPSECGateway(rr.GatewayAddr, rr.%s, msg, off, rr.GatewayType, compression, false)\n")
-			case `dns:"lenoctet"`:
-				o("off, err = packLenOctet(rr.%s, msg, off)\n")
+				o("off, err = packIPSECGateway(rr.GatewayAddr, rr.%s, msg, off, rr.GatewayType&0x7f, compression)\n")
 			case "", `dns:"eui64"`, `dns:"baretxt"`, `dns:"hex"`, `dns:"base32"`, `dns:"base64"`, `dns:"length"`:
 				matched = false
 			default:
@@ -265,11 +263,9 @@ return off, err
 			case `dns:"eui64"`:
 				o("rr.%s, off, err = unpackUint64(msg, off)\n")
 			case `dns:"octet"`:
-				o("rr.%s, off, err = unpackStringOctet(msg, off)\n")
+				o("rr.%s, off, err = unpackString(msg, off)\n")
 			case `dns:"ipsechost"`, `dns:"amtrelayhost"`:
-				o("rr.GatewayAddr, rr.%s, off, err = unpackIPSECGateway(msg, off, rr.GatewayType)\n")
-			case `dns:"lenoctet"`:
-				o("rr.%s, off, err = unpackLenOctet(msg, off)\n")
+				o("rr.GatewayAddr, rr.%s, off, err = unpackIPSECGateway(msg, off, rr.GatewayType&0x7f)\n")
 			case `dns:"cdomain-name"`, `dns:"baretxt"`, `dns:"hex"`, `dns:"base32"`, `dns:"base64"`, `dns:"length"`:
 				fallthrough // unpack function is the same as the generic one
 			case "":

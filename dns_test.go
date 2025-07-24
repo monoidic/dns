@@ -5,27 +5,40 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"net/netip"
+	"slices"
+	"strconv"
+	"strings"
 	"testing"
 )
 
+func randBytesToMsg(msg []byte) (buf []byte, rr RR, ok bool) {
+	if l := len(msg) - 2; !(0 < l && l < 65535) {
+		return nil, nil, false
+	}
+	msgx := make([]byte, len(msg)+9)
+	// keep name as "."
+	copy(msgx[1:3], msg[:2]) // rrtype
+	// keep class (2 bytes) and ttl (4 bytes) as 0
+	binary.BigEndian.PutUint16(msgx[9:11], uint16(len(msg)-2)) // rdlength
+
+	copy(msgx[11:], msg[2:]) // data
+	msg = msgx
+
+	rr, msgOff, err := UnpackRR(msg, 0)
+	if err != nil {
+		// oh well, does not parse
+		return nil, nil, false
+	}
+
+	msg = msg[:msgOff]
+	return msg, rr, ok
+
+}
+
 func FuzzPackUnpack(f *testing.F) {
 	f.Fuzz(func(t *testing.T, msg []byte) {
-		if l := len(msg) - 2; !(0 < l && l < 65535) {
-			return
-		}
-
-		msgx := make([]byte, len(msg)+9)
-		// keep name as "."
-		copy(msgx[1:3], msg[:2]) // rrtype
-		// keep class (2 bytes) and ttl (4 bytes) as 0
-		binary.BigEndian.PutUint16(msgx[9:11], uint16(len(msg)-2)) // rdlength
-
-		copy(msgx[11:], msg[2:]) // data
-		msg = msgx
-
-		rr, msgOff, err := UnpackRR(msg, 0)
-		if err != nil {
-			// oh well
+		msg, rr, ok := randBytesToMsg(msg)
+		if !ok {
 			return
 		}
 
@@ -39,20 +52,20 @@ func FuzzPackUnpack(f *testing.F) {
 		bufOff, err := PackRR(rr, buf, 0, nil, false)
 
 		if expectedLen != bufOff {
-			t.Fatalf("len mismatch, expected %d, got %d\n%s\n%s\n%s", expectedLen, bufOff, rr, hex.EncodeToString(msg[:msgOff]), hex.EncodeToString(buf[:bufOff]))
+			t.Fatalf("len mismatch, expected %d, got %d\n%s\n%s\n%s", expectedLen, bufOff, rr, hex.EncodeToString(msg), hex.EncodeToString(buf[:bufOff]))
 		}
 
 		if err != nil {
-			t.Fatalf("error repacking: %s\n%s\n%s\nmsgOff %d expectedLen %d", err, rr, hex.EncodeToString(msg[:msgOff]), msgOff, expectedLen)
+			t.Fatalf("error repacking: %s\n%s\n%s\nexpectedLen %d", err, rr, hex.EncodeToString(msg), expectedLen)
 		}
 
 		rr2, rr2Off, err := UnpackRR(buf, 0)
 		if err != nil {
-			t.Fatalf("error on second unpack: %s\n%s\n%s", err, hex.EncodeToString(msg[:msgOff]), hex.EncodeToString(buf[:bufOff]))
+			t.Fatalf("error on second unpack: %s\n%s\n%s", err, hex.EncodeToString(msg), hex.EncodeToString(buf[:bufOff]))
 		}
 
 		if rr2Off > expectedLen {
-			t.Fatalf("lenx mismatch; expected %d, got %d\n%s\n%s\n%s\n%s", expectedLen, rr2Off, rr, rr2, hex.EncodeToString(msg[:msgOff]), hex.EncodeToString(buf[:bufOff]))
+			t.Fatalf("lenx mismatch; expected %d, got %d\n%s\n%s\n%s\n%s", expectedLen, rr2Off, rr, rr2, hex.EncodeToString(msg), hex.EncodeToString(buf[:bufOff]))
 		}
 
 		if !IsDuplicate(rr, rr2) {
@@ -64,8 +77,206 @@ func FuzzPackUnpack(f *testing.F) {
 			}
 
 			if !secondaryPass {
-				t.Fatalf("rr mismatch\n%s\n%s\n%s\n%s\n%d %d\n", rr, rr2, hex.EncodeToString(msg[:msgOff]), hex.EncodeToString(buf[:bufOff]), msgOff, bufOff)
+				t.Fatalf("rr mismatch\n%s\n%s\n%s\n%s\n%d\n", rr, rr2, hex.EncodeToString(msg), hex.EncodeToString(buf[:bufOff]), bufOff)
 			}
+		}
+	})
+}
+
+const alphanumeric = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+func containsNonAlphanumeric(s string) bool {
+	return strings.ContainsFunc(s, func(r rune) bool {
+		return !strings.ContainsRune(alphanumeric, r)
+	})
+
+}
+
+// contains a laundry list of bad RR values...
+func FuzzToFromString(f *testing.F) {
+	f.Fuzz(func(t *testing.T, msg []byte) {
+		msg, rr, ok := randBytesToMsg(msg)
+		if !ok {
+			return
+		}
+
+		switch rr.(type) {
+		case *NULL, *TKEY, *TSIG, *OPT:
+			// no string representation
+			return
+		}
+
+		rrS := rr.String()
+		rr2, err := NewRR(rrS)
+		if err != nil {
+			// no real way to parse a missing bare string/hex/base64
+
+			// separate typebitmap stuff
+			switch rrT := rr.(type) {
+			case *NSEC3, *NSEC, *CSYNC, *NXT:
+				var typebitmap []Type
+				switch rrTT := rrT.(type) {
+				case *NSEC3:
+					typebitmap = rrTT.TypeBitMap
+				case *NSEC:
+					typebitmap = rrTT.TypeBitMap
+				case *CSYNC:
+					typebitmap = rrTT.TypeBitMap
+				case *NXT:
+					typebitmap = rrTT.TypeBitMap
+				}
+				// None and Reserved are not parsed, I guess
+				if slices.ContainsFunc(typebitmap, func(t Type) bool { return t == TypeNone || t == TypeReserved }) {
+					return
+				}
+			}
+
+			switch rrT := rr.(type) {
+			case *CAA:
+				//fmt.Printf("%q %q %d %d\n", rrT.Tag.BareString(), rrT.Value.BareString(), len(rrT.Tag.BareString()), len(rrT.Value.BareString()))
+				if len(strings.Trim(rrT.Tag.BareString(), " ")) == 0 {
+					return
+				}
+				// TODO(monoidic) dnspython rejects non-alphanumeric strings
+				if containsNonAlphanumeric(rrT.Tag.BareString()) {
+					return
+				}
+			case *HIP:
+				if rrT.Hit.EncodedLen() == 0 || rrT.PublicKey.EncodedLen() == 0 {
+					return
+				}
+			case *LOC:
+				// invalid coordinates accepted from binary data...
+				// check for degrees >= 90
+				// > or >=? idk, dnspython balked on the following:
+				// dns.rdata.from_wire(dns.rdataclass.IN, dns.rdatatype.LOC, bytes.fromhex('00303030935830307830303030303030'), 0, 16, None)
+				lat := rrT.Latitude
+				if lat > LOC_EQUATOR {
+					lat = lat - LOC_EQUATOR
+				} else {
+					lat = LOC_EQUATOR - lat
+				}
+				h := lat / LOC_DEGREES
+				if h >= 90 {
+					return
+				}
+
+				lon := rrT.Longitude
+				if lon > LOC_PRIMEMERIDIAN {
+					lon = lon - LOC_PRIMEMERIDIAN
+				} else {
+					lon = LOC_PRIMEMERIDIAN - lon
+				}
+				h = lon / LOC_DEGREES
+				if h >= 90 {
+					return
+				}
+
+				// SIZE format is (i & 0xf0)>>8 as base, (i & 0xf) as mantissa, e.g 0x15 == 1e5;
+				// however, each nibble can only be 0x9 at most
+				for _, i := range []uint8{rrT.Size, rrT.HorizPre, rrT.VertPre} {
+					if i&0xf0 > 0x90 || i&0xf > 0x9 {
+						return
+					}
+				}
+			case *NSEC3:
+				if len(rrT.NextDomain.Raw()) == 0 {
+					return
+				}
+			case *RRSIG:
+				// none/reserved is not liked here either
+				if rrT.TypeCovered == TypeNone || rrT.TypeCovered == TypeReserved {
+					return
+				}
+			case *SIG:
+				if rrT.TypeCovered == TypeNone || rrT.TypeCovered == TypeReserved {
+					return
+				}
+			case *X25:
+				addr := rrT.PSDNAddress.BareString()
+				if containsNonAlphanumeric(addr) {
+					return
+				}
+			case *GPOS:
+				// wtf is this RRtype
+				//const numerics = "+-.0123456789"
+				for _, s := range []TxtString{rrT.Longitude, rrT.Latitude, rrT.Altitude} {
+					if _, err := strconv.ParseFloat(s.BareString(), 64); err != nil {
+						return
+					}
+				}
+			}
+			t.Fatalf("rr failed parsing/unparsing %s: %s\n%s", hex.EncodeToString(msg), err, rrS)
+		}
+
+		if rr2 == nil {
+			t.Fatalf("uncaught successful nil parse for %s", rr)
+		}
+
+		if !IsDuplicate(rr, rr2) {
+			// SVCB stuff
+			switch rrT := rr.(type) {
+			case *SVCB, *HTTPS:
+				var keyValues []SVCBKeyValue
+				switch rrTT := rrT.(type) {
+				case *SVCB:
+					keyValues = rrTT.Value
+				case *HTTPS:
+					keyValues = rrTT.Value
+				}
+
+				for _, kv := range keyValues {
+					switch kvT := kv.(type) {
+					case *SVCBMandatory:
+						if slices.Contains(kvT.Code, svcb_RESERVED) {
+							return
+						}
+					}
+				}
+			}
+
+			switch rrT := rr.(type) {
+			case *NSEC:
+				if slices.ContainsFunc(rrT.TypeBitMap, func(t Type) bool { return t == TypeNone || t == TypeReserved }) {
+					return
+				}
+			case *NSEC3:
+				if rrT.NextDomain.EncodedLen() == 0 {
+					return
+				}
+				// HashLength is hardcoded to 20 in parse
+				rrT.HashLength = 20
+				if IsDuplicate(rr, rr2) {
+					return
+				}
+				if slices.ContainsFunc(rrT.TypeBitMap, func(t Type) bool { return t == TypeNone || t == TypeReserved }) {
+					return
+				}
+			case *X25:
+				if len(strings.Trim(rrT.PSDNAddress.BareString(), alphanumeric)) > 0 {
+					return
+				}
+			case *LOC:
+				// hardcoded to 0 in parse
+				rrT.Version = 0
+				if IsDuplicate(rr, rr2) {
+					return
+				}
+				// w/e, probably just a floating point error, idc
+				return
+			case *CAA:
+				if len(strings.Trim(rrT.Tag.BareString(), alphanumeric)) > 0 {
+					return
+				}
+			case *GPOS:
+				for _, s := range []TxtString{rrT.Longitude, rrT.Latitude, rrT.Altitude} {
+					bare := s.BareString()
+					if containsNonAlphanumeric(bare) {
+						return
+					}
+				}
+			}
+			t.Fatalf("rr mismatch between:\n%s\n%s\n(%s)", rr, rr2, hex.EncodeToString(msg))
 		}
 	})
 }

@@ -329,7 +329,7 @@ func (rr *CAA) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l++ // Flag
 	l += rr.Tag.EncodedLen()
-	l += escapedNameLen(rr.Value)
+	l += rr.Value.EncodedLen()
 	return l
 }
 
@@ -554,7 +554,7 @@ func (rr *NAPTR) len(off int, compression map[Name]struct{}) int {
 	l += 2 // Preference
 	l += rr.Flags.EncodedLen()
 	l += rr.Service.EncodedLen()
-	l += escapedNameLen(rr.Regexp) + 1
+	l += rr.Regexp.EncodedLen()
 	l += domainNameLen(rr.Replacement, off+l, compression, false)
 	return l
 }
@@ -829,7 +829,7 @@ func (rr *URI) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 2 // Priority
 	l += 2 // Weight
-	l += escapedNameLen(rr.Target)
+	l += rr.Target.EncodedLen()
 	return l
 }
 
@@ -1432,7 +1432,7 @@ func (rr *CAA) String() string {
 	b.WriteByte(' ')
 	b.WriteString(rr.Tag.BareString())
 	b.WriteByte(' ')
-	b.WriteString(sprintTxtOctet(rr.Value))
+	b.WriteString(rr.Value.String())
 	return b.String()
 }
 
@@ -1662,9 +1662,7 @@ func (rr *NAPTR) String() string {
 	b.WriteByte(' ')
 	b.WriteString(rr.Service.String())
 	b.WriteByte(' ')
-	b.WriteByte('"')
-	b.WriteString(rr.Regexp)
-	b.WriteByte('"')
+	b.WriteString(rr.Regexp.OctetString())
 	b.WriteByte(' ')
 	b.WriteString(rr.Replacement.String())
 	return b.String()
@@ -1986,7 +1984,7 @@ func (rr *URI) String() string {
 	b.WriteByte(' ')
 	b.WriteString(strconv.FormatInt(int64(rr.Weight), 10))
 	b.WriteByte(' ')
-	b.WriteString(sprintTxtOctet(rr.Target))
+	b.WriteString(rr.Target.String())
 	return b.String()
 }
 

@@ -283,6 +283,10 @@ func unpackTypeBitMap(msg []byte, off int) (TypeBitMap, int, error) {
 			return ret, len(msg), &Error{err: "NSEC(3) block too long in type bitmap"}
 		}
 
+		if msg[off+length-1] == 0 {
+			return ret, len(msg), &Error{err: "NSEC(3) block has byte with no bits set at end"}
+		}
+
 		var anyThisWindow bool
 		for i := range length {
 			if msg[off+i] != 0 {

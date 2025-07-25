@@ -856,7 +856,7 @@ type IPSECKEY struct {
 
 func (rr *IPSECKEY) String() string {
 	var gateway string
-	switch rr.GatewayType {
+	switch rr.GatewayType & 0x7f {
 	case IPSECGatewayIPv4, IPSECGatewayIPv6:
 		gateway = rr.GatewayAddr.String()
 	case IPSECGatewayHost:

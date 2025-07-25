@@ -223,7 +223,7 @@ func main() {
 			case `dns:"uint48"`, `dns:"eui48"`:
 				o("l += 6 // %s\n")
 			case `dns:"ipsechost"`:
-				o(`switch rr.GatewayType {
+				o(`switch rr.GatewayType & 0x7f {
 				case IPSECGatewayIPv4:
 					l += net.IPv4len
 				case IPSECGatewayIPv6:
@@ -233,7 +233,7 @@ func main() {
 				}
 				`)
 			case `dns:"amtrelayhost"`:
-				o(`switch rr.GatewayType {
+				o(`switch rr.GatewayType & 0x7f {
 				case AMTRELAYIPv4:
 					l += net.IPv4len
 				case AMTRELAYIPv6:

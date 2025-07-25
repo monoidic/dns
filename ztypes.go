@@ -295,7 +295,7 @@ func (rr *AMTRELAY) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l++ // Precedence
 	l++ // GatewayType
-	switch rr.GatewayType {
+	switch rr.GatewayType & 0x7f {
 	case AMTRELAYIPv4:
 		l += net.IPv4len
 	case AMTRELAYIPv6:
@@ -443,7 +443,7 @@ func (rr *IPSECKEY) len(off int, compression map[Name]struct{}) int {
 	l++ // Precedence
 	l++ // GatewayType
 	l++ // Algorithm
-	switch rr.GatewayType {
+	switch rr.GatewayType & 0x7f {
 	case IPSECGatewayIPv4:
 		l += net.IPv4len
 	case IPSECGatewayIPv6:

@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/netip"
 	"slices"
-	"strings"
 )
 
 // helper functions called from the generated zmsg.go
@@ -362,83 +361,6 @@ func packDataOpt(options []EDNS0, msg []byte, off int) (int, error) {
 		off += len(b)
 	}
 	return off, nil
-}
-
-func unpackStringOctet(msg []byte, off int) (string, int, error) {
-	var b strings.Builder
-	for _, c := range msg[off:] {
-		if c == '\\' {
-			b.WriteByte('\\')
-		}
-		b.WriteByte(c)
-	}
-
-	if b.Len() > 256 {
-		return "", 0, ErrLen
-	}
-
-	s := b.String()
-	return s, len(msg), nil
-}
-
-func unpackDataNsec(msg []byte, off int) ([]Type, int, error) {
-	var nsec []Type
-	length, window, lastwindow := 0, 0, -1
-	for off < len(msg) {
-		if off+2 > len(msg) {
-			return nsec, len(msg), &Error{err: "overflow unpacking NSEC(3)"}
-		}
-		window = int(msg[off])
-		length = int(msg[off+1])
-		off += 2
-		if window <= lastwindow {
-			// RFC 4034: Blocks are present in the NSEC RR RDATA in
-			// increasing numerical order.
-			return nsec, len(msg), &Error{err: "out of order NSEC(3) block in type bitmap"}
-		}
-		if length == 0 {
-			// RFC 4034: Blocks with no types present MUST NOT be included.
-			return nsec, len(msg), &Error{err: "empty NSEC(3) block in type bitmap"}
-		}
-		if length > 32 {
-			return nsec, len(msg), &Error{err: "NSEC(3) block too long in type bitmap"}
-		}
-		if off+length > len(msg) {
-			return nsec, len(msg), &Error{err: "overflowing NSEC(3) block in type bitmap"}
-		}
-
-		// Walk the bytes in the window and extract the type bits
-		for j, b := range msg[off : off+length] {
-			// Check the bits one by one, and set the type
-			if b&0x80 == 0x80 {
-				nsec = append(nsec, Type(window*256+j*8+0))
-			}
-			if b&0x40 == 0x40 {
-				nsec = append(nsec, Type(window*256+j*8+1))
-			}
-			if b&0x20 == 0x20 {
-				nsec = append(nsec, Type(window*256+j*8+2))
-			}
-			if b&0x10 == 0x10 {
-				nsec = append(nsec, Type(window*256+j*8+3))
-			}
-			if b&0x8 == 0x8 {
-				nsec = append(nsec, Type(window*256+j*8+4))
-			}
-			if b&0x4 == 0x4 {
-				nsec = append(nsec, Type(window*256+j*8+5))
-			}
-			if b&0x2 == 0x2 {
-				nsec = append(nsec, Type(window*256+j*8+6))
-			}
-			if b&0x1 == 0x1 {
-				nsec = append(nsec, Type(window*256+j*8+7))
-			}
-		}
-		off += length
-		lastwindow = window
-	}
-	return nsec, off, nil
 }
 
 // typeBitMapLen is a helper function which computes the "maximum" length of

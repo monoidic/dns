@@ -31,7 +31,7 @@ func randBytesToMsg(msg []byte) (buf []byte, rr RR, ok bool) {
 	}
 
 	msg = msg[:msgOff]
-	return msg, rr, ok
+	return msg, rr, true
 }
 
 func FuzzPackUnpack(f *testing.F) {
@@ -85,9 +85,11 @@ func FuzzPackUnpack(f *testing.F) {
 const alphanumeric = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 func containsNonAlphanumeric(s string) bool {
-	return strings.ContainsFunc(s, func(r rune) bool {
-		return !strings.ContainsRune(alphanumeric, r)
-	})
+	return len(strings.Trim(s, alphanumeric)) > 0
+}
+
+func isEmptyString(s string) bool {
+	return len(strings.Trim(s, " ")) == 0
 }
 
 // contains a laundry list of bad RR values...
@@ -106,6 +108,11 @@ func FuzzToFromString(f *testing.F) {
 
 		rrS := rr.String()
 		rr2, err := NewRR(rrS)
+
+		if err == nil && rr2 == nil {
+			t.Fatalf("uncaught successful nil parse for %s", rr)
+		}
+
 		if err != nil {
 			// no real way to parse a missing bare string/hex/base64
 
@@ -131,11 +138,11 @@ func FuzzToFromString(f *testing.F) {
 
 			switch rrT := rr.(type) {
 			case *CAA:
-				if len(strings.Trim(rrT.Tag.BareString(), " ")) == 0 {
-					return
-				}
 				// TODO(monoidic) dnspython rejects non-alphanumeric strings
 				if containsNonAlphanumeric(rrT.Tag.BareString()) {
+					return
+				}
+				if isEmptyString(rrT.Tag.BareString()) {
 					return
 				}
 			case *HIP:
@@ -172,7 +179,7 @@ func FuzzToFromString(f *testing.F) {
 				// SIZE format is (i & 0xf0)>>8 as base, (i & 0xf) as mantissa, e.g 0x15 == 1e5;
 				// however, each nibble can only be 0x9 at most
 				for _, i := range []uint8{rrT.Size, rrT.HorizPre, rrT.VertPre} {
-					if i&0xf0 > 0x90 || i&0xf > 0x9 {
+					if (i>>4) > 9 || i&0xf > 9 {
 						return
 					}
 				}
@@ -194,6 +201,9 @@ func FuzzToFromString(f *testing.F) {
 				if containsNonAlphanumeric(addr) {
 					return
 				}
+				if isEmptyString(addr) {
+					return
+				}
 			case *GPOS:
 				// wtf is this RRtype
 				for _, s := range []TxtString{rrT.Longitude, rrT.Latitude, rrT.Altitude} {
@@ -203,10 +213,6 @@ func FuzzToFromString(f *testing.F) {
 				}
 			}
 			t.Fatalf("rr failed parsing/unparsing %s: %s\n%s", hex.EncodeToString(msg), err, rrS)
-		}
-
-		if rr2 == nil {
-			t.Fatalf("uncaught successful nil parse for %s", rr)
 		}
 
 		if !IsDuplicate(rr, rr2) {
@@ -249,7 +255,7 @@ func FuzzToFromString(f *testing.F) {
 					return
 				}
 			case *X25:
-				if len(strings.Trim(rrT.PSDNAddress.BareString(), alphanumeric)) > 0 {
+				if containsNonAlphanumeric(rrT.PSDNAddress.BareString()) {
 					return
 				}
 			case *LOC:
@@ -258,10 +264,30 @@ func FuzzToFromString(f *testing.F) {
 				if IsDuplicate(rr, rr2) {
 					return
 				}
-				// w/e, probably just a floating point error, idc
+				rr2T := rr2.(*LOC)
+				f1 := []uint32{rrT.Altitude, rrT.Latitude, rrT.Longitude}
+				f2 := []uint32{rr2T.Altitude, rr2T.Latitude, rr2T.Longitude}
+
+				allDiffsSmall := true
+
+				for i, v := range f1 {
+					v2 := f2[i]
+					diff := int(v) - int(v2)
+					if diff < 0 {
+						diff = -diff
+					}
+					if diff > 2 {
+						allDiffsSmall = false
+						break
+					}
+				}
+				if allDiffsSmall {
+					// probably just a floating point error
+					return
+				}
 				return
 			case *CAA:
-				if len(strings.Trim(rrT.Tag.BareString(), alphanumeric)) > 0 {
+				if containsNonAlphanumeric(rrT.Tag.BareString()) {
 					return
 				}
 			case *GPOS:
@@ -274,6 +300,13 @@ func FuzzToFromString(f *testing.F) {
 			}
 			t.Fatalf("rr mismatch between:\n%s\n%s\n(%s)", rr, rr2, hex.EncodeToString(msg))
 		}
+	})
+}
+
+// just check for crashes lol
+func FuzzFromString(f *testing.F) {
+	f.Fuzz(func(t *testing.T, msg string) {
+		NewRR(msg)
 	})
 }
 

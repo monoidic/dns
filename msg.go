@@ -851,7 +851,6 @@ func (dns *Msg) String() string {
 		s.WriteString("UPDATE: ")
 		s.WriteString(strconv.Itoa(len(dns.Ns)))
 		s.WriteString(", ")
-
 	} else {
 		s.WriteString("QUERY: ")
 		s.WriteString(strconv.Itoa(len(dns.Question)))
@@ -984,25 +983,6 @@ func domainNameLen(s Name, off int, compression map[Name]struct{}, compress bool
 	}
 
 	return s.EncodedLen()
-}
-
-func escapedNameLen(s string) int {
-	nameLen := len(s)
-	for i := 0; i < len(s); i++ {
-		if s[i] != '\\' {
-			continue
-		}
-
-		if isDDD(s[i+1:]) {
-			nameLen -= 3
-			i += 3
-		} else {
-			nameLen--
-			i++
-		}
-	}
-
-	return nameLen
 }
 
 func compressionLenSearch(c map[Name]struct{}, s Name, msgOff int) (int, bool) {

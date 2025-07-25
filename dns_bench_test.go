@@ -123,7 +123,7 @@ func BenchmarkUnpackDomainName(b *testing.B) {
 	_, _ = PackDomainName(name1, buf, 0, nil, false)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, _ = UnpackDomainName(buf, 0)
+		_, _, _ = UnpackDomainName(buf, 0, false)
 	}
 }
 
@@ -133,7 +133,7 @@ func BenchmarkUnpackDomainNameUnprintable(b *testing.B) {
 	_, _ = PackDomainName(name1, buf, 0, nil, false)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, _ = UnpackDomainName(buf, 0)
+		_, _, _ = UnpackDomainName(buf, 0, false)
 	}
 }
 
@@ -148,7 +148,7 @@ func BenchmarkUnpackDomainNameLongest(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, _ = UnpackDomainName(buf, 0)
+		_, _, _ = UnpackDomainName(buf, 0, false)
 	}
 }
 
@@ -163,7 +163,7 @@ func BenchmarkUnpackDomainNameLongestUnprintable(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, _ = UnpackDomainName(buf, 0)
+		_, _, _ = UnpackDomainName(buf, 0, false)
 	}
 }
 

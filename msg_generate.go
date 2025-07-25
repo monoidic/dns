@@ -252,6 +252,8 @@ return off, err
 
 			switch st.Tag(i) {
 			case `dns:"-"`: // ignored
+			case `dns:"cdomain-name"`:
+				o("rr.%s, off, err = UnpackDomainName(msg, off, true)\n")
 			case `dns:"a"`:
 				o("rr.%s, off, err = unpackDataA(msg, off)\n")
 			case `dns:"aaaa"`:
@@ -264,7 +266,7 @@ return off, err
 				o("rr.%s, off, err = unpackString(msg, off)\n")
 			case `dns:"ipsechost"`, `dns:"amtrelayhost"`:
 				o("rr.GatewayAddr, rr.%s, off, err = unpackIPSECGateway(msg, off, rr.GatewayType&0x7f)\n")
-			case `dns:"cdomain-name"`, `dns:"baretxt"`, `dns:"hex"`, `dns:"base32"`, `dns:"base64"`, `dns:"length"`:
+			case `dns:"baretxt"`, `dns:"hex"`, `dns:"base32"`, `dns:"base64"`, `dns:"length"`:
 				fallthrough // unpack function is the same as the generic one
 			case "":
 				switch ft := st.Field(i).Type().(type) {
@@ -284,7 +286,7 @@ return off, err
 				case *types.Named:
 					switch ft.Obj().Name() {
 					case "Name":
-						o("rr.%s, off, err = UnpackDomainName(msg, off)\n")
+						o("rr.%s, off, err = UnpackDomainName(msg, off, false)\n")
 					case "TxtString":
 						o("rr.%s, off, err = unpackString(msg, off)\n")
 					case "TxtStrings":

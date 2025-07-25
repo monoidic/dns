@@ -673,8 +673,8 @@ func rawSignatureData(rrset []RR, s *RRSIG) (buf []byte, err error) {
 		wires[i] = wire
 	}
 	slices.SortFunc(wires, func(l, r []byte) int {
-		_, loff, _ := UnpackDomainName(l, 0)
-		_, roff, _ := UnpackDomainName(r, 0)
+		_, loff, _ := UnpackDomainName(l, 0, false)
+		_, roff, _ := UnpackDomainName(r, 0, false)
 		return bytes.Compare(l[loff+10:], r[roff+10:])
 	})
 	for i, wire := range wires {

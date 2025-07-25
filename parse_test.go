@@ -27,7 +27,7 @@ func TestDotInName(t *testing.T) {
 	if buf[6] != 2 {
 		t.Error("this must have the value 2")
 	}
-	dom, _, _ := UnpackDomainName(buf, 0)
+	dom, _, _ := UnpackDomainName(buf, 0, false)
 	// printing it should yield the backspace again
 	if dom.String() != `aa\.bb.nl.` {
 		t.Error("dot should have been escaped: ", dom)
@@ -41,7 +41,7 @@ func TestDotLastInLabel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error packing domain: %v", err)
 	}
-	dom, _, _ := UnpackDomainName(buf, 0)
+	dom, _, _ := UnpackDomainName(buf, 0, false)
 	if dom != sample {
 		t.Fatalf("unpacked domain `%s' doesn't match packed domain", dom)
 	}
@@ -73,7 +73,7 @@ func TestDomainName(t *testing.T) {
 			t.Error("not a valid domain name")
 			continue
 		}
-		n, _, err := UnpackDomainName(dbuff, 0)
+		n, _, err := UnpackDomainName(dbuff, 0, false)
 		if err != nil {
 			t.Error("failed to unpack packed domain name")
 			continue
@@ -179,7 +179,7 @@ func TestDomainQuick(t *testing.T) {
 	r := rand.New(rand.NewSource(0))
 	f := func(l int) bool {
 		db := GenerateDomain(r, l)
-		ds, _, err := UnpackDomainName(db, 0)
+		ds, _, err := UnpackDomainName(db, 0, false)
 		if err != nil {
 			panic(err)
 		}

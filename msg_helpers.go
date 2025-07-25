@@ -69,7 +69,7 @@ func packDataAAAA(aaaa netip.Addr, msg []byte, off int) (int, error) {
 func unpackHeader(msg []byte, off int) (rr RR_Header, off1 int, truncmsg []byte, err error) {
 	hdr := RR_Header{}
 
-	hdr.Name, off, err = UnpackDomainName(msg, off)
+	hdr.Name, off, err = UnpackDomainName(msg, off, true)
 	if err != nil {
 		return hdr, len(msg), msg, err
 	}
@@ -501,7 +501,7 @@ func unpackDataDomainNames(msg []byte, off, end int) ([]Name, int, error) {
 		return nil, len(msg), &Error{err: "overflow unpacking domain names"}
 	}
 	for off < end {
-		s, off, err = UnpackDomainName(msg, off)
+		s, off, err = UnpackDomainName(msg, off, false)
 		if err != nil {
 			return servers, len(msg), err
 		}
@@ -647,7 +647,7 @@ func unpackIPSECGateway(msg []byte, off int, gatewayType uint8) (netip.Addr, Nam
 	case IPSECGatewayIPv6:
 		retAddr, off, err = unpackDataAAAA(msg, off)
 	case IPSECGatewayHost:
-		retName, off, err = UnpackDomainName(msg, off)
+		retName, off, err = UnpackDomainName(msg, off, false)
 	}
 
 	return retAddr, retName, off, err

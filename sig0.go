@@ -93,7 +93,7 @@ func (rr *SIG) Verify(k *KEY, buf []byte) error {
 	adc := binary.BigEndian.Uint16(buf[10:])
 	offset := headerSize
 	for i := uint16(0); i < qdc && offset < buflen; i++ {
-		_, offset, err = UnpackDomainName(buf, offset)
+		_, offset, err = UnpackDomainName(buf, offset, false)
 		if err != nil {
 			return err
 		}
@@ -101,7 +101,7 @@ func (rr *SIG) Verify(k *KEY, buf []byte) error {
 		offset += 2 + 2
 	}
 	for i := uint16(1); i < anc+auc+adc && offset < buflen; i++ {
-		_, offset, err = UnpackDomainName(buf, offset)
+		_, offset, err = UnpackDomainName(buf, offset, false)
 		if err != nil {
 			return err
 		}
@@ -121,7 +121,7 @@ func (rr *SIG) Verify(k *KEY, buf []byte) error {
 	// offset should be just prior to SIG
 	bodyend := offset
 	// owner name SHOULD be root
-	_, offset, err = UnpackDomainName(buf, offset)
+	_, offset, err = UnpackDomainName(buf, offset, false)
 	if err != nil {
 		return err
 	}
@@ -144,7 +144,7 @@ func (rr *SIG) Verify(k *KEY, buf []byte) error {
 	// Skip key tag
 	offset += 2
 	var signername Name
-	signername, offset, err = UnpackDomainName(buf, offset)
+	signername, offset, err = UnpackDomainName(buf, offset, false)
 	if err != nil {
 		return err
 	}

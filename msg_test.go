@@ -231,7 +231,7 @@ func TestUnpackDomainName(t *testing.T) {
 		{"reserved compression pointer 0b01", "\x07example\x40", "", "dns: bad rdata"},
 	}
 	for _, test := range cases {
-		output, idx, err := UnpackDomainName([]byte(test.input), 0)
+		output, idx, err := UnpackDomainName([]byte(test.input), 0, true)
 		expected := mustParseName(test.expectedOutput)
 		if expected.String() != "" && output != expected {
 			t.Errorf("%s: expected %s, got %s", test.label, test.expectedOutput, output)

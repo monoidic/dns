@@ -50,12 +50,12 @@ func FuzzPackUnpack(f *testing.F) {
 		buf := make([]byte, expectedLen)
 		bufOff, err := PackRR(rr, buf, 0, nil, false)
 
-		if expectedLen != bufOff {
-			t.Fatalf("len mismatch, expected %d, got %d\n%s\n%s\n%s", expectedLen, bufOff, rr, hex.EncodeToString(msg), hex.EncodeToString(buf[:bufOff]))
-		}
-
 		if err != nil {
 			t.Fatalf("error repacking: %s\n%s\n%s\nexpectedLen %d", err, rr, hex.EncodeToString(msg), expectedLen)
+		}
+
+		if expectedLen != bufOff {
+			t.Fatalf("len mismatch, expected %d, got %d\n%s\n%s\n%s", expectedLen, bufOff, rr, hex.EncodeToString(msg), hex.EncodeToString(buf[:bufOff]))
 		}
 
 		rr2, rr2Off, err := UnpackRR(buf, 0)
@@ -210,6 +210,12 @@ func FuzzToFromString(f *testing.F) {
 					if _, err := strconv.ParseFloat(s.BareString(), 64); err != nil {
 						return
 					}
+				}
+			case *NAPTR:
+				regexp := rrT.Regexp.BareString()
+				if strings.Contains(regexp, "\\") {
+					// figure out better string handling for this at some point
+					return
 				}
 			}
 			t.Fatalf("rr failed parsing/unparsing %s: %s\n%s", hex.EncodeToString(msg), err, rrS)

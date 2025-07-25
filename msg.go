@@ -375,7 +375,13 @@ func packDomainName(s Name, msg []byte, off int, compression compressionMap, com
 //
 // When an error is encountered, the unpacked name will be discarded
 // and len(msg) will be returned as the offset.
-func UnpackDomainName(msg []byte, off int) (ret Name, off1 int, err error) {
+//
+// The compressible flag specifies whether or not compression pointers
+// are valid for unpacking the name.
+func UnpackDomainName(msg []byte, off int, compressible bool) (ret Name, off1 int, err error) {
+	if !compressible {
+		return simpleUnpack(msg, off)
+	}
 	var buf bytes.Buffer
 	budget := maxDomainNameWireOctets
 	ptr := 0 // number of pointers followed
@@ -442,6 +448,34 @@ Loop:
 		off1 = len(msg)
 	}
 	return ret, off1, err
+}
+
+func simpleUnpack(msg []byte, off int) (ret Name, off1 int, err error) {
+	start := off
+
+	for {
+		if len(msg[off:]) < 1 {
+			return ret, len(msg), ErrBuf
+		}
+		labelLen := msg[off]
+		off++
+		if labelLen > 0x3f {
+			return ret, len(msg), ErrRdata
+		}
+		if labelLen == 0 {
+			break
+		}
+		off += int(labelLen)
+
+		// avoid having to check separately outside of the loop
+		// for the +1 of the ending zero byte by checking for max size - 1
+		if off-start > maxDomainNameWireOctets-1 {
+			return ret, len(msg), ErrRdata
+		}
+	}
+
+	ret.encoded = string(msg[start:off])
+	return ret, off, nil
 }
 
 func packTxt(txt TxtStrings, msg []byte, off int) (int, error) {
@@ -1058,7 +1092,7 @@ func unpackQuestion(msg []byte, off int) (Question, int, error) {
 		q   Question
 		err error
 	)
-	q.Name, off, err = UnpackDomainName(msg, off)
+	q.Name, off, err = UnpackDomainName(msg, off, true)
 	if err != nil {
 		return q, off, fmt.Errorf("bad question name: %w", err)
 	}

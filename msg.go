@@ -457,7 +457,7 @@ func simpleUnpack(msg []byte, off int) (ret Name, off1 int, err error) {
 		if len(msg[off:]) < 1 {
 			return ret, len(msg), ErrBuf
 		}
-		labelLen := msg[off]
+		labelLen := int(msg[off])
 		off++
 		if labelLen > 0x3f {
 			return ret, len(msg), ErrRdata
@@ -465,7 +465,10 @@ func simpleUnpack(msg []byte, off int) (ret Name, off1 int, err error) {
 		if labelLen == 0 {
 			break
 		}
-		off += int(labelLen)
+		if len(msg[off:]) < labelLen {
+			return ret, len(msg), ErrBuf
+		}
+		off += labelLen
 
 		// avoid having to check separately outside of the loop
 		// for the +1 of the ending zero byte by checking for max size - 1

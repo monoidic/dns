@@ -95,11 +95,11 @@ func TestCrashNSEC(t *testing.T) {
 			Rdlength: 0xb,
 		},
 		NextDomain: root,
-		TypeBitMap: []Type{
+		TypeBitMap: TBMFromList([]Type{
 			0x2302, 0x2303, 0x230a, 0x230b,
 			0x2312, 0x2313, 0x231a, 0x231b,
 			0x2322, 0x2323,
-		},
+		}),
 	}
 	expectedLength := 19
 	l := nsec.len(0, compression)
@@ -135,9 +135,9 @@ func TestCrashNSEC3(t *testing.T) {
 		Salt:       ByteField{},
 		HashLength: 0x0,
 		NextDomain: ByteField{},
-		TypeBitMap: []Type{
+		TypeBitMap: TBMFromList([]Type{
 			0x2302, 0x2303, 0x230a, 0x230b,
-		},
+		}),
 	}
 	expectedLength := 21
 	l := nsec3.len(0, compression)

@@ -775,7 +775,7 @@ type NXT struct {
 type NSEC struct {
 	Hdr        RR_Header
 	NextDomain Name
-	TypeBitMap []Type `dns:"nsec"`
+	TypeBitMap TypeBitMap
 }
 
 // DLV RR. See RFC 4431.
@@ -931,7 +931,7 @@ type NSEC3 struct {
 	Salt       ByteField `dns:"size-hex:SaltLength"`
 	HashLength uint8     `dns:"length"`
 	NextDomain ByteField `dns:"size-base32:HashLength"`
-	TypeBitMap []Type    `dns:"nsec"`
+	TypeBitMap TypeBitMap
 }
 
 // NSEC3PARAM RR. See RFC 5155.
@@ -1148,7 +1148,7 @@ type CSYNC struct {
 	Hdr        RR_Header
 	Serial     uint32
 	Flags      uint16
-	TypeBitMap []Type `dns:"nsec"`
+	TypeBitMap TypeBitMap
 }
 
 // ZONEMD RR, from draft-ietf-dnsop-dns-zone-digest
@@ -1338,7 +1338,6 @@ func NameFromWire(b []byte) (ret Name, err error) {
 
 	ret.encoded = string(b)
 	return ret, nil
-
 }
 
 func NameFromLabels(labels [][]byte) (ret Name, err error) {
@@ -1663,7 +1662,6 @@ func (t TxtString) OctetString() string {
 	b.WriteString(deserializeOctet([]byte(t.encoded)))
 	b.WriteByte('"')
 	return b.String()
-	//return deserializeOctet([]byte(t.encoded))
 }
 
 type TxtStrings struct {
@@ -1802,4 +1800,105 @@ func (t Time) String() string {
 	mod := max((int64(t)-time.Now().Unix())/year68-1, 0)
 	ti := time.Unix(int64(t)-mod*year68, 0).UTC()
 	return ti.Format("20060102150405")
+}
+
+type TypeBitMap struct {
+	encoded string
+}
+
+func TBMFromList(l []Type) TypeBitMap {
+	var ret TypeBitMap
+	if len(l) == 0 {
+		return ret
+	}
+
+	slices.Sort(l)
+
+	var b bytes.Buffer
+
+	var bitsWindow [32]byte
+	var prevWindowLen int
+	prevWindow := l[0] / 256
+
+	for _, t := range l {
+		window := t / 256
+		if window > prevWindow {
+			// write out prev window
+			b.WriteByte(byte(prevWindow))
+			b.WriteByte(byte(prevWindowLen))
+			b.Write(bitsWindow[:prevWindowLen])
+			prevWindow = window
+			for i := range bitsWindow {
+				bitsWindow[i] = 0
+			}
+		}
+
+		windowData := t % 256
+		windowOff := windowData / 8
+		windowBit := windowData % 8
+
+		bitsWindow[windowOff] |= 0x80 >> windowBit
+
+		prevWindowLen = int(windowOff) + 1
+	}
+
+	// write out last window
+	b.WriteByte(byte(prevWindow))
+	b.WriteByte(byte(prevWindowLen))
+	b.Write(bitsWindow[:prevWindowLen])
+
+	ret.encoded = b.String()
+	return ret
+}
+
+func (tbm TypeBitMap) Iter(yield func(Type) bool) {
+	if len(tbm.encoded) == 0 {
+		return
+	}
+
+	sb := []byte(tbm.encoded)
+	var off int
+
+	for off < len(sb) {
+		window := int(sb[off])
+		bitsLen := int(sb[off+1])
+		off += 2
+		for i, v := range sb[off : off+bitsLen] {
+			if v == 0 {
+				continue
+			}
+			for j := range 8 {
+				if mask := byte(0x80 >> j); v&mask == mask {
+					if t := Type(window*256 + i*8 + j); !yield(t) {
+						return
+					}
+				}
+			}
+		}
+		off += bitsLen
+	}
+}
+
+func (tbm TypeBitMap) List() []Type {
+	return slices.Collect(tbm.Iter)
+}
+
+func (tbm TypeBitMap) EncodedLen() int {
+	return len(tbm.encoded)
+}
+
+func (tbm TypeBitMap) Raw() []byte {
+	return []byte(tbm.encoded)
+}
+
+// space prefixed
+func (tbm TypeBitMap) String() string {
+	var b strings.Builder
+
+	for t := range tbm.Iter {
+		b.WriteByte(' ')
+		b.WriteString(t.String())
+	}
+
+	return b.String()
 }

@@ -200,8 +200,6 @@ func main() {
 					o("for _, x := range rr.%s { l += x.len() }\n")
 				case `dns:"pairs"`:
 					o("for _, x := range rr.%s { l += 4 + int(x.len()) }\n")
-				case `dns:"nsec"`:
-					o("l += typeBitMapLen(rr.%s)\n")
 				default:
 					log.Panicln(name, st.Field(i).Name(), tag)
 				}
@@ -267,7 +265,7 @@ func main() {
 					switch ft.Obj().Name() {
 					case "Name":
 						o("l += domainNameLen(rr.%s, off+l, compression, false)\n")
-					case "TxtString", "TxtStrings", "ByteField":
+					case "TxtString", "TxtStrings", "ByteField", "TypeBitMap":
 						o("l += rr.%s.EncodedLen()\n")
 					case "Type":
 						o("l += 2 // %s\n")
@@ -369,6 +367,9 @@ func main() {
 				if _, ok := st.Field(i).Type().(*types.Slice); ok {
 					writeSpace = false
 				}
+				if named, ok := st.Field(i).Type().(*types.Named); ok && named.Obj().Name() == "TypeBitMap" {
+					writeSpace = false
+				}
 				if writeSpace {
 					fmt.Fprint(b, "b.WriteByte(' ')\n")
 				}
@@ -394,12 +395,6 @@ func main() {
 				}
 			case `dns:"octet"`:
 				o("b.WriteString(rr.%s.OctetString())\n")
-			case `dns:"nsec"`:
-				o(`	for _, t := range rr.%s {
-	b.WriteByte(' ')
-	b.WriteString(t.String())
-}
-`)
 			case `dns:"eui48"`:
 				o("b.WriteString(euiToString(rr.%s, 48))\n")
 			case `dns:"eui64"`:
@@ -470,7 +465,7 @@ func main() {
 			switch s := st.Field(i).Type().(*types.Named).Obj().Name(); s {
 			case "net/netip.Addr":
 				o2("if rr.%s.IsValid() {b.WriteString(rr.%s.String())}\n")
-			case "Name", "TxtString", "TxtStrings", "Time", "Type":
+			case "Name", "TxtString", "TxtStrings", "Time", "Type", "TypeBitMap":
 				o("b.WriteString(rr.%s.String())\n")
 			default:
 				log.Panicln(st, field, s)

@@ -2,10 +2,6 @@
 
 package dns
 
-import (
-	"slices"
-)
-
 // isDuplicate() functions
 
 func (r1 *A) isDuplicate(_r2 RR) bool {
@@ -196,7 +192,7 @@ func (r1 *CSYNC) isDuplicate(_r2 RR) bool {
 	if r1.Flags != r2.Flags {
 		return false
 	}
-	if !slices.Equal(r1.TypeBitMap, r2.TypeBitMap) {
+	if r1.TypeBitMap != r2.TypeBitMap {
 		return false
 	}
 	return true
@@ -727,7 +723,7 @@ func (r1 *NSEC) isDuplicate(_r2 RR) bool {
 	if !isDuplicateName(r1.NextDomain, r2.NextDomain) {
 		return false
 	}
-	if !slices.Equal(r1.TypeBitMap, r2.TypeBitMap) {
+	if r1.TypeBitMap != r2.TypeBitMap {
 		return false
 	}
 	return true
@@ -759,7 +755,7 @@ func (r1 *NSEC3) isDuplicate(_r2 RR) bool {
 	if r1.NextDomain != r2.NextDomain {
 		return false
 	}
-	if !slices.Equal(r1.TypeBitMap, r2.TypeBitMap) {
+	if r1.TypeBitMap != r2.TypeBitMap {
 		return false
 	}
 	return true
@@ -816,7 +812,7 @@ func (r1 *NXT) isDuplicate(_r2 RR) bool {
 	if !isDuplicateName(r1.NextDomain, r2.NextDomain) {
 		return false
 	}
-	if !slices.Equal(r1.TypeBitMap, r2.TypeBitMap) {
+	if r1.TypeBitMap != r2.TypeBitMap {
 		return false
 	}
 	return true

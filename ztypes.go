@@ -352,7 +352,7 @@ func (rr *CSYNC) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += 4 // Serial
 	l += 2 // Flags
-	l += typeBitMapLen(rr.TypeBitMap)
+	l += rr.TypeBitMap.EncodedLen()
 	return l
 }
 
@@ -593,7 +593,7 @@ func (rr *NSAPPTR) len(off int, compression map[Name]struct{}) int {
 func (rr *NSEC) len(off int, compression map[Name]struct{}) int {
 	l := rr.Hdr.len(off, compression)
 	l += domainNameLen(rr.NextDomain, off+l, compression, false)
-	l += typeBitMapLen(rr.TypeBitMap)
+	l += rr.TypeBitMap.EncodedLen()
 	return l
 }
 
@@ -606,7 +606,7 @@ func (rr *NSEC3) len(off int, compression map[Name]struct{}) int {
 	l += rr.Salt.EncodedLen()
 	l++ // HashLength
 	l += rr.NextDomain.EncodedLen()
-	l += typeBitMapLen(rr.TypeBitMap)
+	l += rr.TypeBitMap.EncodedLen()
 	return l
 }
 
@@ -923,7 +923,7 @@ func (rr *CSYNC) copy() RR {
 		rr.Hdr,
 		rr.Serial,
 		rr.Flags,
-		slices.Clone(rr.TypeBitMap),
+		rr.TypeBitMap,
 	}
 }
 
@@ -1114,7 +1114,7 @@ func (rr *NSAPPTR) copy() RR {
 }
 
 func (rr *NSEC) copy() RR {
-	return &NSEC{rr.Hdr, rr.NextDomain, slices.Clone(rr.TypeBitMap)}
+	return &NSEC{rr.Hdr, rr.NextDomain, rr.TypeBitMap}
 }
 
 func (rr *NSEC3) copy() RR {
@@ -1127,7 +1127,7 @@ func (rr *NSEC3) copy() RR {
 		rr.Salt,
 		rr.HashLength,
 		rr.NextDomain,
-		slices.Clone(rr.TypeBitMap),
+		rr.TypeBitMap,
 	}
 }
 
@@ -1449,10 +1449,7 @@ func (rr *CSYNC) String() string {
 	b.WriteString(strconv.FormatInt(int64(rr.Serial), 10))
 	b.WriteByte(' ')
 	b.WriteString(strconv.FormatInt(int64(rr.Flags), 10))
-	for _, t := range rr.TypeBitMap {
-		b.WriteByte(' ')
-		b.WriteString(t.String())
-	}
+	b.WriteString(rr.TypeBitMap.String())
 	return b.String()
 }
 
@@ -1700,10 +1697,7 @@ func (rr *NSEC) String() string {
 	var b strings.Builder
 	b.WriteString(rr.Hdr.String())
 	b.WriteString(rr.NextDomain.String())
-	for _, t := range rr.TypeBitMap {
-		b.WriteByte(' ')
-		b.WriteString(t.String())
-	}
+	b.WriteString(rr.TypeBitMap.String())
 	return b.String()
 }
 
@@ -1719,10 +1713,7 @@ func (rr *NSEC3) String() string {
 	b.WriteString(saltToString(rr.Salt))
 	b.WriteByte(' ')
 	b.WriteString(rr.NextDomain.Base32())
-	for _, t := range rr.TypeBitMap {
-		b.WriteByte(' ')
-		b.WriteString(t.String())
-	}
+	b.WriteString(rr.TypeBitMap.String())
 	return b.String()
 }
 

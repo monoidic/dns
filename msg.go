@@ -979,7 +979,6 @@ func domainNameLen(s Name, off int, compression map[Name]struct{}, compress bool
 		// compressionLenSearch will insert the entry into the compression
 		// map if it doesn't contain it.
 		if l, ok := compressionLenSearch(compression, s, off); ok && compress {
-
 			return l + 2
 		}
 	}

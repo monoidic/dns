@@ -163,7 +163,7 @@ func (rr *CSYNC) pack(msg []byte, off int, compression compressionMap, compress 
 	if err != nil {
 		return off, err
 	}
-	off, err = packDataNsec(rr.TypeBitMap, msg, off)
+	off, err = packTypeBitMap(rr.TypeBitMap, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -627,7 +627,7 @@ func (rr *NSEC) pack(msg []byte, off int, compression compressionMap, compress b
 	if err != nil {
 		return off, err
 	}
-	off, err = packDataNsec(rr.TypeBitMap, msg, off)
+	off, err = packTypeBitMap(rr.TypeBitMap, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -663,7 +663,7 @@ func (rr *NSEC3) pack(msg []byte, off int, compression compressionMap, compress 
 	if err != nil {
 		return off, err
 	}
-	off, err = packDataNsec(rr.TypeBitMap, msg, off)
+	off, err = packTypeBitMap(rr.TypeBitMap, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -711,7 +711,7 @@ func (rr *NXT) pack(msg []byte, off int, compression compressionMap, compress bo
 	if err != nil {
 		return off, err
 	}
-	off, err = packDataNsec(rr.TypeBitMap, msg, off)
+	off, err = packTypeBitMap(rr.TypeBitMap, msg, off)
 	if err != nil {
 		return off, err
 	}
@@ -1408,7 +1408,7 @@ func (rr *CSYNC) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("CSYNC.Flags: %w", err)
 	}
-	rr.TypeBitMap, off, err = unpackDataNsec(msg, off)
+	rr.TypeBitMap, off, err = unpackTypeBitMap(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("CSYNC.TypeBitMap: %w", err)
 	}
@@ -1977,7 +1977,7 @@ func (rr *NSEC) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("NSEC.NextDomain: %w", err)
 	}
-	rr.TypeBitMap, off, err = unpackDataNsec(msg, off)
+	rr.TypeBitMap, off, err = unpackTypeBitMap(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("NSEC.TypeBitMap: %w", err)
 	}
@@ -2016,7 +2016,7 @@ func (rr *NSEC3) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, err
 	}
-	rr.TypeBitMap, off, err = unpackDataNsec(msg, off)
+	rr.TypeBitMap, off, err = unpackTypeBitMap(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("NSEC3.TypeBitMap: %w", err)
 	}
@@ -2076,7 +2076,7 @@ func (rr *NXT) unpack(msg []byte, off int) (off1 int, err error) {
 	if err != nil {
 		return off, fmt.Errorf("NXT.NextDomain: %w", err)
 	}
-	rr.TypeBitMap, off, err = unpackDataNsec(msg, off)
+	rr.TypeBitMap, off, err = unpackTypeBitMap(msg, off)
 	if err != nil {
 		return off, fmt.Errorf("NXT.TypeBitMap: %w", err)
 	}

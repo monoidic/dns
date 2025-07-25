@@ -23,10 +23,6 @@ var packageHdr = `
 
 package dns
 
-import (
-	"slices"
-)
-
 `
 
 func getTypeStruct(t types.Type, scope *types.Scope) (*types.Struct, bool) {
@@ -106,10 +102,6 @@ func main() {
 			switch st.Tag(i) {
 			case `dns:"-"`:
 				// ignored
-			case `dns:"a"`, `dns:"aaaa"`:
-				o2("if r1.%s != r2.%s {\nreturn false\n}")
-			case `dns:"cdomain-name"`:
-				o2("if !isDuplicateName(r1.%s, r2.%s) {\nreturn false\n}")
 			case `dns:"ipsechost"`, `dns:"amtrelayhost"`:
 				o2("if !isDuplicateGateway(r1.GatewayType, r1.GatewayAddr, r2.GatewayAddr, r1.%s, r2.%s) {\nreturn false\n}")
 			default:
@@ -127,14 +119,6 @@ func main() {
 					continue loop
 				}
 			case *types.Slice:
-				switch st.Tag(i) {
-				case `dns:"domain-name"`, `dns:"apl"`, `dns:"pairs"`:
-					// pass
-				default:
-					o2("if !slices.Equal(r1.%s, r2.%s) {\nreturn false\n}")
-					continue loop
-				}
-
 				o2("if len(r1.%s) != len(r2.%s) {\nreturn false\n}")
 
 				switch st.Tag(i) {

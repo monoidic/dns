@@ -590,7 +590,7 @@ func (rr *NAPTR) parse(c *zlexer, o string) *ParseError {
 			return &ParseError{err: "bad NAPTR Flags", lex: l}
 		}
 	case zQuote:
-		//rr.Flags = ""
+		rr.Flags = TxtString{}
 	default:
 		return &ParseError{err: "bad NAPTR Flags", lex: l}
 	}
@@ -610,7 +610,7 @@ func (rr *NAPTR) parse(c *zlexer, o string) *ParseError {
 			return &ParseError{err: "bad NAPTR Service", lex: l}
 		}
 	case zQuote:
-		//rr.Service = ""
+		rr.Service = TxtString{}
 	default:
 		return &ParseError{err: "bad NAPTR Service", lex: l}
 	}
@@ -914,12 +914,13 @@ func (rr *CSYNC) parse(c *zlexer, o string) *ParseError {
 	}
 	rr.Flags = uint16(j)
 
-	rr.TypeBitMap = []Type{}
+	rr.TypeBitMap = TypeBitMap{}
 	var (
 		k  Type
 		ok bool
 	)
 	l, _ = c.Next()
+	var typebitmap []Type
 	for l.value != zNewline && l.value != zEOF {
 		switch l.value {
 		case zBlank:
@@ -933,12 +934,13 @@ func (rr *CSYNC) parse(c *zlexer, o string) *ParseError {
 				}
 				k = Type(v)
 			}
-			rr.TypeBitMap = append(rr.TypeBitMap, Type(k))
+			typebitmap = append(typebitmap, Type(k))
 		default:
 			return &ParseError{err: "bad CSYNC TypeBitMap", lex: l}
 		}
 		l, _ = c.Next()
 	}
+	rr.TypeBitMap = TBMFromList(typebitmap)
 	return nil
 }
 
@@ -1086,11 +1088,12 @@ func (rr *NSEC) parse(c *zlexer, o string) *ParseError {
 	}
 	rr.NextDomain = name
 
-	rr.TypeBitMap = []Type{}
+	rr.TypeBitMap = TypeBitMap{}
 	var (
 		k  Type
 		ok bool
 	)
+	var typebitmap []Type
 	l, _ = c.Next()
 	for l.value != zNewline && l.value != zEOF {
 		switch l.value {
@@ -1105,12 +1108,13 @@ func (rr *NSEC) parse(c *zlexer, o string) *ParseError {
 				}
 				k = Type(v)
 			}
-			rr.TypeBitMap = append(rr.TypeBitMap, k)
+			typebitmap = append(typebitmap, k)
 		default:
 			return &ParseError{err: "bad NSEC TypeBitMap", lex: l}
 		}
 		l, _ = c.Next()
 	}
+	rr.TypeBitMap = TBMFromList(typebitmap)
 	return nil
 }
 
@@ -1160,11 +1164,12 @@ func (rr *NSEC3) parse(c *zlexer, o string) *ParseError {
 		return &ParseError{err: "bad NSEC3 NextDomain", lex: l}
 	}
 
-	rr.TypeBitMap = []Type{}
+	rr.TypeBitMap = TypeBitMap{}
 	var (
 		k  Type
 		ok bool
 	)
+	var typebitmap []Type
 	l, _ = c.Next()
 	for l.value != zNewline && l.value != zEOF {
 		switch l.value {
@@ -1179,12 +1184,13 @@ func (rr *NSEC3) parse(c *zlexer, o string) *ParseError {
 				}
 				k = Type(v)
 			}
-			rr.TypeBitMap = append(rr.TypeBitMap, k)
+			typebitmap = append(typebitmap, k)
 		default:
 			return &ParseError{err: "bad NSEC3 TypeBitMap", lex: l}
 		}
 		l, _ = c.Next()
 	}
+	rr.TypeBitMap = TBMFromList(typebitmap)
 	return nil
 }
 

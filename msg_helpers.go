@@ -241,7 +241,67 @@ func unpackString(msg []byte, off int) (TxtString, int, error) {
 	ret.encoded = string(msg[off : off+l])
 	off += l
 	return ret, off, nil
+}
 
+func packTypeBitMap(tbm TypeBitMap, msg []byte, off int) (int, error) {
+	if len(msg[off:]) < tbm.EncodedLen() {
+		return len(msg), ErrBuf
+	}
+
+	off += copy(msg[off:], []byte(tbm.encoded))
+	return off, nil
+}
+
+func unpackTypeBitMap(msg []byte, off int) (TypeBitMap, int, error) {
+	var ret TypeBitMap
+	if off == len(msg) {
+		return ret, off, nil
+	}
+	prevWindow := -1
+
+	start := off
+	for off < len(msg) {
+		if len(msg[off:]) < 2 {
+			return ret, len(msg), ErrBuf
+		}
+		window := int(msg[off])
+		length := int(msg[off+1])
+		off += 2
+		if len(msg[off:]) < length {
+			return ret, len(msg), ErrBuf
+		}
+
+		if !(window > prevWindow) {
+			// RFC 4034: Blocks are present in the NSEC RR RDATA in
+			// increasing numerical order.
+			return ret, len(msg), &Error{err: "out of order NSEC(3) block in type bitmap"}
+		}
+		if length == 0 {
+			// RFC 4034: Blocks with no types present MUST NOT be included.
+			return ret, len(msg), &Error{err: "empty NSEC(3) block in type bitmap"}
+		}
+		if length > 32 {
+			return ret, len(msg), &Error{err: "NSEC(3) block too long in type bitmap"}
+		}
+
+		var anyThisWindow bool
+		for i := range length {
+			if msg[off+i] != 0 {
+				anyThisWindow = true
+				break
+			}
+		}
+
+		if !anyThisWindow {
+			return ret, len(msg), &Error{err: "unpopulated NSEC(3) block in type bitmap"}
+		}
+
+		prevWindow = window
+		off += length
+	}
+
+	ret.encoded = string(msg[start:off])
+	return ret, off, nil
 }
 
 func packByteField(bf ByteField, msg []byte, off int) (int, error) {

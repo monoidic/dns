@@ -32,7 +32,6 @@ func randBytesToMsg(msg []byte) (buf []byte, rr RR, ok bool) {
 
 	msg = msg[:msgOff]
 	return msg, rr, ok
-
 }
 
 func FuzzPackUnpack(f *testing.F) {
@@ -89,7 +88,6 @@ func containsNonAlphanumeric(s string) bool {
 	return strings.ContainsFunc(s, func(r rune) bool {
 		return !strings.ContainsRune(alphanumeric, r)
 	})
-
 }
 
 // contains a laundry list of bad RR values...
@@ -114,7 +112,7 @@ func FuzzToFromString(f *testing.F) {
 			// separate typebitmap stuff
 			switch rrT := rr.(type) {
 			case *NSEC3, *NSEC, *CSYNC, *NXT:
-				var typebitmap []Type
+				var typebitmap TypeBitMap
 				switch rrTT := rrT.(type) {
 				case *NSEC3:
 					typebitmap = rrTT.TypeBitMap
@@ -126,14 +124,13 @@ func FuzzToFromString(f *testing.F) {
 					typebitmap = rrTT.TypeBitMap
 				}
 				// None and Reserved are not parsed, I guess
-				if slices.ContainsFunc(typebitmap, func(t Type) bool { return t == TypeNone || t == TypeReserved }) {
+				if slices.ContainsFunc(typebitmap.List(), func(t Type) bool { return t == TypeNone || t == TypeReserved }) {
 					return
 				}
 			}
 
 			switch rrT := rr.(type) {
 			case *CAA:
-				//fmt.Printf("%q %q %d %d\n", rrT.Tag.BareString(), rrT.Value.BareString(), len(rrT.Tag.BareString()), len(rrT.Value.BareString()))
 				if len(strings.Trim(rrT.Tag.BareString(), " ")) == 0 {
 					return
 				}
@@ -199,7 +196,6 @@ func FuzzToFromString(f *testing.F) {
 				}
 			case *GPOS:
 				// wtf is this RRtype
-				//const numerics = "+-.0123456789"
 				for _, s := range []TxtString{rrT.Longitude, rrT.Latitude, rrT.Altitude} {
 					if _, err := strconv.ParseFloat(s.BareString(), 64); err != nil {
 						return
@@ -237,7 +233,7 @@ func FuzzToFromString(f *testing.F) {
 
 			switch rrT := rr.(type) {
 			case *NSEC:
-				if slices.ContainsFunc(rrT.TypeBitMap, func(t Type) bool { return t == TypeNone || t == TypeReserved }) {
+				if slices.ContainsFunc(rrT.TypeBitMap.List(), func(t Type) bool { return t == TypeNone || t == TypeReserved }) {
 					return
 				}
 			case *NSEC3:
@@ -249,7 +245,7 @@ func FuzzToFromString(f *testing.F) {
 				if IsDuplicate(rr, rr2) {
 					return
 				}
-				if slices.ContainsFunc(rrT.TypeBitMap, func(t Type) bool { return t == TypeNone || t == TypeReserved }) {
+				if slices.ContainsFunc(rrT.TypeBitMap.List(), func(t Type) bool { return t == TypeNone || t == TypeReserved }) {
 					return
 				}
 			case *X25:

@@ -110,8 +110,6 @@ return off, err
 				case `dns:"-"`: // ignored
 				case `dns:"opt"`:
 					o("off, err = packDataOpt(rr.%s, msg, off)\n")
-				case `dns:"nsec"`:
-					o("off, err = packDataNsec(rr.%s, msg, off)\n")
 				case `dns:"pairs"`:
 					o("off, err = packDataSVCB(rr.%s, msg, off)\n")
 				case `dns:"domain-name"`:
@@ -182,6 +180,8 @@ return off, err
 					o("off, err = packUint16(uint16(rr.%s), msg, off)\n")
 				case "Time":
 					o("off, err = packUint32(uint32(rr.%s), msg, off)\n")
+				case "TypeBitMap":
+					o("off, err = packTypeBitMap(rr.%s, msg, off)\n")
 				default:
 					log.Panicln(name, st.Field(i).Name(), st.Tag(i))
 				}
@@ -238,8 +238,6 @@ return off, err
 				case `dns:"-"`: // ignored
 				case `dns:"opt"`:
 					o("rr.%s, off, err = unpackDataOpt(msg, off)\n")
-				case `dns:"nsec"`:
-					o("rr.%s, off, err = unpackDataNsec(msg, off)\n")
 				case `dns:"pairs"`:
 					o("rr.%s, off, err = unpackDataSVCB(msg, off)\n")
 				case `dns:"domain-name"`:
@@ -297,6 +295,8 @@ return off, err
 						o("rr.%s, off, err = unpackType(msg, off)\n")
 					case "Time":
 						o("rr.%s, off, err = unpackTime(msg, off)\n")
+					case "TypeBitMap":
+						o("rr.%s, off, err = unpackTypeBitMap(msg, off)\n")
 					default:
 						log.Panicln(name, st.Field(i).Name())
 					}

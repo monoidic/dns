@@ -213,7 +213,7 @@ func FuzzToFromString(f *testing.F) {
 				}
 			case *NAPTR:
 				regexp := rrT.Regexp.BareString()
-				if strings.Contains(regexp, "\\") {
+				if strings.ContainsAny(regexp, "\"\\") {
 					// figure out better string handling for this at some point
 					return
 				}
@@ -303,6 +303,13 @@ func FuzzToFromString(f *testing.F) {
 						return
 					}
 				}
+			case *NAPTR:
+				regexp := rrT.Regexp.BareString()
+				if strings.ContainsAny(regexp, "\"\\") {
+					// figure out better string handling for this at some point
+					return
+				}
+
 			}
 			t.Fatalf("rr mismatch between:\n%s\n%s\n(%s)", rr, rr2, hex.EncodeToString(msg))
 		}

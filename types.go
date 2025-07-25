@@ -1572,7 +1572,7 @@ func serializeOctet(s string) ([]byte, error) {
 				escaped := dddToByte(bs[i+1:])
 				b.WriteByte(escaped)
 				i += 4 // len(`\234`)
-			} else if len(bs[i:]) > 0 && bs[i+1] == '"' {
+			} else if len(bs[i:]) > 1 && bs[i+1] == '"' {
 				// special case for `\"`
 				b.WriteByte(bs[i+1])
 				i += 2

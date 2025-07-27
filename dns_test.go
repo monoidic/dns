@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"net/netip"
 	"slices"
 	"strconv"
@@ -116,26 +117,6 @@ func FuzzToFromString(f *testing.F) {
 		if err != nil {
 			// no real way to parse a missing bare string/hex/base64
 
-			// separate typebitmap stuff
-			switch rrT := rr.(type) {
-			case *NSEC3, *NSEC, *CSYNC, *NXT:
-				var typebitmap TypeBitMap
-				switch rrTT := rrT.(type) {
-				case *NSEC3:
-					typebitmap = rrTT.TypeBitMap
-				case *NSEC:
-					typebitmap = rrTT.TypeBitMap
-				case *CSYNC:
-					typebitmap = rrTT.TypeBitMap
-				case *NXT:
-					typebitmap = rrTT.TypeBitMap
-				}
-				// None and Reserved are not parsed, I guess
-				if slices.ContainsFunc(typebitmap.List(), func(t Type) bool { return t == TypeNone || t == TypeReserved }) {
-					return
-				}
-			}
-
 			switch rrT := rr.(type) {
 			case *CAA:
 				// TODO(monoidic) dnspython rejects non-alphanumeric strings
@@ -187,15 +168,6 @@ func FuzzToFromString(f *testing.F) {
 				if len(rrT.NextDomain.Raw()) == 0 {
 					return
 				}
-			case *RRSIG:
-				// none/reserved is not liked here either
-				if rrT.TypeCovered == TypeNone || rrT.TypeCovered == TypeReserved {
-					return
-				}
-			case *SIG:
-				if rrT.TypeCovered == TypeNone || rrT.TypeCovered == TypeReserved {
-					return
-				}
 			case *X25:
 				addr := rrT.PSDNAddress.BareString()
 				if containsNonAlphanumeric(addr) {
@@ -244,10 +216,6 @@ func FuzzToFromString(f *testing.F) {
 			}
 
 			switch rrT := rr.(type) {
-			case *NSEC:
-				if slices.ContainsFunc(rrT.TypeBitMap.List(), func(t Type) bool { return t == TypeNone || t == TypeReserved }) {
-					return
-				}
 			case *NSEC3:
 				if rrT.NextDomain.EncodedLen() == 0 {
 					return
@@ -255,9 +223,6 @@ func FuzzToFromString(f *testing.F) {
 				// HashLength is hardcoded to 20 in parse
 				rrT.HashLength = 20
 				if IsDuplicate(rr, rr2) {
-					return
-				}
-				if slices.ContainsFunc(rrT.TypeBitMap.List(), func(t Type) bool { return t == TypeNone || t == TypeReserved }) {
 					return
 				}
 			case *X25:
@@ -318,7 +283,12 @@ func FuzzToFromString(f *testing.F) {
 
 // just check for crashes lol
 func FuzzFromString(f *testing.F) {
-	f.Fuzz(func(t *testing.T, msg string) {
+	f.Fuzz(func(t *testing.T, typNum uint16, rrdata string) {
+		typS, ok := TypeToString[Type(typNum)]
+		if !ok {
+			return
+		}
+		msg := fmt.Sprintf(".\t0\tIN\t%s\t%s", typS, rrdata)
 		NewRR(msg)
 	})
 }

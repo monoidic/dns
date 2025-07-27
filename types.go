@@ -26,17 +26,17 @@ type (
 const (
 	// valid RR_Header.Rrtype and Question.qtype
 
-	TypeNone  Type = 0
-	TypeA     Type = 1
-	TypeNS    Type = 2
-	TypeMD    Type = 3
-	TypeMF    Type = 4
-	TypeCNAME Type = 5
-	TypeSOA   Type = 6
-	TypeMB    Type = 7
-	TypeMG    Type = 8
-	TypeMR    Type = 9
-	TypeNULL  Type = 10
+	TypeRESERVED0 Type = 0
+	TypeA         Type = 1
+	TypeNS        Type = 2
+	TypeMD        Type = 3
+	TypeMF        Type = 4
+	TypeCNAME     Type = 5
+	TypeSOA       Type = 6
+	TypeMB        Type = 7
+	TypeMG        Type = 8
+	TypeMR        Type = 9
+	TypeNULL      Type = 10
 	// TypeWKS  Type = 11
 	TypePTR   Type = 12
 	TypeHINFO Type = 13
@@ -131,9 +131,9 @@ const (
 	TypeMAILA Type = 254
 	TypeANY   Type = 255
 
-	TypeTA       Type = 32768
-	TypeDLV      Type = 32769
-	TypeReserved Type = 65535
+	TypeTA            Type = 32768
+	TypeDLV           Type = 32769
+	TypeRESERVED65535 Type = 65535
 
 	// valid Question.Qclass
 	ClassINET   Class = 1

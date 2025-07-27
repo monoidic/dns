@@ -10,7 +10,7 @@ func TestDynamicUpdateParsing(t *testing.T) {
 
 	for typ, name := range TypeToString {
 		switch typ {
-		case TypeNone, TypeReserved:
+		case TypeRESERVED0, TypeRESERVED65535:
 			continue
 		case TypeANY:
 			// ANY is ambiguous here and ends up parsed as a CLASS.

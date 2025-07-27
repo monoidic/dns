@@ -8,6 +8,9 @@ import "net/netip"
 // So this means the header data is equal *and* the RDATA is the same. Returns true
 // if so, otherwise false. It's a protocol violation to have identical RRs in a message.
 func IsDuplicate(r1, r2 RR) bool {
+	if r1 == nil || r2 == nil {
+		return r1 == r2
+	}
 	// Check whether the record header is identical.
 	if !r1.Header().isDuplicate(r2.Header()) {
 		return false
@@ -43,7 +46,7 @@ func isDuplicateName(s1, s2 Name) bool {
 }
 
 func isDuplicateGateway(gatewayType uint8, laddr, raddr netip.Addr, lhost, rhost Name) bool {
-	switch gatewayType {
+	switch gatewayType & 0x7f {
 	case IPSECGatewayIPv4, IPSECGatewayIPv6:
 		return laddr == raddr
 	case IPSECGatewayHost:

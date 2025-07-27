@@ -1340,7 +1340,7 @@ func NameFromWire(b []byte) (ret Name, err error) {
 	return ret, nil
 }
 
-func NameFromLabels(labels [][]byte) (ret Name, err error) {
+func NameFromLabels(labels []string) (ret Name, err error) {
 	if len(labels) == 0 {
 		return ret, nil
 	}

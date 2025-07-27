@@ -1,9 +1,9 @@
 package dns
 
 import (
-	"bytes"
 	"cmp"
 	"slices"
+	"strings"
 )
 
 // Holds a bunch of helper functions for dealing with labels.
@@ -15,17 +15,17 @@ import (
 // strings.Split(s) will work in most cases, but does not handle
 // escaped dots (\.) for instance.
 // s must be a syntactically valid domain name, see IsDomainName.
-func (n Name) SplitRaw() [][]byte {
+func (n Name) SplitRaw() []string {
 	if n.String() == "" {
 		return nil
 	}
-	var labels [][]byte
+	var labels []string
 
 	var off int
 	for off+1 < len(n.encoded) {
 		labelLen := int(n.encoded[off])
 		off++
-		labels = append(labels, []byte(n.encoded[off:off+labelLen]))
+		labels = append(labels, n.encoded[off:off+labelLen])
 		off += labelLen
 	}
 	return labels
@@ -35,7 +35,7 @@ func (n Name) Split() []string {
 	labels := n.SplitRaw()
 	ret := make([]string, len(labels))
 	for i, v := range labels {
-		ret[i] = escapeLabel(v)
+		ret[i] = escapeLabel([]byte(v))
 	}
 	return ret
 }
@@ -140,7 +140,7 @@ func Compare(s1, s2 Name) int {
 	for i := range min(len(s1Labels), len(s2Labels)) {
 		s1l := s1Labels[i]
 		s2l := s2Labels[i]
-		if cmp := bytes.Compare(s1l, s2l); cmp != 0 {
+		if cmp := strings.Compare(s1l, s2l); cmp != 0 {
 			return cmp
 		}
 	}

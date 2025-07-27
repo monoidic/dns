@@ -655,7 +655,7 @@ func rawSignatureData(rrset []RR, s *RRSIG) (buf []byte, err error) {
 		// 6.2. Canonical RR Form. (4) - wildcards
 		if len(labels) > int(s.Labels) {
 			// Wildcard
-			joinLabels := append([][]byte{{'*'}}, labels[len(labels)-int(s.Labels):]...)
+			joinLabels := append([]string{"*"}, labels[len(labels)-int(s.Labels):]...)
 			h.Name, err = NameFromLabels(joinLabels)
 			if err != nil {
 				return nil, err

@@ -1369,7 +1369,7 @@ func (rr *IPSECKEY) parse(c *zlexer, o string) *ParseError {
 		return &ParseError{err: "bad IPSECKEY gateway", lex: l}
 	}
 
-	rr.GatewayAddr, rr.GatewayHost, err = parseAddrHostUnion(l.token, o, rr.GatewayType)
+	rr.GatewayAddr, rr.GatewayHost, err = parseAddrHostUnion(l.token, o, rr.GatewayType&0x7f)
 	if err != nil {
 		return &ParseError{wrappedErr: fmt.Errorf("IPSECKEY %w", err), lex: l}
 	}

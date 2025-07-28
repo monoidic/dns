@@ -642,6 +642,35 @@ func Canonicalize(r1 RR) {
 		x.Target = x.Target.Canonical()
 	case *DNAME:
 		x.Target = x.Target.Canonical()
+	case *SVCB:
+		x.Target = x.Target.Canonical()
+	case *HTTPS:
+		x.Target = x.Target.Canonical()
+	case *TSIG:
+		x.Algorithm = x.Algorithm.Canonical()
+	case *RRSIG:
+		x.SignerName = x.SignerName.Canonical()
+	case *NXT:
+		x.NextDomain = x.NextDomain.Canonical()
+	case *NSEC:
+		x.NextDomain = x.NextDomain.Canonical()
+	case *TALINK:
+		x.PreviousName = x.PreviousName.Canonical()
+		x.NextName = x.NextName.Canonical()
+	case *IPSECKEY:
+		x.GatewayHost = x.GatewayHost.Canonical()
+	case *AMTRELAY:
+		x.GatewayHost = x.GatewayHost.Canonical()
+	case *NSAPPTR:
+		x.Ptr = x.Ptr.Canonical()
+	case *TKEY:
+		x.Algorithm = x.Algorithm.Canonical()
+	case *HIP:
+		for i, v := range x.RendezvousServers {
+			x.RendezvousServers[i] = v.Canonical()
+		}
+	case *LP:
+		x.Fqdn = x.Fqdn.Canonical()
 	}
 }
 

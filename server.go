@@ -225,7 +225,7 @@ type Server struct {
 	// An implementation of the TsigProvider interface. If defined it replaces TsigSecret and is used for all TSIG operations.
 	TsigProvider TsigProvider
 	// Secret(s) for Tsig map[<zonename>]<base64 secret>. The zonename must be in canonical form (lowercase, fqdn, see RFC 4034 Section 6.2).
-	TsigSecret map[string]ByteField
+	TsigSecret map[Name]ByteField
 	// If NotifyStartedFunc is set it is called once the server has started listening.
 	NotifyStartedFunc func()
 	// DecorateReader is optional, allows customization of the process that reads raw DNS messages.

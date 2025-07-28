@@ -15,11 +15,11 @@ type Envelope struct {
 // A Transfer defines parameters that are used during a zone transfer.
 type Transfer struct {
 	*Conn
-	DialTimeout    time.Duration        // net.DialTimeout, defaults to 2 seconds
-	ReadTimeout    time.Duration        // net.Conn.SetReadTimeout value for connections, defaults to 2 seconds
-	WriteTimeout   time.Duration        // net.Conn.SetWriteTimeout value for connections, defaults to 2 seconds
-	TsigProvider   TsigProvider         // An implementation of the TsigProvider interface. If defined it replaces TsigSecret and is used for all TSIG operations.
-	TsigSecret     map[string]ByteField // Secret(s) for Tsig map[<zonename>]<base64 secret>, zonename must be in canonical form (lowercase, fqdn, see RFC 4034 Section 6.2)
+	DialTimeout    time.Duration      // net.DialTimeout, defaults to 2 seconds
+	ReadTimeout    time.Duration      // net.Conn.SetReadTimeout value for connections, defaults to 2 seconds
+	WriteTimeout   time.Duration      // net.Conn.SetWriteTimeout value for connections, defaults to 2 seconds
+	TsigProvider   TsigProvider       // An implementation of the TsigProvider interface. If defined it replaces TsigSecret and is used for all TSIG operations.
+	TsigSecret     map[Name]ByteField // Secret(s) for Tsig map[<zonename>]<base64 secret>, zonename must be in canonical form (lowercase, fqdn, see RFC 4034 Section 6.2)
 	tsigTimersOnly bool
 	TLS            *tls.Config // TLS config. If Xfr over TLS will be attempted
 }

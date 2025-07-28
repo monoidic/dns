@@ -595,6 +595,7 @@ func Canonicalize(r1 RR) {
 	//	records contain no domain names, they are not subject to case
 	//	conversion.
 	hdr := r1.Header()
+	hdr.Ttl = 0
 	hdr.Name = hdr.Name.Canonical()
 	switch x := r1.(type) {
 	case *NS:
@@ -649,6 +650,8 @@ func rawSignatureData(rrset []RR, s *RRSIG) (buf []byte, err error) {
 	wires := make([][]byte, len(rrset))
 	for i, r := range rrset {
 		r1 := r.copy()
+		// RFC 4034: 6.2.  Canonical RR Form. (2) - domain name to lowercase
+		Canonicalize(r1)
 		h := r1.Header()
 		h.Ttl = s.OrigTtl
 		labels := h.Name.SplitRaw()
@@ -661,8 +664,6 @@ func rawSignatureData(rrset []RR, s *RRSIG) (buf []byte, err error) {
 				return nil, err
 			}
 		}
-		// RFC 4034: 6.2.  Canonical RR Form. (2) - domain name to lowercase
-		Canonicalize(r1)
 		// 6.2. Canonical RR Form. (5) - origTTL
 		wire := make([]byte, Len(r1))
 		off, err := PackRR(r1, wire, 0, nil, false)

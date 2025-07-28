@@ -314,7 +314,7 @@ type ANY struct {
 	// Does not have any rdata.
 }
 
-func (*ANY) parse(c *zlexer, origin string) *ParseError {
+func (*ANY) parse(c *zlexer, origin Name) *ParseError {
 	return &ParseError{err: "ANY records do not have a presentation format"}
 }
 
@@ -324,7 +324,7 @@ type NULL struct {
 	Data ByteField `dns:"hex"`
 }
 
-func (*NULL) parse(c *zlexer, origin string) *ParseError {
+func (*NULL) parse(c *zlexer, origin Name) *ParseError {
 	return &ParseError{err: "NULL records do not have a presentation format"}
 }
 
@@ -335,7 +335,7 @@ type NXNAME struct {
 	// Does not have any rdata
 }
 
-func (*NXNAME) parse(c *zlexer, origin string) *ParseError {
+func (*NXNAME) parse(c *zlexer, origin Name) *ParseError {
 	return &ParseError{err: "NXNAME records do not have a presentation format"}
 }
 

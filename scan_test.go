@@ -22,7 +22,7 @@ func TestZoneParserGenerate(t *testing.T) {
 
 	wantIdx := 0
 
-	z := NewZoneParser(strings.NewReader(zone), "", "")
+	z := NewZoneParser(strings.NewReader(zone), Name{}, "")
 
 	for rr, ok := z.Next(); ok; rr, ok = z.Next() {
 		if wantIdx >= len(wantRRs) {
@@ -67,7 +67,7 @@ func TestZoneParserInclude(t *testing.T) {
 	zone := "$ORIGIN example.org.\n$INCLUDE " + tmpfile.Name() + "\nbar\tIN\tA\t127.0.0.2"
 
 	var got int
-	z := NewZoneParser(strings.NewReader(zone), "", "")
+	z := NewZoneParser(strings.NewReader(zone), Name{}, "")
 	z.SetIncludeAllowed(true)
 	for rr, ok := z.Next(); ok; _, ok = z.Next() {
 		switch rr.Header().Name {
@@ -87,7 +87,7 @@ func TestZoneParserInclude(t *testing.T) {
 
 	os.Remove(tmpfile.Name())
 
-	z = NewZoneParser(strings.NewReader(zone), "", "")
+	z = NewZoneParser(strings.NewReader(zone), Name{}, "")
 	z.SetIncludeAllowed(true)
 	z.Next()
 	if err := z.Err(); err == nil ||
@@ -108,7 +108,7 @@ func TestZoneParserIncludeFS(t *testing.T) {
 	zone := "$ORIGIN example.org.\n$INCLUDE db.foo\nbar\tIN\tA\t127.0.0.2"
 
 	var got int
-	z := NewZoneParser(strings.NewReader(zone), "", "")
+	z := NewZoneParser(strings.NewReader(zone), Name{}, "")
 	z.SetIncludeAllowed(true)
 	z.SetIncludeFS(fsys)
 	for rr, ok := z.Next(); ok; _, ok = z.Next() {
@@ -129,7 +129,7 @@ func TestZoneParserIncludeFS(t *testing.T) {
 
 	fsys = fstest.MapFS{}
 
-	z = NewZoneParser(strings.NewReader(zone), "", "")
+	z = NewZoneParser(strings.NewReader(zone), Name{}, "")
 	z.SetIncludeAllowed(true)
 	z.SetIncludeFS(fsys)
 	z.Next()
@@ -151,7 +151,7 @@ func TestZoneParserIncludeFSPaths(t *testing.T) {
 	} {
 		zone := "$ORIGIN example.org.\n$INCLUDE " + p + "\nbar\tIN\tA\t127.0.0.2"
 		var got int
-		z := NewZoneParser(strings.NewReader(zone), "", "baz/quux/db.bar")
+		z := NewZoneParser(strings.NewReader(zone), Name{}, "baz/quux/db.bar")
 		z.SetIncludeAllowed(true)
 		z.SetIncludeFS(fsys)
 		for rr, ok := z.Next(); ok; _, ok = z.Next() {
@@ -185,7 +185,7 @@ func TestZoneParserIncludeDisallowed(t *testing.T) {
 		t.Fatalf("could not close tmpfile %q: %s", tmpfile.Name(), err)
 	}
 
-	zp := NewZoneParser(strings.NewReader("$INCLUDE "+tmpfile.Name()), "example.org.", "")
+	zp := NewZoneParser(strings.NewReader("$INCLUDE "+tmpfile.Name()), mustParseName("example.org."), "")
 
 	for _, ok := zp.Next(); ok; _, ok = zp.Next() {
 	}
@@ -288,7 +288,7 @@ func TestUnexpectedNewline(t *testing.T) {
 example.com. 60 PX
 1000 TXT 1K
 `
-	zp := NewZoneParser(strings.NewReader(zone), "example.com.", "")
+	zp := NewZoneParser(strings.NewReader(zone), mustParseName("example.com."), "")
 	for _, ok := zp.Next(); ok; _, ok = zp.Next() {
 	}
 
@@ -302,7 +302,7 @@ example.com. 60 PX
 example.com. 60 PX (
 1000 TXT 1K )
 `
-	zp = NewZoneParser(strings.NewReader(zone), "example.com.", "")
+	zp = NewZoneParser(strings.NewReader(zone), mustParseName("example.com."), "")
 
 	var count int
 	for _, ok := zp.Next(); ok; _, ok = zp.Next() {
@@ -433,7 +433,7 @@ foo. IN TXT "THIS IS TEXT MAN"; this is comment 8
 
 func BenchmarkZoneParser(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		zp := NewZoneParser(strings.NewReader(benchZone), "example.org.", "")
+		zp := NewZoneParser(strings.NewReader(benchZone), mustParseName("example.org."), "")
 
 		for _, ok := zp.Next(); ok; _, ok = zp.Next() {
 		}

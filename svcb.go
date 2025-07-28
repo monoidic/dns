@@ -76,7 +76,7 @@ func svcbStringToKey(s string) SVCBKey {
 	return SVCBKey(a)
 }
 
-func (rr *SVCB) parse(c *zlexer, o string) *ParseError {
+func (rr *SVCB) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 16)
 	if e != nil || l.err {
@@ -224,7 +224,7 @@ func (rr *HTTPS) String() string {
 	return rr.SVCB.String()
 }
 
-func (rr *HTTPS) parse(c *zlexer, o string) *ParseError {
+func (rr *HTTPS) parse(c *zlexer, o Name) *ParseError {
 	return rr.SVCB.parse(c, o)
 }
 

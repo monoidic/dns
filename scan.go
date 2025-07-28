@@ -124,7 +124,7 @@ func NewRR(s string) (RR, error) {
 //
 // See NewRR for more documentation.
 func ReadRR(r io.Reader, file string) (RR, error) {
-	zp := NewZoneParser(r, ".", file)
+	zp := NewZoneParser(r, mustParseName("."), file)
 	zp.SetDefaultTTL(defaultTtl)
 	zp.SetIncludeAllowed(true)
 	rr, _ := zp.Next()
@@ -169,7 +169,7 @@ type ZoneParser struct {
 
 	parseErr *ParseError
 
-	origin string
+	origin Name
 	file   string
 
 	defttl *ttlState
@@ -195,14 +195,8 @@ type ZoneParser struct {
 // The string file is used in error reporting and to resolve relative
 // $INCLUDE directives. The string origin is used as the initial
 // origin, as if the file would start with an $ORIGIN directive.
-func NewZoneParser(r io.Reader, origin, file string) *ZoneParser {
+func NewZoneParser(r io.Reader, origin Name, file string) *ZoneParser {
 	var pe *ParseError
-	if origin != "" {
-		origin = Fqdn(origin)
-		if _, ok := IsDomainName(origin); !ok {
-			pe = &ParseError{file: file, err: "bad initial origin name"}
-		}
-	}
 
 	return &ZoneParser{
 		c: newZLexer(r),
@@ -417,7 +411,7 @@ func (zp *ZoneParser) Next() (RR, bool) {
 						return zp.setParseError("bad origin name", l)
 					}
 
-					neworigin = name.String()
+					neworigin = name
 				}
 			case zNewline, zEOF:
 				// Ok
@@ -516,7 +510,7 @@ func (zp *ZoneParser) Next() (RR, bool) {
 				return zp.setParseError("bad origin name", l)
 			}
 
-			zp.origin = name.String()
+			zp.origin = name
 
 			st = zExpectOwnerDir
 		case zExpectDirGenerateBl:
@@ -1308,15 +1302,14 @@ func stringToCm(token string) (e, m uint8, ok bool) {
 	return e, uint8(val), true
 }
 
-func toAbsoluteName(name, origin string) (absolute Name, ok bool) {
+func toAbsoluteName(name string, origin Name) (absolute Name, ok bool) {
 	// check for an explicit origin reference
 	if name == "@" {
 		// require a nonempty origin
-		if origin == "" {
+		if origin.EncodedLen() == 0 {
 			return absolute, false
 		}
-		absolute, err := NameFromString(origin)
-		return absolute, err == nil
+		return origin, true
 	}
 
 	// this can happen when we have a comment after a RR that has a domain, '...   MX 20 ; this is wrong'.
@@ -1339,19 +1332,19 @@ func toAbsoluteName(name, origin string) (absolute Name, ok bool) {
 	}
 
 	// require a nonempty origin
-	if origin == "" {
+	if origin.EncodedLen() == 0 {
 		return absolute, false
 	}
-	name = appendOrigin(name, origin)
-	absolute, err := NameFromString(name)
+	absolute, err := appendOrigin(name, origin)
 	return absolute, err == nil
 }
 
-func appendOrigin(name, origin string) string {
-	if origin == "." {
-		return name + origin
+func appendOrigin(name string, origin Name) (Name, error) {
+	originS := origin.String()
+	if originS == "." {
+		return NameFromString(name + ".")
 	}
-	return name + "." + origin
+	return NameFromString(name + "." + originS)
 }
 
 // LOC record helper function

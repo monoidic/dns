@@ -1,7 +1,6 @@
 package dns
 
 import (
-	"net"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -257,33 +256,32 @@ func CanonicalName(s string) string {
 // ReverseAddr returns the in-addr.arpa. or ip6.arpa. hostname of the IP
 // address suitable for reverse DNS (PTR) record lookups or an error if it fails
 // to parse the IP address.
-func ReverseAddr(addr string) (arpa string, err error) {
+func ReverseAddr(addr string) (arpa Name, err error) {
 	ip, err := netip.ParseAddr(addr)
 	if err != nil {
-		return "", &Error{err: "unrecognized address: " + addr}
+		return arpa, &Error{err: "unrecognized address: " + addr}
 	}
 	ipSl := ip.AsSlice()
 	if ip.Is4() {
-		buf := make([]byte, 0, net.IPv4len*4+len("in-addr.arpa."))
-		// Add it, in reverse, to the buffer
-		for i := net.IPv4len - 1; i >= 0; i-- {
-			buf = strconv.AppendInt(buf, int64(ipSl[i]), 10)
-			buf = append(buf, '.')
+		labels := make([]string, 4+2)
+		for i, v := range ipSl {
+			labels[3-i] = strconv.FormatInt(int64(v), 10)
 		}
-		// Append "in-addr.arpa." and return (buf already has the final .)
-		buf = append(buf, "in-addr.arpa."...)
-		return string(buf), nil
+		labels[4] = "in-addr"
+		labels[5] = "arpa"
+		return NameFromLabels(labels)
 	}
 	// Must be IPv6
-	buf := make([]byte, 0, net.IPv6len*4+len("ip6.arpa."))
-	// Add it, in reverse, to the buffer
-	for i := net.IPv6len - 1; i >= 0; i-- {
-		v := ipSl[i]
-		buf = append(buf, hexDigit[v&0xF], '.', hexDigit[v>>4], '.')
+	labels := make([]string, 32+2)
+	for i, v := range ipSl {
+		hi := v >> 4
+		lo := v & 0xf
+		labels[32-i*2-0] = hexDigit[hi : hi+1]
+		labels[32-i*2-1] = hexDigit[lo : lo+1]
 	}
-	// Append "ip6.arpa." and return (buf already has the final .)
-	buf = append(buf, "ip6.arpa."...)
-	return string(buf), nil
+	labels[32] = "ip6"
+	labels[33] = "arpa"
+	return NameFromLabels(labels)
 }
 
 // String returns the string representation for the type t.

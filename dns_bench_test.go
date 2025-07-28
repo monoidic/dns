@@ -350,7 +350,7 @@ func BenchmarkReverseAddr(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
-			if expect := "1.2.0.192.in-addr.arpa."; addr != expect {
+			if expect := "1.2.0.192.in-addr.arpa."; addr.String() != expect {
 				b.Fatalf("invalid reverse address, expected %q, got %q", expect, addr)
 			}
 		}
@@ -362,7 +362,7 @@ func BenchmarkReverseAddr(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
-			if expect := "8.6.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa."; addr != expect {
+			if expect := "8.6.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa."; addr.String() != expect {
 				b.Fatalf("invalid reverse address, expected %q, got %q", expect, addr)
 			}
 		}

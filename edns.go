@@ -151,7 +151,7 @@ func (rr *OPT) len(off int, compression map[Name]struct{}) int {
 	return l
 }
 
-func (*OPT) parse(c *zlexer, origin string) *ParseError {
+func (*OPT) parse(c *zlexer, origin Name) *ParseError {
 	return &ParseError{err: "OPT records do not have a presentation format"}
 }
 

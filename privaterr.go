@@ -67,7 +67,7 @@ func (r *PrivateRR) unpack(msg []byte, off int) (int, error) {
 	return off, err
 }
 
-func (r *PrivateRR) parse(c *zlexer, origin string) *ParseError {
+func (r *PrivateRR) parse(c *zlexer, origin Name) *ParseError {
 	var l lex
 	text := make([]string, 0, 2) // could be 0..N elements, median is probably 1
 Fetch:

@@ -140,7 +140,7 @@ func endingToTxtStrings(c *zlexer, errstr string) (TxtStrings, *ParseError) {
 	return ret, nil
 }
 
-func (rr *A) parse(c *zlexer, o string) *ParseError {
+func (rr *A) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	var err error
 	rr.A, err = netip.ParseAddr(l.token)
@@ -150,7 +150,7 @@ func (rr *A) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *AAAA) parse(c *zlexer, o string) *ParseError {
+func (rr *AAAA) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	var err error
 	rr.AAAA, err = netip.ParseAddr(l.token)
@@ -160,7 +160,7 @@ func (rr *AAAA) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *NS) parse(c *zlexer, o string) *ParseError {
+func (rr *NS) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	name, nameOk := toAbsoluteName(l.token, o)
 	if l.err || !nameOk {
@@ -170,7 +170,7 @@ func (rr *NS) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *PTR) parse(c *zlexer, o string) *ParseError {
+func (rr *PTR) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	name, nameOk := toAbsoluteName(l.token, o)
 	if l.err || !nameOk {
@@ -180,7 +180,7 @@ func (rr *PTR) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *NSAPPTR) parse(c *zlexer, o string) *ParseError {
+func (rr *NSAPPTR) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	name, nameOk := toAbsoluteName(l.token, o)
 	if l.err || !nameOk {
@@ -190,7 +190,7 @@ func (rr *NSAPPTR) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *RP) parse(c *zlexer, o string) *ParseError {
+func (rr *RP) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	mbox, mboxOk := toAbsoluteName(l.token, o)
 	if l.err || !mboxOk {
@@ -210,7 +210,7 @@ func (rr *RP) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *MR) parse(c *zlexer, o string) *ParseError {
+func (rr *MR) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	name, nameOk := toAbsoluteName(l.token, o)
 	if l.err || !nameOk {
@@ -220,7 +220,7 @@ func (rr *MR) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *MB) parse(c *zlexer, o string) *ParseError {
+func (rr *MB) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	name, nameOk := toAbsoluteName(l.token, o)
 	if l.err || !nameOk {
@@ -230,7 +230,7 @@ func (rr *MB) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *MG) parse(c *zlexer, o string) *ParseError {
+func (rr *MG) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	name, nameOk := toAbsoluteName(l.token, o)
 	if l.err || !nameOk {
@@ -240,7 +240,7 @@ func (rr *MG) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *HINFO) parse(c *zlexer, o string) *ParseError {
+func (rr *HINFO) parse(c *zlexer, o Name) *ParseError {
 	txts, e := endingToTxtStrings(c, "bad HINFO Fields")
 	if e != nil {
 		return e
@@ -277,7 +277,7 @@ func (rr *HINFO) parse(c *zlexer, o string) *ParseError {
 }
 
 // according to RFC 1183 the parsing is identical to HINFO, so just use that code.
-func (rr *ISDN) parse(c *zlexer, o string) *ParseError {
+func (rr *ISDN) parse(c *zlexer, o Name) *ParseError {
 	txt, e := endingToTxtStrings(c, "bad ISDN Fields")
 	if e != nil {
 		return e
@@ -315,7 +315,7 @@ func (rr *ISDN) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *MINFO) parse(c *zlexer, o string) *ParseError {
+func (rr *MINFO) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	rmail, rmailOk := toAbsoluteName(l.token, o)
 	if l.err || !rmailOk {
@@ -335,7 +335,7 @@ func (rr *MINFO) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *MF) parse(c *zlexer, o string) *ParseError {
+func (rr *MF) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	name, nameOk := toAbsoluteName(l.token, o)
 	if l.err || !nameOk {
@@ -345,7 +345,7 @@ func (rr *MF) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *MD) parse(c *zlexer, o string) *ParseError {
+func (rr *MD) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	name, nameOk := toAbsoluteName(l.token, o)
 	if l.err || !nameOk {
@@ -355,7 +355,7 @@ func (rr *MD) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *MX) parse(c *zlexer, o string) *ParseError {
+func (rr *MX) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 16)
 	if e != nil || l.err {
@@ -375,7 +375,7 @@ func (rr *MX) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *RT) parse(c *zlexer, o string) *ParseError {
+func (rr *RT) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 16)
 	if e != nil {
@@ -395,7 +395,7 @@ func (rr *RT) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *AFSDB) parse(c *zlexer, o string) *ParseError {
+func (rr *AFSDB) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 16)
 	if e != nil || l.err {
@@ -414,7 +414,7 @@ func (rr *AFSDB) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *X25) parse(c *zlexer, o string) *ParseError {
+func (rr *X25) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	var err error
 	rr.PSDNAddress, err = TxtFromString(l.token)
@@ -424,7 +424,7 @@ func (rr *X25) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *KX) parse(c *zlexer, o string) *ParseError {
+func (rr *KX) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 16)
 	if e != nil || l.err {
@@ -443,7 +443,7 @@ func (rr *KX) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *CNAME) parse(c *zlexer, o string) *ParseError {
+func (rr *CNAME) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	name, nameOk := toAbsoluteName(l.token, o)
 	if l.err || !nameOk {
@@ -453,7 +453,7 @@ func (rr *CNAME) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *DNAME) parse(c *zlexer, o string) *ParseError {
+func (rr *DNAME) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	name, nameOk := toAbsoluteName(l.token, o)
 	if l.err || !nameOk {
@@ -463,7 +463,7 @@ func (rr *DNAME) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *SOA) parse(c *zlexer, o string) *ParseError {
+func (rr *SOA) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	ns, nsOk := toAbsoluteName(l.token, o)
 	if l.err || !nsOk {
@@ -523,7 +523,7 @@ func (rr *SOA) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *SRV) parse(c *zlexer, o string) *ParseError {
+func (rr *SRV) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 16)
 	if e != nil || l.err {
@@ -558,7 +558,7 @@ func (rr *SRV) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *NAPTR) parse(c *zlexer, o string) *ParseError {
+func (rr *NAPTR) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 16)
 	if e != nil || l.err {
@@ -647,7 +647,7 @@ func (rr *NAPTR) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *TALINK) parse(c *zlexer, o string) *ParseError {
+func (rr *TALINK) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	previousName, previousNameOk := toAbsoluteName(l.token, o)
 	if l.err || !previousNameOk {
@@ -667,7 +667,7 @@ func (rr *TALINK) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *LOC) parse(c *zlexer, o string) *ParseError {
+func (rr *LOC) parse(c *zlexer, o Name) *ParseError {
 	// Non zero defaults for LOC record, see RFC 1876, Section 3.
 	rr.Size = 0x12     // 1e2 cm (1m)
 	rr.HorizPre = 0x16 // 1e6 cm (10000m)
@@ -798,7 +798,7 @@ Altitude:
 	return nil
 }
 
-func (rr *HIP) parse(c *zlexer, o string) *ParseError {
+func (rr *HIP) parse(c *zlexer, o Name) *ParseError {
 	// HitLength is not represented
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 8)
@@ -853,7 +853,7 @@ func (rr *HIP) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *CERT) parse(c *zlexer, o string) *ParseError {
+func (rr *CERT) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	if v, ok := StringToCertType[l.token]; ok {
 		rr.Type = v
@@ -886,7 +886,7 @@ func (rr *CERT) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *OPENPGPKEY) parse(c *zlexer, o string) *ParseError {
+func (rr *OPENPGPKEY) parse(c *zlexer, o Name) *ParseError {
 	s, e := endingToBase64(c, "bad OPENPGPKEY PublicKey")
 	if e != nil {
 		return e
@@ -895,7 +895,7 @@ func (rr *OPENPGPKEY) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *CSYNC) parse(c *zlexer, o string) *ParseError {
+func (rr *CSYNC) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	j, e := strconv.ParseUint(l.token, 10, 32)
 	if e != nil {
@@ -944,7 +944,7 @@ func (rr *CSYNC) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *ZONEMD) parse(c *zlexer, o string) *ParseError {
+func (rr *ZONEMD) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 32)
 	if e != nil || l.err {
@@ -976,9 +976,9 @@ func (rr *ZONEMD) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *SIG) parse(c *zlexer, o string) *ParseError { return rr.RRSIG.parse(c, o) }
+func (rr *SIG) parse(c *zlexer, o Name) *ParseError { return rr.RRSIG.parse(c, o) }
 
-func (rr *RRSIG) parse(c *zlexer, o string) *ParseError {
+func (rr *RRSIG) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	tokenUpper := strings.ToUpper(l.token)
 	if t, ok := StringToType[tokenUpper]; !ok {
@@ -1078,9 +1078,9 @@ func (rr *RRSIG) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *NXT) parse(c *zlexer, o string) *ParseError { return rr.NSEC.parse(c, o) }
+func (rr *NXT) parse(c *zlexer, o Name) *ParseError { return rr.NSEC.parse(c, o) }
 
-func (rr *NSEC) parse(c *zlexer, o string) *ParseError {
+func (rr *NSEC) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	name, nameOk := toAbsoluteName(l.token, o)
 	if l.err || !nameOk {
@@ -1118,7 +1118,7 @@ func (rr *NSEC) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *NSEC3) parse(c *zlexer, o string) *ParseError {
+func (rr *NSEC3) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 8)
 	if e != nil || l.err {
@@ -1194,7 +1194,7 @@ func (rr *NSEC3) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *NSEC3PARAM) parse(c *zlexer, o string) *ParseError {
+func (rr *NSEC3PARAM) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 8)
 	if e != nil || l.err {
@@ -1228,7 +1228,7 @@ func (rr *NSEC3PARAM) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *EUI48) parse(c *zlexer, o string) *ParseError {
+func (rr *EUI48) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	if len(l.token) != 17 || l.err {
 		return &ParseError{err: "bad EUI48 Address", lex: l}
@@ -1254,7 +1254,7 @@ func (rr *EUI48) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *EUI64) parse(c *zlexer, o string) *ParseError {
+func (rr *EUI64) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	if len(l.token) != 23 || l.err {
 		return &ParseError{err: "bad EUI64 Address", lex: l}
@@ -1280,7 +1280,7 @@ func (rr *EUI64) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *SSHFP) parse(c *zlexer, o string) *ParseError {
+func (rr *SSHFP) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 8)
 	if e != nil || l.err {
@@ -1332,14 +1332,14 @@ func (rr *DNSKEY) parseDNSKEY(c *zlexer, typ string) *ParseError {
 	return nil
 }
 
-func (rr *DNSKEY) parse(c *zlexer, o string) *ParseError  { return rr.parseDNSKEY(c, "DNSKEY") }
-func (rr *KEY) parse(c *zlexer, o string) *ParseError     { return rr.parseDNSKEY(c, "KEY") }
-func (rr *CDNSKEY) parse(c *zlexer, o string) *ParseError { return rr.parseDNSKEY(c, "CDNSKEY") }
-func (rr *DS) parse(c *zlexer, o string) *ParseError      { return rr.parseDS(c, "DS") }
-func (rr *DLV) parse(c *zlexer, o string) *ParseError     { return rr.parseDS(c, "DLV") }
-func (rr *CDS) parse(c *zlexer, o string) *ParseError     { return rr.parseDS(c, "CDS") }
+func (rr *DNSKEY) parse(c *zlexer, o Name) *ParseError  { return rr.parseDNSKEY(c, "DNSKEY") }
+func (rr *KEY) parse(c *zlexer, o Name) *ParseError     { return rr.parseDNSKEY(c, "KEY") }
+func (rr *CDNSKEY) parse(c *zlexer, o Name) *ParseError { return rr.parseDNSKEY(c, "CDNSKEY") }
+func (rr *DS) parse(c *zlexer, o Name) *ParseError      { return rr.parseDS(c, "DS") }
+func (rr *DLV) parse(c *zlexer, o Name) *ParseError     { return rr.parseDS(c, "DLV") }
+func (rr *CDS) parse(c *zlexer, o Name) *ParseError     { return rr.parseDS(c, "CDS") }
 
-func (rr *IPSECKEY) parse(c *zlexer, o string) *ParseError {
+func (rr *IPSECKEY) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	num, err := strconv.ParseUint(l.token, 10, 8)
 	if err != nil || l.err {
@@ -1384,7 +1384,7 @@ func (rr *IPSECKEY) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *AMTRELAY) parse(c *zlexer, o string) *ParseError {
+func (rr *AMTRELAY) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	num, err := strconv.ParseUint(l.token, 10, 8)
 	if err != nil || l.err {
@@ -1425,7 +1425,7 @@ func (rr *AMTRELAY) parse(c *zlexer, o string) *ParseError {
 }
 
 // same constants and parsing between IPSECKEY and AMTRELAY
-func parseAddrHostUnion(token, o string, gatewayType uint8) (addr netip.Addr, host Name, err error) {
+func parseAddrHostUnion(token string, o Name, gatewayType uint8) (addr netip.Addr, host Name, err error) {
 	switch gatewayType {
 	case IPSECGatewayNone:
 		if token != "." {
@@ -1450,7 +1450,7 @@ func parseAddrHostUnion(token, o string, gatewayType uint8) (addr netip.Addr, ho
 	return addr, host, nil
 }
 
-func (rr *RKEY) parse(c *zlexer, o string) *ParseError {
+func (rr *RKEY) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 16)
 	if e != nil || l.err {
@@ -1479,7 +1479,7 @@ func (rr *RKEY) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *EID) parse(c *zlexer, o string) *ParseError {
+func (rr *EID) parse(c *zlexer, o Name) *ParseError {
 	s, e := endingToHex(c, "bad EID Endpoint")
 	if e != nil {
 		return e
@@ -1488,7 +1488,7 @@ func (rr *EID) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *NIMLOC) parse(c *zlexer, o string) *ParseError {
+func (rr *NIMLOC) parse(c *zlexer, o Name) *ParseError {
 	s, e := endingToHex(c, "bad NIMLOC Locator")
 	if e != nil {
 		return e
@@ -1497,7 +1497,7 @@ func (rr *NIMLOC) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *GPOS) parse(c *zlexer, o string) *ParseError {
+func (rr *GPOS) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	_, e := strconv.ParseFloat(l.token, 64)
 	if e != nil || l.err {
@@ -1564,7 +1564,7 @@ func (rr *DS) parseDS(c *zlexer, typ string) *ParseError {
 	return nil
 }
 
-func (rr *TA) parse(c *zlexer, o string) *ParseError {
+func (rr *TA) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 16)
 	if e != nil || l.err {
@@ -1598,7 +1598,7 @@ func (rr *TA) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *TLSA) parse(c *zlexer, o string) *ParseError {
+func (rr *TLSA) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 8)
 	if e != nil || l.err {
@@ -1628,7 +1628,7 @@ func (rr *TLSA) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *SMIMEA) parse(c *zlexer, o string) *ParseError {
+func (rr *SMIMEA) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 8)
 	if e != nil || l.err {
@@ -1658,7 +1658,7 @@ func (rr *SMIMEA) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *RFC3597) parse(c *zlexer, o string) *ParseError {
+func (rr *RFC3597) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	if l.token != "\\#" {
 		return &ParseError{err: "bad RFC3597 Rdata", lex: l}
@@ -1682,7 +1682,7 @@ func (rr *RFC3597) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *SPF) parse(c *zlexer, o string) *ParseError {
+func (rr *SPF) parse(c *zlexer, o Name) *ParseError {
 	s, e := endingToTxtStrings(c, "bad SPF Txt")
 	if e != nil {
 		return e
@@ -1691,7 +1691,7 @@ func (rr *SPF) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *AVC) parse(c *zlexer, o string) *ParseError {
+func (rr *AVC) parse(c *zlexer, o Name) *ParseError {
 	s, e := endingToTxtStrings(c, "bad AVC Txt")
 	if e != nil {
 		return e
@@ -1700,7 +1700,7 @@ func (rr *AVC) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *TXT) parse(c *zlexer, o string) *ParseError {
+func (rr *TXT) parse(c *zlexer, o Name) *ParseError {
 	// no zBlank reading here, because all this rdata is TXT
 	s, e := endingToTxtStrings(c, "bad TXT Txt")
 	if e != nil {
@@ -1711,7 +1711,7 @@ func (rr *TXT) parse(c *zlexer, o string) *ParseError {
 }
 
 // identical to setTXT
-func (rr *NINFO) parse(c *zlexer, o string) *ParseError {
+func (rr *NINFO) parse(c *zlexer, o Name) *ParseError {
 	s, e := endingToTxtStrings(c, "bad NINFO ZSData")
 	if e != nil {
 		return e
@@ -1721,7 +1721,7 @@ func (rr *NINFO) parse(c *zlexer, o string) *ParseError {
 }
 
 // Uses the same format as TXT
-func (rr *RESINFO) parse(c *zlexer, o string) *ParseError {
+func (rr *RESINFO) parse(c *zlexer, o Name) *ParseError {
 	s, e := endingToTxtStrings(c, "bad RESINFO Resinfo")
 	if e != nil {
 		return e
@@ -1730,7 +1730,7 @@ func (rr *RESINFO) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *URI) parse(c *zlexer, o string) *ParseError {
+func (rr *URI) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 16)
 	if e != nil || l.err {
@@ -1758,7 +1758,7 @@ func (rr *URI) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *DHCID) parse(c *zlexer, o string) *ParseError {
+func (rr *DHCID) parse(c *zlexer, o Name) *ParseError {
 	// awesome record to parse!
 	s, e := endingToBase64(c, "bad DHCID Digest")
 	if e != nil {
@@ -1768,7 +1768,7 @@ func (rr *DHCID) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *NID) parse(c *zlexer, o string) *ParseError {
+func (rr *NID) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 16)
 	if e != nil || l.err {
@@ -1785,7 +1785,7 @@ func (rr *NID) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *L32) parse(c *zlexer, o string) *ParseError {
+func (rr *L32) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 16)
 	if e != nil || l.err {
@@ -1802,7 +1802,7 @@ func (rr *L32) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *LP) parse(c *zlexer, o string) *ParseError {
+func (rr *LP) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 16)
 	if e != nil || l.err {
@@ -1820,7 +1820,7 @@ func (rr *LP) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *L64) parse(c *zlexer, o string) *ParseError {
+func (rr *L64) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 16)
 	if e != nil || l.err {
@@ -1837,7 +1837,7 @@ func (rr *L64) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *UID) parse(c *zlexer, o string) *ParseError {
+func (rr *UID) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 32)
 	if e != nil || l.err {
@@ -1847,7 +1847,7 @@ func (rr *UID) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *GID) parse(c *zlexer, o string) *ParseError {
+func (rr *GID) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 32)
 	if e != nil || l.err {
@@ -1857,7 +1857,7 @@ func (rr *GID) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *UINFO) parse(c *zlexer, o string) *ParseError {
+func (rr *UINFO) parse(c *zlexer, o Name) *ParseError {
 	uinfo, e := endingToTxtStrings(c, "bad UINFO Uinfo")
 	if e != nil {
 		return e
@@ -1870,7 +1870,7 @@ func (rr *UINFO) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *PX) parse(c *zlexer, o string) *ParseError {
+func (rr *PX) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 16)
 	if e != nil || l.err {
@@ -1896,7 +1896,7 @@ func (rr *PX) parse(c *zlexer, o string) *ParseError {
 	return slurpRemainder(c)
 }
 
-func (rr *CAA) parse(c *zlexer, o string) *ParseError {
+func (rr *CAA) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 	i, e := strconv.ParseUint(l.token, 10, 8)
 	if e != nil || l.err {
@@ -1928,7 +1928,7 @@ func (rr *CAA) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *TKEY) parse(c *zlexer, o string) *ParseError {
+func (rr *TKEY) parse(c *zlexer, o Name) *ParseError {
 	l, _ := c.Next()
 
 	// Algorithm
@@ -1979,7 +1979,7 @@ func (rr *TKEY) parse(c *zlexer, o string) *ParseError {
 	return nil
 }
 
-func (rr *APL) parse(c *zlexer, o string) *ParseError {
+func (rr *APL) parse(c *zlexer, o Name) *ParseError {
 	var prefixes []APLPrefix
 
 	for {

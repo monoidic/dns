@@ -32,7 +32,7 @@ func (r *SMIMEA) Verify(cert *x509.Certificate) error {
 
 // SMIMEAName returns the ownername of a SMIMEA resource record as per the
 // format specified in RFC 'draft-ietf-dane-smime-12' Section 2 and 3
-func SMIMEAName(email, domain string) (string, error) {
+func SMIMEAName(email string, domain Name) (Name, error) {
 	hasher := sha256.New()
 	hasher.Write([]byte(email))
 
@@ -40,5 +40,10 @@ func SMIMEAName(email, domain string) (string, error) {
 	// algorithm with the hash truncated to 28 octets and
 	// represented in its hexadecimal representation to become the
 	// left-most label in the prepared domain name"
-	return hex.EncodeToString(hasher.Sum(nil)[:28]) + "." + "_smimecert." + domain, nil
+	split := domain.SplitRaw()
+	labels := make([]string, len(split)+2)
+	labels[0] = hex.EncodeToString(hasher.Sum(nil)[:28])
+	labels[1] = "_smimecert"
+	copy(labels[2:], split)
+	return NameFromLabels(labels)
 }

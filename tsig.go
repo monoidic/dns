@@ -117,7 +117,7 @@ func (rr *TSIG) String() string {
 	return s
 }
 
-func (*TSIG) parse(c *zlexer, origin string) *ParseError {
+func (*TSIG) parse(c *zlexer, origin Name) *ParseError {
 	return &ParseError{err: "TSIG records do not have a presentation format"}
 }
 

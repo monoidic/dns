@@ -64,7 +64,7 @@ $GENERATE 0-2 dhcp-${0,4,d} A 10.1.0.$
 	}
 
 	for i := range tests {
-		z := NewZoneParser(strings.NewReader(tests[i].zone), "test.", "test")
+		z := NewZoneParser(strings.NewReader(tests[i].zone), mustParseName("test."), "test")
 		z.SetIncludeAllowed(true)
 
 		for _, ok := z.Next(); ok; _, ok = z.Next() {
@@ -96,7 +96,7 @@ $GENERATE 0-1 $$INCLUDE ` + tmpfile.Name() + `
 		t.Fatalf("could not close tmpfile for test: %v", err)
 	}
 
-	zp := NewZoneParser(strings.NewReader(zone), ".", tmpfile.Name())
+	zp := NewZoneParser(strings.NewReader(zone), mustParseName("."), tmpfile.Name())
 	zp.SetIncludeAllowed(true)
 
 	for _, ok := zp.Next(); ok; _, ok = zp.Next() {
@@ -112,7 +112,7 @@ func TestGenerateIncludeDisallowed(t *testing.T) {
 	const zone = `@ IN SOA ns.test. hostmaster.test. ( 1 8h 2h 7d 1d )
 $GENERATE 0-1 $$INCLUDE test.conf
 `
-	zp := NewZoneParser(strings.NewReader(zone), ".", "")
+	zp := NewZoneParser(strings.NewReader(zone), mustParseName("."), "")
 
 	for _, ok := zp.Next(); ok; _, ok = zp.Next() {
 	}
@@ -127,7 +127,7 @@ func TestGenerateSurfacesErrors(t *testing.T) {
 	const zone = `@ IN SOA ns.test. hostmaster.test. ( 1 8h 2h 7d 1d )
 $GENERATE 0-1 dhcp-${0,4,dd} A 10.0.0.$
 `
-	zp := NewZoneParser(strings.NewReader(zone), ".", "test")
+	zp := NewZoneParser(strings.NewReader(zone), mustParseName("."), "test")
 
 	for _, ok := zp.Next(); ok; _, ok = zp.Next() {
 	}
@@ -142,7 +142,7 @@ func TestGenerateSurfacesLexerErrors(t *testing.T) {
 	const zone = `@ IN SOA ns.test. hostmaster.test. ( 1 8h 2h 7d 1d )
 $GENERATE 0-1 dhcp-${0,4,d} A 10.0.0.$ )
 `
-	zp := NewZoneParser(strings.NewReader(zone), ".", "test")
+	zp := NewZoneParser(strings.NewReader(zone), mustParseName("."), "test")
 
 	for _, ok := zp.Next(); ok; _, ok = zp.Next() {
 	}
@@ -194,7 +194,7 @@ $GENERATE 32-158 dhcp-${-32,4,d} A 10.0.0.$
 `
 
 	for n := 0; n < b.N; n++ {
-		zp := NewZoneParser(strings.NewReader(zone), ".", "")
+		zp := NewZoneParser(strings.NewReader(zone), mustParseName("."), "")
 
 		for _, ok := zp.Next(); ok; _, ok = zp.Next() {
 		}

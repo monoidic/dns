@@ -32,13 +32,15 @@ func (r *TLSA) Verify(cert *x509.Certificate) error {
 
 // TLSAName returns the ownername of a TLSA resource record as per the
 // rules specified in RFC 6698, Section 3.
-func TLSAName(name, service, network string) (string, error) {
-	if !IsFqdn(name) {
-		return "", ErrFqdn
-	}
+func TLSAName(name Name, service, network string) (Name, error) {
 	p, err := net.LookupPort(network, service)
 	if err != nil {
-		return "", err
+		return Name{}, err
 	}
-	return "_" + strconv.Itoa(p) + "._" + network + "." + name, nil
+	split := name.SplitRaw()
+	labels := make([]string, len(split)+2)
+	labels[0] = "_" + strconv.Itoa(p)
+	labels[1] = "_" + network
+	copy(labels[2:], split)
+	return NameFromLabels(labels)
 }

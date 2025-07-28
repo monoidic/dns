@@ -552,7 +552,7 @@ $TTL 314
 example.com.   DNAME 10 ; TTL=314 after second $TTL
 `
 	reCaseFromComment := regexp.MustCompile(`TTL=(\d+)\s+(.*)`)
-	z := NewZoneParser(strings.NewReader(zone), "", "")
+	z := NewZoneParser(strings.NewReader(zone), Name{}, "")
 	var i int
 
 	for rr, ok := z.Next(); ok; rr, ok = z.Next() {
@@ -609,7 +609,7 @@ func TestRelativeNameErrors(t *testing.T) {
 		},
 	}
 	for _, errorCase := range badZones {
-		z := NewZoneParser(strings.NewReader(errorCase.zoneContents), "", "")
+		z := NewZoneParser(strings.NewReader(errorCase.zoneContents), Name{}, "")
 		z.Next()
 		if err := z.Err(); err == nil {
 			t.Errorf("%s: expected error, got nil", errorCase.label)
@@ -720,7 +720,7 @@ func TestRfc1982(t *testing.T) {
 }
 
 func TestEmpty(t *testing.T) {
-	z := NewZoneParser(strings.NewReader(""), "", "")
+	z := NewZoneParser(strings.NewReader(""), Name{}, "")
 	for _, ok := z.Next(); ok; _, ok = z.Next() {
 		t.Errorf("should be empty")
 	}
@@ -897,7 +897,7 @@ foo. IN DNSKEY 256 3 5 AwEAAb+8 ; this is comment 6
 foo. IN NSEC miek.nl. TXT RRSIG NSEC; this is comment 7
 foo. IN TXT "THIS IS TEXT MAN"; this is comment 8
 `
-	z := NewZoneParser(strings.NewReader(zone), ".", "")
+	z := NewZoneParser(strings.NewReader(zone), mustParseName("."), "")
 	for _, ok := z.Next(); ok; _, ok = z.Next() {
 		if z.Comment() != "" {
 			if _, okC := comments[z.Comment()]; !okC {
@@ -985,7 +985,7 @@ func TestZoneParserComments(t *testing.T) {
 		r := strings.NewReader(test.zone)
 
 		var j int
-		z := NewZoneParser(r, "", "")
+		z := NewZoneParser(r, Name{}, "")
 		for rr, ok := z.Next(); ok; rr, ok = z.Next() {
 			if j >= len(test.comments) {
 				t.Fatalf("too many records for zone %d at %d record, expected %d", i, j+1, len(test.comments))

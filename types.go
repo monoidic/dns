@@ -1735,6 +1735,16 @@ func (t TxtStrings) String() string {
 	return b.String()
 }
 
+func (t TxtStrings) BareString() string {
+	var b strings.Builder
+
+	for e := range t.SplitIt {
+		b.WriteString(e.BareString())
+	}
+
+	return b.String()
+}
+
 type ByteField struct {
 	raw string
 }

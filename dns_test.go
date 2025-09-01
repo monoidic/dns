@@ -10,9 +10,15 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func randBytesToMsg(msg []byte) (buf []byte, rr RR, ok bool) {
+	timer := time.AfterFunc(3*time.Second, func() {
+		panic("deadlocked!")
+	})
+	defer timer.Stop()
+
 	if l := len(msg) - 2; !(0 < l && l < 65535) {
 		return nil, nil, false
 	}
@@ -37,6 +43,11 @@ func randBytesToMsg(msg []byte) (buf []byte, rr RR, ok bool) {
 
 func FuzzPackUnpack(f *testing.F) {
 	f.Fuzz(func(t *testing.T, msg []byte) {
+		timer := time.AfterFunc(3*time.Second, func() {
+			panic("deadlocked!")
+		})
+		defer timer.Stop()
+
 		msg, rr, ok := randBytesToMsg(msg)
 		if !ok {
 			return
@@ -96,6 +107,11 @@ func isEmptyString(s string) bool {
 // contains a laundry list of bad RR values...
 func FuzzToFromString(f *testing.F) {
 	f.Fuzz(func(t *testing.T, msg []byte) {
+		timer := time.AfterFunc(3*time.Second, func() {
+			panic("deadlocked!")
+		})
+		defer timer.Stop()
+
 		msg, rr, ok := randBytesToMsg(msg)
 		if !ok {
 			return
@@ -288,7 +304,14 @@ func FuzzFromString(f *testing.F) {
 		if !ok {
 			return
 		}
+
 		msg := fmt.Sprintf(".\t0\tIN\t%s\t%s", typS, rrdata)
+
+		timer := time.AfterFunc(3*time.Second, func() {
+			panic("deadlocked!")
+		})
+		defer timer.Stop()
+
 		NewRR(msg)
 	})
 }
